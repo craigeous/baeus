@@ -1,0 +1,45 @@
+# Evaluation: slice-a-ci-hardening.md
+
+Verdict: FAIL
+Round: 1
+Reviewed against: `.docs/spec/06-remediation-highs.md` (Approved; Slice A = 0006-H1..H4), `.docs/spec/03-toolchain-and-gate.md`, `.docs/research/0006-quality-infra-review.md`, current `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `deny.toml`, workspace `Cargo.toml` / `crates/baeus-app/Cargo.toml`.
+
+## What was verified mechanically (not by eye)
+
+- `cargo metadata --no-deps --format-version 1 | jq -r '.packages | map(select(.name == "baeus-app")) | .[0].version'` → `0.1.0`; `crates/baeus-app/Cargo.toml` uses `version.workspace = true`, workspace `Cargo.toml` has `version = "0.1.0"`. The plan's H4 mechanism satisfies spec 06's "workspace version drives the tag" acceptance. OK.
+- `cargo fmt --all -- --check` on the current tree → **fails** (exit 1, diffs in `crates/baeus-app/src/app.rs` and elsewhere). The plan's step-2 pre-landing contingency (in-slice `cargo fmt --all` commit) covers this and matches spec 06 H2 acceptance verbatim. OK — contingency is real and necessary.
+- `cargo deny check` (cargo-deny 0.19.0) against the current `Cargo.lock` → **FAILS (exit 5): advisories FAILED, licenses FAILED.** Details below.
+- `grep -rn 'v0.1.0-dev' .github/` → only the three `Generate release tag` steps the plan deletes. A4(d) achievable. OK.
+- `steps.tag.outputs` references → exactly the four sites (macOS tag_name + name, linux tag_name, windows tag_name) the plan rewrites. No dangling references post-edit. OK.
+- Linux `apt-get` list matches `release.yml:112-121` verbatim; macOS/linux/windows tag-step line ranges (73–79, 190–196, 272–279) match the plan's citations. OK.
+- `taiki-e/install-action@cargo-deny` follows the same per-tool tag pattern as the existing `@nextest` usage; matrix/include, `needs:` wiring, `$GITHUB_OUTPUT` writes, and `${{ needs.compute-tag.outputs.* }}` expressions are syntactically valid GitHub Actions. OK.
+
+## Findings
+
+- [BLOCKER] **The plan's deny-gate precondition is false against the current tree, and acceptance criterion A1 is unachievable without unplanned, out-of-scope work.** — Verification step 3 asserts "Deny gate is achievable … Must exit zero against the current `Cargo.lock`" and treats failure as hypothetical ("If it surfaces a new advisory or license issue…"). Mechanically verified: it fails **today**, and not marginally:
+  - `error[vulnerability]` RUSTSEC-2026-0044 and RUSTSEC-2026-0048 — `aws-lc-sys 0.38.0` (via `rustls 0.23.37`), genuine security vulnerabilities.
+  - `error[vulnerability]` — invalid pointer dereference in `fmt::Pointer` (additional crate in the lock).
+  - `error[unmaintained]` RUSTSEC-2025-0052 (`async-std`), RUSTSEC-2026-0105 (`core2`, all versions yanked).
+  - `error[rejected]` licenses — `0BSD` (×2), `NCSA`, and `Apache-2.0 WITH LLVM-exception` are not in `deny.toml`'s allow list.
+
+  The plan contains **no step** to remediate this. Its only offered remedies are (a) "update `deny.toml` suppressions with a documented reason" — which, applied here, means suppressing *live security vulnerabilities* to make the gate green, directly defeating the purpose of 0006-H1 and the constitution's "dependencies audited on every CI run" (and contradicting the plan's own non-goal, see MAJOR below); or (b) "stop and flag it as a real dependency issue requiring a separate cycle" — which means Slice A **cannot land** as planned. Either way A1 ("a `cargo-deny` check runs on all three OSes and passes") and spec 06's invariant "CI gate stays green … and (after slice A) `cargo deny check`" cannot be satisfied by the steps in this plan. Remediation requires real dependency upgrades (rustls/aws-lc-sys chain, async-std/core2 transitive sources) and/or `deny.toml` allow-list + exception entries — none of which are in spec 06 Slice A's affected files (`.github/workflows/ci.yml` only) and all of which are planning decisions (new slice, reordering, or explicit spec-sanctioned suppressions), not developer improvisation. Per frozen-spec conformance, this must go back through the planner.
+
+- [MAJOR] **Internal contradiction on `deny.toml` edits.** — Non-goals: "This slice adds **no edits to `deny.toml`**; it is only a trigger path." Verification step 3: "either update `deny.toml` suppressions with a documented reason (**still within Slice A** because `deny.toml` is a Slice A concern for making the gate green)…". A cold executor cannot satisfy both. Given the BLOCKER above, this is not hypothetical: the license failures (`0BSD`, `NCSA`, `LLVM-exception`) can *only* be fixed by editing `deny.toml`, so the contradiction is guaranteed to fire on first execution. The plan must state one consistent scope for `deny.toml` (and that scope must be reconciled with spec 06, which lists only `ci.yml` as an H1 affected file).
+
+- [MINOR] **Gate table mislabels the CI lint command.** — The slice gate table lists lint as `cargo clippy --workspace --all-targets -- -D warnings` for "local + CI", but the prescribed CI YAML (step 4) runs `cargo clippy --workspace -- -D warnings` without `--all-targets` (unchanged from current `ci.yml`). The concrete YAML is authoritative and unambiguous, so impact is limited to a misleading summary row.
+
+- [MINOR] **A4 verification narrative is factually wrong about its own trigger.** — "After the PR lands on `main`, the `release.yml` run triggered by that merge shows…". `release.yml`'s `on.push.paths` is `crates/**`, `Cargo.toml`, `Cargo.lock`; this slice's merge touches only `.github/workflows/**`, so **no release run is triggered by that merge**. The first observable run is the next `main` push touching code (or the dry-run/fork route the plan also describes — which spec 06 H4's test expectations actually name as the validation route). The acceptance criteria themselves remain checkable; only the narrative sentence is wrong. (Correctly, the plan does *not* extend `release.yml`'s push paths — spec 06 defers that to medium 0006 §9.)
+
+- [MINOR] **Step 6's "spec 03 needs no change" conclusion is inaccurate.** — Spec 03:26-28 describes CI as "`macos-14`, PRs to main touching crates/ or Cargo manifests" running "lint and tests" — a description this slice makes stale (3-OS matrix, fmt + deny added). The plan's own step-6 escape hatch (raise `Needs Clarification` rather than editing a spec from a slice-plan) is the right mechanism, but the pre-emptive "No change needed" conclusion contradicts the step's stated purpose. Spec 03 is a Draft descriptive back-fill, so severity is low.
+
+## Required changes (for FAIL)
+
+1. Resolve the deny-gate impasse through planning, not improvisation. Either (a) add a slice-ordering/scope decision that remediates the current `cargo deny check` failures first (dependency upgrades for the `rustls`/`aws-lc-sys` advisories and the unmaintained/yanked crates, plus `deny.toml` license entries for `0BSD`, `NCSA`, and the `LLVM-exception` exception), with explicit spec 06 conformance analysis; or (b) obtain an explicit spec-level sanction for a narrowed initial deny scope or a enumerated set of suppressions. The plan must not instruct the developer to suppress live vulnerabilities to make the gate green.
+2. Make the `deny.toml` scope statement internally consistent: one authoritative sentence covering whether/when the slice may edit `deny.toml`, reconciled with spec 06's H1 affected-files list.
+3. Fix the gate table's lint row so the CI command shown matches the prescribed YAML (or annotate that `--all-targets` is local-only).
+4. Correct A4's narrative: the slice's own merge does not trigger `release.yml`; verification occurs on the first subsequent code-touching push to `main` or via the spec-endorsed throwaway-branch dry run.
+5. Revisit step 6: either note that spec 03:26-28's CI prose becomes stale and flag it for the next spec revision, or invoke the step's own `Needs Clarification` escape hatch.
+
+## Notes
+
+What the plan gets right (so the revision keeps it): scope selection exactly matches spec 06 Slice A — the paths-filter extension is precisely the two entries spec 06 authorizes and no more, correctly navigating the round-1 spec concern; non-goals otherwise faithfully mirror spec 06's Out-of-scope section including the §9 partial-remediation framing; the `compute-tag` design (single job, four outputs, `baeus-app`-selected version, per-OS cache keys with `runner.os`) is mechanically sound and its deviation from spec 06's illustrative `.packages[0].version` is within the latitude the spec grants ("or `cargo pkgid`") and is verified correct against this workspace; the fmt-failure contingency matches spec 06 H2 acceptance verbatim; the TDD-for-CI approach (PR-as-acceptance-test + dry-run branch) is the only feasible verification shape and matches spec 06's test expectations. The BLOCKER is not the design — it is that the plan's load-bearing precondition ("deny gate is achievable against the current lock") is false today, and the plan's contingency for that case is either harmful (suppress live vulnerabilities) or abortive (stop and escalate), with no planned path to green.
