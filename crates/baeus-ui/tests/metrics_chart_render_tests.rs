@@ -151,8 +151,7 @@ fn test_legend_color_wraps_around() {
 
 #[test]
 fn test_legend_not_shown_when_disabled() {
-    let mut state = MetricsChartState::default();
-    state.show_legend = false;
+    let state = MetricsChartState { show_legend: false, ..Default::default() };
     let comp = MetricsChartComponent::new(state, Theme::dark());
     assert!(!comp.state.show_legend);
 }
@@ -230,8 +229,10 @@ fn test_empty_state_not_shown_with_data() {
 
 #[test]
 fn test_empty_state_custom_message() {
-    let mut state = MetricsChartState::default();
-    state.empty_state_message = Some("Waiting for data...".to_string());
+    let state = MetricsChartState {
+        empty_state_message: Some("Waiting for data...".to_string()),
+        ..Default::default()
+    };
     let comp = MetricsChartComponent::new(state, Theme::dark());
     assert_eq!(comp.state.empty_state_message.as_deref(), Some("Waiting for data..."),);
 }

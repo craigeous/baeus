@@ -388,14 +388,16 @@ mod tests {
 
     #[test]
     fn test_preferences_serialization_roundtrip() {
-        let mut prefs = UserPreferences::default();
-        prefs.theme = Theme::Dark;
-        prefs.default_namespace = Some("kube-system".to_string());
+        let mut prefs = UserPreferences {
+            theme: Theme::Dark,
+            default_namespace: Some("kube-system".to_string()),
+            log_line_limit: 5000,
+            font_size: 16.0,
+            sidebar_collapsed: true,
+            ..Default::default()
+        };
         prefs.favorite_clusters.push("prod-us-east".to_string());
         prefs.keybindings.insert("command_palette".to_string(), "Cmd+K".to_string());
-        prefs.log_line_limit = 5000;
-        prefs.font_size = 16.0;
-        prefs.sidebar_collapsed = true;
 
         let json = serde_json::to_string_pretty(&prefs).unwrap();
         let deserialized: UserPreferences = serde_json::from_str(&json).unwrap();
@@ -599,9 +601,13 @@ mod tests {
 
     #[test]
     fn test_kubeconfig_scan_dirs_serialization_roundtrip() {
-        let mut prefs = UserPreferences::default();
-        prefs.kubeconfig_scan_dirs =
-            vec![PathBuf::from("/home/user/.kube"), PathBuf::from("/etc/kubernetes/configs")];
+        let prefs = UserPreferences {
+            kubeconfig_scan_dirs: vec![
+                PathBuf::from("/home/user/.kube"),
+                PathBuf::from("/etc/kubernetes/configs"),
+            ],
+            ..Default::default()
+        };
 
         let json = serde_json::to_string_pretty(&prefs).unwrap();
         let deserialized: UserPreferences = serde_json::from_str(&json).unwrap();

@@ -101,9 +101,11 @@ fn loading_clears_previous_error() {
 
 #[test]
 fn set_releases_clears_loading_and_error() {
-    let mut state = HelmReleasesViewState::default();
-    state.loading = true;
-    state.error = Some("stale error".to_string());
+    let mut state = HelmReleasesViewState {
+        loading: true,
+        error: Some("stale error".to_string()),
+        ..Default::default()
+    };
 
     state.set_releases(vec![]);
     assert!(!state.loading);
@@ -251,8 +253,7 @@ fn sort_by_last_deployed_empty_releases() {
 
 #[test]
 fn begin_search_sets_searching() {
-    let mut state = HelmInstallViewState::default();
-    state.error = Some("old error".to_string());
+    let mut state = HelmInstallViewState { error: Some("old error".to_string()), ..Default::default() };
 
     state.begin_search();
 

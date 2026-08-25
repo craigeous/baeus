@@ -656,8 +656,7 @@ mod tests {
 
     #[test]
     fn test_push_event_trims_to_max() {
-        let mut state = EventsViewState::default();
-        state.max_events = 3;
+        let mut state = EventsViewState { max_events: 3, ..Default::default() };
         for i in 0..5 {
             state.push_event(sample_event(&format!("e{i}"), EventType::Normal, "x"));
         }

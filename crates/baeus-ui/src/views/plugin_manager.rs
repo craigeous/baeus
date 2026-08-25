@@ -641,9 +641,11 @@ mod tests {
 
     #[test]
     fn test_set_plugins() {
-        let mut state = PluginManagerState::default();
-        state.loading = true;
-        state.error = Some("old error".to_string());
+        let mut state = PluginManagerState {
+            loading: true,
+            error: Some("old error".to_string()),
+            ..Default::default()
+        };
 
         state.set_plugins(sample_plugins());
 
@@ -654,8 +656,7 @@ mod tests {
 
     #[test]
     fn test_set_loading() {
-        let mut state = PluginManagerState::default();
-        state.error = Some("some error".to_string());
+        let mut state = PluginManagerState { error: Some("some error".to_string()), ..Default::default() };
 
         state.set_loading(true);
         assert!(state.loading);
@@ -667,8 +668,7 @@ mod tests {
 
     #[test]
     fn test_set_error() {
-        let mut state = PluginManagerState::default();
-        state.loading = true;
+        let mut state = PluginManagerState { loading: true, ..Default::default() };
 
         state.set_error("load failed".to_string());
         assert_eq!(state.error.as_deref(), Some("load failed"));

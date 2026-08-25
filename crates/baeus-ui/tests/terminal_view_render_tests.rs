@@ -22,6 +22,7 @@ fn special_key(name: &str) -> Keystroke {
 }
 
 /// Helper: build a Keystroke with Ctrl modifier.
+#[allow(dead_code)]
 fn ctrl_key(ch: &str) -> Keystroke {
     Keystroke {
         modifiers: Modifiers { control: true, ..Default::default() },

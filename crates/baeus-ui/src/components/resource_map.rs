@@ -888,8 +888,7 @@ mod tests {
 
     #[test]
     fn test_zoom_in_clamped() {
-        let mut state = ResourceMapState::default();
-        state.zoom_level = 2.95;
+        let mut state = ResourceMapState { zoom_level: 2.95, ..Default::default() };
         state.zoom_in();
         assert!((state.zoom_level - 3.0).abs() < f64::EPSILON);
 
@@ -907,8 +906,7 @@ mod tests {
 
     #[test]
     fn test_zoom_out_clamped() {
-        let mut state = ResourceMapState::default();
-        state.zoom_level = 0.15;
+        let mut state = ResourceMapState { zoom_level: 0.15, ..Default::default() };
         state.zoom_out();
         // 0.15 - 0.1 = 0.05, clamped to 0.1
         assert!((state.zoom_level - 0.1).abs() < 0.001);
@@ -916,9 +914,8 @@ mod tests {
 
     #[test]
     fn test_reset_zoom() {
-        let mut state = ResourceMapState::default();
-        state.zoom_level = 2.5;
-        state.pan_offset = (100.0, -50.0);
+        let mut state =
+            ResourceMapState { zoom_level: 2.5, pan_offset: (100.0, -50.0), ..Default::default() };
 
         state.reset_zoom();
         assert!((state.zoom_level - 1.0).abs() < f64::EPSILON);

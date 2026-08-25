@@ -143,6 +143,7 @@ fn test_annotations_as_key_value_pairs() {
 // =========================================================================
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_metadata_fields_for_resource_detail() {
     // Simulate the metadata a details panel would show
     let name = "nginx-deployment-abc123";
@@ -159,6 +160,7 @@ fn test_metadata_fields_for_resource_detail() {
 }
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_owner_references_concept() {
     // Owner references link a resource to its controller
     let owner_kind = "ReplicaSet";

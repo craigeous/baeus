@@ -531,9 +531,11 @@ mod tests {
 
     #[test]
     fn test_set_crds() {
-        let mut state = CrdBrowserState::default();
-        state.loading = true;
-        state.error = Some("old error".to_string());
+        let mut state = CrdBrowserState {
+            loading: true,
+            error: Some("old error".to_string()),
+            ..Default::default()
+        };
 
         state.set_crds(sample_crds());
 
@@ -556,8 +558,7 @@ mod tests {
 
     #[test]
     fn test_set_loading() {
-        let mut state = CrdBrowserState::default();
-        state.error = Some("some error".to_string());
+        let mut state = CrdBrowserState { error: Some("some error".to_string()), ..Default::default() };
 
         state.set_loading(true);
         assert!(state.loading);
@@ -579,8 +580,7 @@ mod tests {
 
     #[test]
     fn test_set_error() {
-        let mut state = CrdBrowserState::default();
-        state.loading = true;
+        let mut state = CrdBrowserState { loading: true, ..Default::default() };
 
         state.set_error("connection refused".to_string());
         assert_eq!(state.error.as_deref(), Some("connection refused"));
