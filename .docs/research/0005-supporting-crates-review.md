@@ -1,6 +1,6 @@
 # Research: Supporting crates review
 
-**Status**: Research Review
+**Status**: Approved
 **Date**: 2026-08-25
 **Subsystem**: baeus-helm, baeus-terminal, baeus-editor, baeus-plugins, baeus-test-utils
 

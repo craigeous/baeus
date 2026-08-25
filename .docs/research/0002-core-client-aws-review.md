@@ -1,6 +1,6 @@
 # Research: Core client & AWS integration review
 
-**Status**: Research Review
+**Status**: Approved
 **Date**: 2026-08-25
 **Subsystem**: crates/baeus-core
 
