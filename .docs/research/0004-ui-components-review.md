@@ -1,6 +1,6 @@
 # Research: UI components & views review
 
-**Status**: Research Review
+**Status**: Approved
 **Date**: 2026-08-25
 **Subsystem**: crates/baeus-ui components + views
 
