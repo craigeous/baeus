@@ -1,6 +1,6 @@
 # 06 — Remediation of High-Severity Findings
 
-Status: Draft
+Status: Plan Review
 
 This spec is the authoritative plan for remediating the seventeen (17)
 high-severity findings surfaced by the deep review captured in research notes
@@ -84,9 +84,14 @@ input; disconnecting a cluster leaves the loops running until the outer task
 is aborted with no deterministic teardown.
 
 **Fix approach:** Extend both `watch_events` and `watch_resources` with an
-optional `tokio_util::sync::CancellationToken` parameter (add
-`tokio-util = { version = "*", features = ["rt"] }` to `baeus-core/Cargo.toml`
-if not already present; verify from `Cargo.lock`). Inside each loop, replace
+optional `tokio_util::sync::CancellationToken` parameter. `tokio-util` is not
+currently a direct dependency of `baeus-core` (verified against
+`crates/baeus-core/Cargo.toml`: only `tokio.workspace = true` is declared;
+`tokio-util` appears in `Cargo.lock` transitively but that does not make it
+importable). Add `tokio-util = { version = "*", features = ["rt"] }` to
+`crates/baeus-core/Cargo.toml` under `[dependencies]` (or promote to the
+workspace `[workspace.dependencies]` if another crate needs it in the same
+slice). Inside each loop, replace
 the bare `while let Some(...)` with a `tokio::select!` that races the stream
 next-item against `token.cancelled()`, breaking cleanly on cancellation.
 `ResourceWatchBridge::register_watcher`
@@ -365,18 +370,28 @@ out in release, silently rendering broken rows if the two files drift.
 
 **Fix approach:** Promote the guard from `debug_assert_eq!` to an
 `assert_eq!` in release builds **and** add a compile-time enumeration test
-that exercises `columns_for_kind` and each extractor for all 34 resource
-kinds, asserting the vecs are the same length. The runtime `assert_eq!` is
-the belt-and-braces defence for kinds discovered at runtime (CRDs); the test
-is the primary gate for the fixed set.
+that exercises `resource_table::columns_for_kind`
+(`crates/baeus-ui/src/components/resource_table.rs:674` — the definition
+imported by `json_extract.rs:9`, not the duplicate at
+`crates/baeus-ui/src/views/resource_list.rs:230`) and each extractor for
+all 34 resource kinds, asserting the vecs are the same length. The runtime
+`assert_eq!` is the belt-and-braces defence for kinds discovered at runtime
+(CRDs); the test is the primary gate for the fixed set.
+
+**Drift-hazard note:** The duplicate `columns_for_kind` in
+`views/resource_list.rs` is itself exactly the class of drift the
+finding guards against; it is a **medium**-severity item (dedup /
+consolidation) and remains out of scope for this spec. The new enumeration
+test intentionally binds to `resource_table::columns_for_kind` by explicit
+path so a later dedup slice does not have to touch this test.
 
 **Affected files:**
 - `crates/baeus-ui/src/components/json_extract.rs` — replace
   `debug_assert_eq!` with `assert_eq!` including a clear panic message
   (kind name, column count, cell count).
 - `crates/baeus-ui/tests/json_extract_columns_match.rs` (new) — iterate over
-  every resource kind covered by `columns_for_kind` and assert the extractor
-  cell count matches.
+  every resource kind covered by `resource_table::columns_for_kind` and
+  assert the extractor cell count matches.
 
 **Acceptance criteria:**
 - The new test fails if any kind's extractor and columns disagree.
@@ -497,12 +512,14 @@ guidance").
 
 ### 0005-H4 — LCS diff allocates O(m×n) memory without guard
 
-**Finding:** `crates/baeus-editor/src/diff.rs:100-103` — `compute_diff`
-allocates a full `vec![vec![0usize; n + 1]; m + 1]` LCS table with no
-line-count check. Two 10,000-line YAML manifests hit ~800 MB.
+**Finding:** `crates/baeus-editor/src/diff.rs:100-103` — the O(m×n)
+allocation `vec![vec![0usize; n + 1]; m + 1]` is inside
+`longest_common_subsequence` (called by `compute_diff`) with no line-count
+check. Two 10,000-line YAML manifests hit ~800 MB.
 
 **Fix approach:** Add a `MAX_LCS_LINES` constant (5,000 per candidate
-opportunity in 0005 note) and a guard at the top of `compute_diff`. When
+opportunity in 0005 note) and a guard at the top of `compute_diff` (the
+public entry) so the check runs before the LCS helper is called. When
 either side exceeds the limit, return a `DiffMode::Truncated` variant (or a
 `Result::Err(DiffError::TooLarge { .. })`, decision at slice-plan) so
 callers can render a "diff too large — showing hunks only" view rather than
@@ -510,8 +527,9 @@ allocating gigabytes. A hunk-only fallback is a bigger project — for this
 slice, the guard returning an explicit error is sufficient.
 
 **Affected files:**
-- `crates/baeus-editor/src/diff.rs` — the guard, the constant, and the new
-  error variant.
+- `crates/baeus-editor/src/diff.rs` — the guard at `compute_diff`, the
+  constant, and the new error variant. (`longest_common_subsequence` itself
+  is not modified.)
 - Callers in `crates/baeus-ui/src/` that today assume `compute_diff` never
   errs — propagate the new error and render a placeholder message.
 
@@ -580,12 +598,26 @@ pinning is a medium finding, not required by this slice — use the same
 `@vN` pattern as other Actions in the file for now to keep the change
 focused).
 
+**In-scope `paths:` filter extension.** The current `on.pull_request.paths:`
+filter at `.github/workflows/ci.yml:6-9` is `crates/**`, `Cargo.toml`,
+`Cargo.lock` only. For the new deny gate to actually fire on the changes
+that can invalidate it, the filter must additionally trigger on `deny.toml`
+and on `.github/workflows/**`. This spec pulls **exactly that minimal
+extension** into slice A as an intrinsic part of 0006-H1 — without it the
+acceptance criterion below is unachievable. Any broader trigger-path
+redesign (e.g., adding docs paths, tests-only paths, or restructuring the
+trigger graph) is the substance of medium finding 0006 §9 and remains
+deferred; 0006 §9 is therefore **partially remediated by slice A** and
+listed as such in Out of scope.
+
 **Affected files:**
-- `.github/workflows/ci.yml`.
+- `.github/workflows/ci.yml` — deny step, install action, and the two
+  `paths:` filter additions (`deny.toml`, `.github/workflows/**`).
 
 **Acceptance criteria:**
-- Every PR that touches `crates/**`, `Cargo.toml`, `Cargo.lock`, `deny.toml`,
-  or the workflow itself triggers a `cargo deny check` run.
+- The `on.pull_request.paths:` filter includes `crates/**`, `Cargo.toml`,
+  `Cargo.lock`, `deny.toml`, and `.github/workflows/**`, and every PR that
+  touches any of those paths triggers a `cargo deny check` run.
 - A new RUSTSEC advisory that hits the workspace's transitive deps causes CI
   to fail (verified by running `cargo deny check` locally against the
   current `Cargo.lock`).
@@ -663,15 +695,30 @@ throwaway branch validates the new job wiring before landing.
 
 ## Slice Breakdown
 
-Sequential, single-purpose slices with disjoint file sets. Order chosen so
-that shared-dependency slices land before their consumers.
+Slices are **sequentially ordered so file overlaps do not cause conflicts**;
+they are near-disjoint on primary files but not mechanically disjoint. The
+known overlaps (all acceptable under the stated ordering) are:
+
+- **B and C** share `crates/baeus-core/src/aws_eks.rs`,
+  `crates/baeus-core/src/client.rs`, and `crates/baeus-core/Cargo.toml`.
+  Order **B → C** is required: C's async wizard tests exercise the
+  `create_eks_client` shape and error-propagation surface that B
+  introduces.
+- **D, F, and G** all touch `crates/baeus-ui/src/layout/app_shell.rs`. D
+  injects a registry handle (0005-H1); F edits a single method,
+  `render_resource_table_body_filtered`; G is the wider decomposition.
+  Order **D → F → G** is required: G's decomposition considers the
+  registry-handle injection and the virtualized table body as part of its
+  input state.
+
+Order chosen so that shared-dependency slices land before their consumers.
 
 | # | Slice | Highs remediated | Primary crates / files | Rough size |
 |---|-------|-------------------|-------------------------|------------|
 | A | CI & release hygiene | 0006-H1, H2, H3, H4 | `.github/workflows/ci.yml`, `.github/workflows/release.yml` | S |
-| B | Core watch cancellation + EKS token refresh | 0002-H1, H2 | `crates/baeus-core/src/{client.rs, aws_eks.rs, cluster.rs, watch.rs}` | M |
-| C | AWS credential injection error + async wizard tests | 0002-H3, H4 | `crates/baeus-core/src/aws_sso.rs`, `crates/baeus-core/tests/aws_wizard_smoke.rs` (new), minimal API tweaks in `aws_eks.rs`, `aws_sso.rs` | M |
-| D | Editor / Plugin / Helm safety & wiring | 0005-H1, H2, H3, H4 | `crates/baeus-plugins/src/loader.rs`, `crates/baeus-helm/src/operations.rs`, `crates/baeus-editor/src/diff.rs`, `crates/baeus-app/src/main.rs` (or equivalent startup), `crates/baeus-ui/src/views/plugin_manager.rs` | M |
+| B | Core watch cancellation + EKS token refresh | 0002-H1, H2 | `crates/baeus-core/src/{client.rs, aws_eks.rs, cluster.rs, watch.rs}`, `crates/baeus-core/Cargo.toml` | M |
+| C | AWS credential injection error + async wizard tests | 0002-H3, H4 | `crates/baeus-core/src/{aws_sso.rs, client.rs, aws_eks.rs}` (error propagation + mock-injection tweaks), `crates/baeus-core/tests/aws_wizard_smoke.rs` (new), `crates/baeus-core/Cargo.toml` (dev-deps) | M |
+| D | Editor / Plugin / Helm safety & wiring | 0005-H1, H2, H3, H4 | `crates/baeus-plugins/src/loader.rs`, `crates/baeus-helm/src/operations.rs`, `crates/baeus-editor/src/diff.rs`, `crates/baeus-app/src/main.rs` (or equivalent startup), `crates/baeus-ui/src/views/plugin_manager.rs`, `crates/baeus-ui/src/layout/app_shell.rs` (registry-handle injection only) | M |
 | E | Terminal emulator: alacritty_terminal integration | 0005-H5 | `crates/baeus-terminal/src/emulator.rs`, `crates/baeus-terminal/Cargo.toml` | M-L |
 | F | UI virtualization & table integrity | 0003-H2, 0004-H1, 0004-H2 | `crates/baeus-ui/src/layout/app_shell.rs` (table body only), `crates/baeus-ui/src/components/log_viewer.rs`, `crates/baeus-ui/src/components/json_extract.rs`, `crates/baeus-ui/tests/json_extract_columns_match.rs` (new) | M |
 | G | `app_shell.rs` decomposition | 0003-H1 | `crates/baeus-ui/src/layout/app_shell.rs`, new `crates/baeus-ui/src/layout/{drag_state.rs, eks_connection_state.rs, cluster_appearance_store.rs, pty_state.rs, yaml_editor_state.rs}` | L |
@@ -682,14 +729,18 @@ Ordering rationale:
   early exposes latent format or dependency issues so B–G can fix them
   incrementally.
 - **B before C.** C's async tests target the API surface that B changes
-  (`create_eks_client` shape, error propagation from injections).
+  (`create_eks_client` shape, error propagation from injections). C also
+  edits the same `client.rs`, `aws_eks.rs`, and `baeus-core/Cargo.toml` B
+  touches, so sequential ordering avoids merge conflicts.
 - **D before E.** D touches five unrelated files across four crates with
   small edits; E is a larger emulator rewrite. Landing D first keeps early
   slices small and reviewable.
-- **F before G.** F touches only `render_resource_table_body_filtered`
-  inside `app_shell.rs`. G restructures the same file. Doing F first means
-  G's decomposition considers the already-virtualized table code as part of
-  its scope.
+- **D before F, F before G** (the `app_shell.rs` chain). D adds a
+  registry-handle injection at `AppShell::new`. F edits only
+  `render_resource_table_body_filtered`. G restructures the file
+  wholesale. Doing them in this order means each successor consumes the
+  prior slice's state (registry handle, then virtualized table body) as
+  input to its decomposition.
 
 Each slice will be planned separately via `/loom:plan` — this spec is the
 input to those slice-plans, not a substitute for them.
@@ -717,7 +768,12 @@ input to those slice-plans, not a substitute for them.
 ## Out of scope
 
 - Medium- and low-severity findings from all five research notes — a later
-  planning cycle.
+  planning cycle, **except** for the minimal `paths:` filter additions
+  named in 0006-H1's fix approach (`deny.toml`,
+  `.github/workflows/**`), which are intrinsic to making the new deny gate
+  fire. This means medium finding 0006 §9 ("CI `paths:` filter excludes
+  workflow/config changes") is **partially remediated by slice A**; any
+  broader trigger-path redesign remains deferred.
 - The `InformerManager`/`AbortHandle` state-machine hardening (medium
   finding 0002 §7).
 - Permission-confirmation UI for plugin install (mentioned in ADR 0005 but
