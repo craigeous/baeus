@@ -22,9 +22,9 @@
 ## Immediate next step
 
 **In progress (loom:run, 2026-08-25):** full project review research pass.
-Five `loom:researcher` agents fan out over the subsystems (core/client+AWS,
-UI layout, UI components, supporting crates, quality infra), each writing a
-`Status: Research Review` note under `.docs/research/`. Orchestrator commits
-their output, then dispatches blind plan-evaluator review per note, then
-pauses at the owner-claimed gate: findings + verdicts to the owner, who picks
-which improvements go to planning (ADRs → specs → slice-plans).
+Five research notes (0002–0006) are committed at `Status: Research Review`.
+Five blind `loom:plan-evaluator` agents (opus) now review them against their
+cited sources. Orchestrator (recorder) installs verdicts to
+`.docs/evaluations/`, transitions statuses, commits, then pauses at the
+owner-claimed gate: findings + verdicts to the owner, who picks which
+improvements go to planning (ADRs → specs → slice-plans).
