@@ -21,9 +21,9 @@
 
 ## Immediate next step
 
-**Planning (loom:run, 2026-08-25):** owner approved remediating all 17
-high-severity findings from research notes 0002–0006. Planner is authoring
-the remediation spec (`.docs/spec/06-remediation-highs.md`, Plan Review),
-judging first whether any new ADRs are needed (existing ADRs 0003/0004/0005
-and the constitution likely already decide the direction). Then: blind plan
-eval → slice-plans per work stream → developer slices on branches + PRs.
+**Slicing (loom:run, 2026-08-25):** spec 06 Approved (7 slices A–G).
+Slice-plan A (CI fixes) being authored → adversarial eval → developer slice
+on its own branch + PR. Slices run sequentially: A (CI) → B (watch
+cancellation + EKS refresh) → C (injection errors + async tests) → D
+(plugin/helm/diff) → E (alacritty) → F (virtualization + col-guard) → G
+(app_shell decomposition).
