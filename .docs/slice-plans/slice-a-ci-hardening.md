@@ -1,6 +1,6 @@
 # Slice A — CI & Release Hygiene
 
-Status: Approved
+Status: In Progress
 Target specs: `.docs/spec/06-remediation-highs.md` (findings 0006-H1, 0006-H2, 0006-H3, 0006-H4); gate defined by `.docs/spec/03-toolchain-and-gate.md`.
 
 ## Context
