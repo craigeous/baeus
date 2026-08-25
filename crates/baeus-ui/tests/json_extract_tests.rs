@@ -410,13 +410,13 @@ fn test_pod_row_values() {
     assert_eq!(row.namespace.as_deref(), Some("default"));
     assert_eq!(row.uid, "uid-pod-123");
     assert_eq!(row.cells[0], "nginx-abc123"); // Name
-    assert_eq!(row.cells[1], "default");      // Namespace
-    assert_eq!(row.cells[2], "1/2");          // Containers (1 ready / 2 total)
-    assert_eq!(row.cells[5], "4");            // Restarts (3+1)
+    assert_eq!(row.cells[1], "default"); // Namespace
+    assert_eq!(row.cells[2], "1/2"); // Containers (1 ready / 2 total)
+    assert_eq!(row.cells[5], "4"); // Restarts (3+1)
     assert_eq!(row.cells[6], "ReplicaSet/nginx-abc"); // Controlled By
-    assert_eq!(row.cells[7], "node-1");       // Node
-    assert_eq!(row.cells[8], "10.0.0.5");    // IP (podIP)
-    assert_eq!(row.cells[9], "BestEffort");   // QoS
+    assert_eq!(row.cells[7], "node-1"); // Node
+    assert_eq!(row.cells[8], "10.0.0.5"); // IP (podIP)
+    assert_eq!(row.cells[9], "BestEffort"); // QoS
     // cells[10] = Age (dynamic)
     assert_eq!(row.cells[11], "CrashLoopBackOff"); // Status (waiting reason)
 }
@@ -426,10 +426,10 @@ fn test_deployment_row_values() {
     let row = json_to_table_row("Deployment", &deployment_json());
     assert_eq!(row.cells[0], "nginx-deploy");
     assert_eq!(row.cells[1], "production");
-    assert_eq!(row.cells[2], "2/3");   // Pods (ready/desired)
-    assert_eq!(row.cells[3], "2");     // Ready
-    assert_eq!(row.cells[4], "3");     // Up-to-date
-    assert_eq!(row.cells[5], "2");     // Available
+    assert_eq!(row.cells[2], "2/3"); // Pods (ready/desired)
+    assert_eq!(row.cells[3], "2"); // Ready
+    assert_eq!(row.cells[4], "3"); // Up-to-date
+    assert_eq!(row.cells[5], "2"); // Available
     // cells[6] = Age
     assert!(row.cells[7].contains("Available=True"));
 }
@@ -440,7 +440,7 @@ fn test_service_row_values() {
     assert_eq!(row.cells[0], "web-svc");
     assert_eq!(row.cells[2], "ClusterIP");
     assert_eq!(row.cells[3], "10.96.0.1");
-    assert_eq!(row.cells[4], "<none>");           // External IP
+    assert_eq!(row.cells[4], "<none>"); // External IP
     assert_eq!(row.cells[5], "80/TCP, 443/TCP");
 }
 
@@ -462,7 +462,7 @@ fn test_statefulset_row_values() {
     let row = json_to_table_row("StatefulSet", &statefulset_json());
     assert_eq!(row.cells[0], "postgres-ss");
     assert_eq!(row.cells[2], "3/3"); // Pods
-    assert_eq!(row.cells[3], "3");   // Replicas
+    assert_eq!(row.cells[3], "3"); // Replicas
 }
 
 #[test]
@@ -488,8 +488,8 @@ fn test_job_row_values() {
     let row = json_to_table_row("Job", &job_json());
     assert_eq!(row.cells[0], "migrate-db");
     assert_eq!(row.cells[2], "1/1"); // Completions
-    assert_eq!(row.cells[3], "1");   // Parallelism
-    assert_eq!(row.cells[4], "5m");  // Duration (5 min)
+    assert_eq!(row.cells[3], "1"); // Parallelism
+    assert_eq!(row.cells[4], "5m"); // Duration (5 min)
     // cells[5] = Age
     assert_eq!(row.cells[6], "Complete"); // Status
     assert!(row.cells[7].contains("Complete=True"));
@@ -500,9 +500,9 @@ fn test_cronjob_row_values() {
     let row = json_to_table_row("CronJob", &cronjob_json());
     assert_eq!(row.cells[0], "backup-cron");
     assert_eq!(row.cells[2], "0 2 * * *"); // Schedule
-    assert_eq!(row.cells[3], "—");          // Timezone
-    assert_eq!(row.cells[4], "False");       // Suspend
-    assert_eq!(row.cells[5], "1");           // Active
+    assert_eq!(row.cells[3], "—"); // Timezone
+    assert_eq!(row.cells[4], "False"); // Suspend
+    assert_eq!(row.cells[5], "1"); // Active
 }
 
 #[test]
@@ -773,7 +773,7 @@ fn test_pod_all_running() {
     });
     let row = json_to_table_row("Pod", &j);
     assert_eq!(row.cells[2], "1/1"); // All running
-    assert_eq!(row.cells[5], "0");   // No restarts
+    assert_eq!(row.cells[5], "0"); // No restarts
     assert_eq!(row.cells[11], "Running"); // Status from phase
 }
 

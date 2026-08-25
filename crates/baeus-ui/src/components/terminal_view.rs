@@ -226,12 +226,8 @@ mod tests {
     #[test]
     fn test_for_pod_exec() {
         let cluster_id = Uuid::new_v4();
-        let state = TerminalViewState::for_pod_exec(
-            cluster_id,
-            "default",
-            "nginx-abc",
-            Some("app"),
-        );
+        let state =
+            TerminalViewState::for_pod_exec(cluster_id, "default", "nginx-abc", Some("app"));
 
         assert_eq!(state.title, "nginx-abc/app");
         assert!(state.session_id.is_none());
@@ -241,12 +237,8 @@ mod tests {
         assert!(state.is_pod_exec());
         assert!(!state.is_connected());
 
-        if let TerminalTarget::PodExec {
-            cluster_id: cid,
-            namespace,
-            pod_name,
-            container_name,
-        } = &state.target
+        if let TerminalTarget::PodExec { cluster_id: cid, namespace, pod_name, container_name } =
+            &state.target
         {
             assert_eq!(*cid, cluster_id);
             assert_eq!(namespace, "default");
@@ -259,12 +251,7 @@ mod tests {
 
     #[test]
     fn test_for_pod_exec_no_container() {
-        let state = TerminalViewState::for_pod_exec(
-            Uuid::new_v4(),
-            "default",
-            "nginx",
-            None,
-        );
+        let state = TerminalViewState::for_pod_exec(Uuid::new_v4(), "default", "nginx", None);
         assert_eq!(state.title, "nginx");
     }
 
@@ -278,12 +265,7 @@ mod tests {
 
     #[test]
     fn test_connection_lifecycle() {
-        let mut state = TerminalViewState::for_pod_exec(
-            Uuid::new_v4(),
-            "default",
-            "nginx",
-            None,
-        );
+        let mut state = TerminalViewState::for_pod_exec(Uuid::new_v4(), "default", "nginx", None);
 
         assert!(!state.is_connected());
         assert!(!state.is_connecting());
@@ -305,12 +287,7 @@ mod tests {
 
     #[test]
     fn test_error_state() {
-        let mut state = TerminalViewState::for_pod_exec(
-            Uuid::new_v4(),
-            "default",
-            "nginx",
-            None,
-        );
+        let mut state = TerminalViewState::for_pod_exec(Uuid::new_v4(), "default", "nginx", None);
 
         state.set_error("connection refused");
         assert_eq!(

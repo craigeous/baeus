@@ -12,19 +12,13 @@ pub struct TestContext {
 
 impl Default for TestContext {
     fn default() -> Self {
-        Self {
-            window_width: 1280.0,
-            window_height: 720.0,
-        }
+        Self { window_width: 1280.0, window_height: 720.0 }
     }
 }
 
 impl TestContext {
     pub fn new(width: f32, height: f32) -> Self {
-        Self {
-            window_width: width,
-            window_height: height,
-        }
+        Self { window_width: width, window_height: height }
     }
 }
 

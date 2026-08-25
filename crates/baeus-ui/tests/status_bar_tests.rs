@@ -74,12 +74,7 @@ fn test_connected_cluster_context_name() {
     let id = state.add_cluster("prod-us-east-1", "Production US East");
 
     // Set to connected
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connected;
 
     let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
     assert_eq!(cluster.context_name, "prod-us-east-1");
@@ -91,12 +86,7 @@ fn test_cluster_context_name_via_selected_cluster() {
     let mut state = SidebarState::default();
     let id = state.add_cluster("minikube", "Local Minikube");
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connected;
 
     state.select_cluster(id);
     let selected = state.selected_cluster().unwrap();
@@ -110,10 +100,7 @@ fn test_cluster_display_name_preserved() {
 
     let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
     assert_eq!(cluster.display_name, "Production EKS");
-    assert_eq!(
-        cluster.context_name,
-        "arn:aws:eks:us-east-1:123456:cluster/prod"
-    );
+    assert_eq!(cluster.context_name, "arn:aws:eks:us-east-1:123456:cluster/prod");
 }
 
 // =========================================================================
@@ -130,12 +117,7 @@ fn test_status_transition_disconnected_to_connecting() {
     assert_eq!(cluster.status, ClusterStatus::Disconnected);
 
     // Transition to Connecting
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connecting;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connecting;
 
     let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
     assert_eq!(cluster.status, ClusterStatus::Connecting);
@@ -146,19 +128,9 @@ fn test_status_transition_connecting_to_connected() {
     let mut state = SidebarState::default();
     let id = state.add_cluster("staging", "Staging");
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connecting;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connecting;
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connected;
 
     let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
     assert_eq!(cluster.status, ClusterStatus::Connected);
@@ -176,24 +148,14 @@ fn test_full_status_transition_lifecycle() {
     );
 
     // -> Connecting
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connecting;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connecting;
     assert_eq!(
         state.clusters.iter().find(|c| c.id == id).unwrap().status,
         ClusterStatus::Connecting
     );
 
     // -> Connected
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connected;
     assert_eq!(
         state.clusters.iter().find(|c| c.id == id).unwrap().status,
         ClusterStatus::Connected
@@ -206,23 +168,10 @@ fn test_status_transition_to_error() {
     let id = state.add_cluster("prod", "Production");
 
     // Connecting -> Error
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connecting;
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Error;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connecting;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Error;
 
-    assert_eq!(
-        state.clusters.iter().find(|c| c.id == id).unwrap().status,
-        ClusterStatus::Error
-    );
+    assert_eq!(state.clusters.iter().find(|c| c.id == id).unwrap().status, ClusterStatus::Error);
 }
 
 #[test]
@@ -230,18 +179,8 @@ fn test_status_transition_error_to_disconnected() {
     let mut state = SidebarState::default();
     let id = state.add_cluster("prod", "Production");
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Error;
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Disconnected;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Error;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Disconnected;
 
     assert_eq!(
         state.clusters.iter().find(|c| c.id == id).unwrap().status,
@@ -254,18 +193,8 @@ fn test_connected_to_disconnected_transition() {
     let mut state = SidebarState::default();
     let id = state.add_cluster("prod", "Production");
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connected;
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Disconnected;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Disconnected;
 
     assert_eq!(
         state.clusters.iter().find(|c| c.id == id).unwrap().status,
@@ -290,12 +219,7 @@ fn test_error_status_on_cluster_entry() {
     let mut state = SidebarState::default();
     let id = state.add_cluster("broken-cluster", "Broken");
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Error;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Error;
 
     let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
     assert_eq!(cluster.status, ClusterStatus::Error);
@@ -317,61 +241,27 @@ fn test_multiple_clusters_different_statuses() {
     let broken_id = state.add_cluster("broken", "Broken Cluster");
 
     // Set different statuses
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == prod_id)
-        .unwrap()
-        .status = ClusterStatus::Connected;
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == staging_id)
-        .unwrap()
-        .status = ClusterStatus::Connecting;
+    state.clusters.iter_mut().find(|c| c.id == prod_id).unwrap().status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == staging_id).unwrap().status =
+        ClusterStatus::Connecting;
     // dev stays Disconnected (default)
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == broken_id)
-        .unwrap()
-        .status = ClusterStatus::Error;
+    state.clusters.iter_mut().find(|c| c.id == broken_id).unwrap().status = ClusterStatus::Error;
 
     // Verify each cluster has its own status
     assert_eq!(
-        state
-            .clusters
-            .iter()
-            .find(|c| c.id == prod_id)
-            .unwrap()
-            .status,
+        state.clusters.iter().find(|c| c.id == prod_id).unwrap().status,
         ClusterStatus::Connected
     );
     assert_eq!(
-        state
-            .clusters
-            .iter()
-            .find(|c| c.id == staging_id)
-            .unwrap()
-            .status,
+        state.clusters.iter().find(|c| c.id == staging_id).unwrap().status,
         ClusterStatus::Connecting
     );
     assert_eq!(
-        state
-            .clusters
-            .iter()
-            .find(|c| c.id == dev_id)
-            .unwrap()
-            .status,
+        state.clusters.iter().find(|c| c.id == dev_id).unwrap().status,
         ClusterStatus::Disconnected
     );
     assert_eq!(
-        state
-            .clusters
-            .iter()
-            .find(|c| c.id == broken_id)
-            .unwrap()
-            .status,
+        state.clusters.iter().find(|c| c.id == broken_id).unwrap().status,
         ClusterStatus::Error
     );
 }
@@ -384,18 +274,10 @@ fn test_multiple_clusters_all_connected() {
         .collect();
 
     for id in &ids {
-        state
-            .clusters
-            .iter_mut()
-            .find(|c| c.id == *id)
-            .unwrap()
-            .status = ClusterStatus::Connected;
+        state.clusters.iter_mut().find(|c| c.id == *id).unwrap().status = ClusterStatus::Connected;
     }
 
-    assert!(state
-        .clusters
-        .iter()
-        .all(|c| c.status == ClusterStatus::Connected));
+    assert!(state.clusters.iter().all(|c| c.status == ClusterStatus::Connected));
 }
 
 #[test]
@@ -404,39 +286,19 @@ fn test_cluster_status_change_does_not_affect_others() {
     let id_a = state.add_cluster("cluster-a", "Cluster A");
     let id_b = state.add_cluster("cluster-b", "Cluster B");
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id_a)
-        .unwrap()
-        .status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == id_a).unwrap().status = ClusterStatus::Connected;
 
     // Changing A's status should not affect B
     assert_eq!(
-        state
-            .clusters
-            .iter()
-            .find(|c| c.id == id_b)
-            .unwrap()
-            .status,
+        state.clusters.iter().find(|c| c.id == id_b).unwrap().status,
         ClusterStatus::Disconnected
     );
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id_a)
-        .unwrap()
-        .status = ClusterStatus::Error;
+    state.clusters.iter_mut().find(|c| c.id == id_a).unwrap().status = ClusterStatus::Error;
 
     // B still unaffected
     assert_eq!(
-        state
-            .clusters
-            .iter()
-            .find(|c| c.id == id_b)
-            .unwrap()
-            .status,
+        state.clusters.iter().find(|c| c.id == id_b).unwrap().status,
         ClusterStatus::Disconnected
     );
 }
@@ -450,12 +312,7 @@ fn test_selected_cluster_status_for_status_bar() {
     let mut state = SidebarState::default();
     let id = state.add_cluster("prod", "Production");
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id)
-        .unwrap()
-        .status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == id).unwrap().status = ClusterStatus::Connected;
 
     // Status bar would read from selected cluster
     let selected = state.selected_cluster().unwrap();
@@ -471,41 +328,16 @@ fn test_count_clusters_by_status() {
     let id3 = state.add_cluster("c3", "C3");
     let _id4 = state.add_cluster("c4", "C4");
 
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id1)
-        .unwrap()
-        .status = ClusterStatus::Connected;
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id2)
-        .unwrap()
-        .status = ClusterStatus::Connected;
-    state
-        .clusters
-        .iter_mut()
-        .find(|c| c.id == id3)
-        .unwrap()
-        .status = ClusterStatus::Error;
+    state.clusters.iter_mut().find(|c| c.id == id1).unwrap().status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == id2).unwrap().status = ClusterStatus::Connected;
+    state.clusters.iter_mut().find(|c| c.id == id3).unwrap().status = ClusterStatus::Error;
     // id4 remains Disconnected
 
-    let connected_count = state
-        .clusters
-        .iter()
-        .filter(|c| c.status == ClusterStatus::Connected)
-        .count();
-    let disconnected_count = state
-        .clusters
-        .iter()
-        .filter(|c| c.status == ClusterStatus::Disconnected)
-        .count();
-    let error_count = state
-        .clusters
-        .iter()
-        .filter(|c| c.status == ClusterStatus::Error)
-        .count();
+    let connected_count =
+        state.clusters.iter().filter(|c| c.status == ClusterStatus::Connected).count();
+    let disconnected_count =
+        state.clusters.iter().filter(|c| c.status == ClusterStatus::Disconnected).count();
+    let error_count = state.clusters.iter().filter(|c| c.status == ClusterStatus::Error).count();
 
     assert_eq!(connected_count, 2);
     assert_eq!(disconnected_count, 1);

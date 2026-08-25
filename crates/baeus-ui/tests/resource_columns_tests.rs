@@ -51,16 +51,7 @@ fn deployment_columns_labels() {
     let labels: Vec<&str> = cols.iter().map(|c| c.label.as_str()).collect();
     assert_eq!(
         labels,
-        vec![
-            "Name",
-            "Namespace",
-            "Pods",
-            "Ready",
-            "Up-to-date",
-            "Available",
-            "Age",
-            "Conditions",
-        ]
+        vec!["Name", "Namespace", "Pods", "Ready", "Up-to-date", "Available", "Age", "Conditions",]
     );
 }
 
@@ -159,10 +150,7 @@ fn ingress_columns_count() {
 fn ingress_columns_labels() {
     let cols = columns_for_kind("Ingress");
     let labels: Vec<&str> = cols.iter().map(|c| c.label.as_str()).collect();
-    assert_eq!(
-        labels,
-        vec!["Name", "Namespace", "Load Balancers", "Rules", "Age"]
-    );
+    assert_eq!(labels, vec!["Name", "Namespace", "Load Balancers", "Rules", "Age"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -213,10 +201,7 @@ fn statefulset_columns_count() {
 fn statefulset_columns_labels() {
     let cols = columns_for_kind("StatefulSet");
     let labels: Vec<&str> = cols.iter().map(|c| c.label.as_str()).collect();
-    assert_eq!(
-        labels,
-        vec!["Name", "Namespace", "Pods", "Replicas", "Age"]
-    );
+    assert_eq!(labels, vec!["Name", "Namespace", "Pods", "Replicas", "Age"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -263,10 +248,7 @@ fn replicaset_columns_count() {
 fn replicaset_columns_labels() {
     let cols = columns_for_kind("ReplicaSet");
     let labels: Vec<&str> = cols.iter().map(|c| c.label.as_str()).collect();
-    assert_eq!(
-        labels,
-        vec!["Name", "Namespace", "Desired", "Current", "Ready", "Age"]
-    );
+    assert_eq!(labels, vec!["Name", "Namespace", "Desired", "Current", "Ready", "Age"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -351,11 +333,7 @@ fn persistent_volume_columns_labels() {
 #[test]
 fn persistent_volume_claim_columns_count() {
     let cols = columns_for_kind("PersistentVolumeClaim");
-    assert_eq!(
-        cols.len(),
-        7,
-        "PersistentVolumeClaim should have 7 columns"
-    );
+    assert_eq!(cols.len(), 7, "PersistentVolumeClaim should have 7 columns");
 }
 
 #[test]
@@ -364,15 +342,7 @@ fn persistent_volume_claim_columns_labels() {
     let labels: Vec<&str> = cols.iter().map(|c| c.label.as_str()).collect();
     assert_eq!(
         labels,
-        vec![
-            "Name",
-            "Namespace",
-            "Status",
-            "Volume",
-            "Capacity",
-            "Storage Class",
-            "Age",
-        ]
+        vec!["Name", "Namespace", "Status", "Volume", "Capacity", "Storage Class", "Age",]
     );
 }
 
@@ -390,10 +360,7 @@ fn storage_class_columns_count() {
 fn storage_class_columns_labels() {
     let cols = columns_for_kind("StorageClass");
     let labels: Vec<&str> = cols.iter().map(|c| c.label.as_str()).collect();
-    assert_eq!(
-        labels,
-        vec!["Name", "Provisioner", "Reclaim Policy", "Volume Binding", "Age"]
-    );
+    assert_eq!(labels, vec!["Name", "Provisioner", "Reclaim Policy", "Volume Binding", "Age"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -443,14 +410,8 @@ fn all_name_columns_are_sortable() {
     for kind in kinds {
         let cols = columns_for_kind(kind);
         let name_col = cols.iter().find(|c| c.id == "name");
-        assert!(
-            name_col.is_some(),
-            "Kind '{kind}' should have a Name column"
-        );
-        assert!(
-            name_col.unwrap().sortable,
-            "Kind '{kind}': Name column should be sortable"
-        );
+        assert!(name_col.is_some(), "Kind '{kind}' should have a Name column");
+        assert!(name_col.unwrap().sortable, "Kind '{kind}': Name column should be sortable");
     }
 }
 
@@ -483,11 +444,7 @@ fn column_labels_are_human_readable() {
     for kind in kinds {
         let cols = columns_for_kind(kind);
         for col in &cols {
-            assert!(
-                !col.label.is_empty(),
-                "Kind '{kind}': column '{}' has empty label",
-                col.id
-            );
+            assert!(!col.label.is_empty(), "Kind '{kind}': column '{}' has empty label", col.id);
             // Human-readable labels start with an uppercase letter
             assert!(
                 col.label.chars().next().unwrap().is_uppercase(),

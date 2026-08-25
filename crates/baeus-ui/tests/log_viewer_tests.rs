@@ -194,11 +194,7 @@ fn test_filtered_lines_with_container_filter() {
 
     state.set_container_filter(vec!["app".to_string(), "sidecar".to_string()]);
     // Hide sidecar
-    state
-        .container_filter
-        .as_mut()
-        .unwrap()
-        .toggle("sidecar");
+    state.container_filter.as_mut().unwrap().toggle("sidecar");
 
     let visible = state.visible_lines();
     assert_eq!(visible.len(), 2);
@@ -242,10 +238,7 @@ fn test_toggle_timestamps_multiple_cycles() {
     let mut state = LogViewerState::new(1000);
     for i in 0..6 {
         let expected = i % 2 == 0; // starts true, toggles
-        assert_eq!(
-            state.settings.show_timestamps, expected,
-            "cycle {i}"
-        );
+        assert_eq!(state.settings.show_timestamps, expected, "cycle {i}");
         state.toggle_timestamps();
     }
 }

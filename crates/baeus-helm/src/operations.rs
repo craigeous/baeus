@@ -88,11 +88,7 @@ impl HelmOperation {
                 }
                 args
             }
-            HelmOperation::Rollback {
-                release_name,
-                namespace,
-                revision,
-            } => {
+            HelmOperation::Rollback { release_name, namespace, revision } => {
                 vec![
                     "rollback".to_string(),
                     release_name.clone(),
@@ -101,10 +97,7 @@ impl HelmOperation {
                     namespace.clone(),
                 ]
             }
-            HelmOperation::Uninstall {
-                release_name,
-                namespace,
-            } => {
+            HelmOperation::Uninstall { release_name, namespace } => {
                 vec![
                     "uninstall".to_string(),
                     release_name.clone(),
@@ -231,13 +224,7 @@ mod tests {
         };
 
         let args = op.to_args();
-        assert_eq!(args, vec![
-            "install",
-            "simple-app",
-            "stable/app",
-            "--namespace",
-            "default",
-        ]);
+        assert_eq!(args, vec!["install", "simple-app", "stable/app", "--namespace", "default",]);
         // Ensure no optional flags leak through
         assert!(!args.contains(&"--values".to_string()));
         assert!(!args.contains(&"--version".to_string()));
@@ -256,13 +243,10 @@ mod tests {
         };
 
         let args = op.to_args();
-        assert_eq!(args, vec![
-            "upgrade",
-            "my-svc",
-            "oci://registry/chart",
-            "--namespace",
-            "staging",
-        ]);
+        assert_eq!(
+            args,
+            vec!["upgrade", "my-svc", "oci://registry/chart", "--namespace", "staging",]
+        );
         assert!(!args.contains(&"--values".to_string()));
         assert!(!args.contains(&"--version".to_string()));
         assert!(!args.contains(&"--reuse-values".to_string()));
@@ -328,11 +312,8 @@ mod tests {
             "Rollback"
         );
         assert_eq!(
-            HelmOperation::Uninstall {
-                release_name: String::new(),
-                namespace: String::new(),
-            }
-            .label(),
+            HelmOperation::Uninstall { release_name: String::new(), namespace: String::new() }
+                .label(),
             "Uninstall"
         );
     }

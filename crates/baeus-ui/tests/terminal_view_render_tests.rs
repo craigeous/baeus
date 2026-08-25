@@ -18,20 +18,13 @@ fn key(s: &str) -> Keystroke {
 
 /// Helper: build a Keystroke for a special key (enter, backspace, etc.)
 fn special_key(name: &str) -> Keystroke {
-    Keystroke {
-        modifiers: Modifiers::default(),
-        key: name.to_string(),
-        key_char: None,
-    }
+    Keystroke { modifiers: Modifiers::default(), key: name.to_string(), key_char: None }
 }
 
 /// Helper: build a Keystroke with Ctrl modifier.
 fn ctrl_key(ch: &str) -> Keystroke {
     Keystroke {
-        modifiers: Modifiers {
-            control: true,
-            ..Default::default()
-        },
+        modifiers: Modifiers { control: true, ..Default::default() },
         key: ch.to_string(),
         key_char: None,
     }
@@ -46,20 +39,12 @@ fn test_component_new_local_shell() {
     let state = TerminalViewState::for_local_shell();
     let comp = TerminalViewComponent::new(state, Theme::dark());
     assert_eq!(comp.state.title, "Shell");
-    assert_eq!(
-        comp.state.connection_state,
-        TerminalConnectionState::Disconnected
-    );
+    assert_eq!(comp.state.connection_state, TerminalConnectionState::Disconnected);
 }
 
 #[test]
 fn test_component_new_pod_exec() {
-    let state = TerminalViewState::for_pod_exec(
-        Uuid::new_v4(),
-        "default",
-        "nginx",
-        Some("app"),
-    );
+    let state = TerminalViewState::for_pod_exec(Uuid::new_v4(), "default", "nginx", Some("app"));
     let comp = TerminalViewComponent::new(state, Theme::dark());
     assert_eq!(comp.state.title, "nginx/app");
 }
@@ -175,10 +160,7 @@ fn test_cursor_after_newline() {
 fn test_connection_state_disconnected() {
     let state = TerminalViewState::for_local_shell();
     let comp = TerminalViewComponent::new(state, Theme::dark());
-    assert_eq!(
-        comp.state.connection_state,
-        TerminalConnectionState::Disconnected
-    );
+    assert_eq!(comp.state.connection_state, TerminalConnectionState::Disconnected);
 }
 
 #[test]
@@ -186,10 +168,7 @@ fn test_connection_state_connecting() {
     let mut state = TerminalViewState::for_local_shell();
     state.connect();
     let comp = TerminalViewComponent::new(state, Theme::dark());
-    assert_eq!(
-        comp.state.connection_state,
-        TerminalConnectionState::Connecting
-    );
+    assert_eq!(comp.state.connection_state, TerminalConnectionState::Connecting);
 }
 
 #[test]
@@ -197,10 +176,7 @@ fn test_connection_state_connected() {
     let mut state = TerminalViewState::for_local_shell();
     state.set_connected();
     let comp = TerminalViewComponent::new(state, Theme::dark());
-    assert_eq!(
-        comp.state.connection_state,
-        TerminalConnectionState::Connected
-    );
+    assert_eq!(comp.state.connection_state, TerminalConnectionState::Connected);
 }
 
 #[test]
@@ -208,10 +184,7 @@ fn test_connection_state_error() {
     let mut state = TerminalViewState::for_local_shell();
     state.set_error("timeout");
     let comp = TerminalViewComponent::new(state, Theme::dark());
-    assert_eq!(
-        comp.state.connection_state,
-        TerminalConnectionState::Error("timeout".to_string())
-    );
+    assert_eq!(comp.state.connection_state, TerminalConnectionState::Error("timeout".to_string()));
 }
 
 #[test]
@@ -225,10 +198,7 @@ fn test_connection_state_transitions() {
     assert!(comp.state.is_connected());
     comp.state.set_error("lost");
     assert!(!comp.state.is_connected());
-    assert_eq!(
-        comp.state.connection_state,
-        TerminalConnectionState::Error("lost".to_string())
-    );
+    assert_eq!(comp.state.connection_state, TerminalConnectionState::Error("lost".to_string()));
 }
 
 // ---------------------------------------------------------------------------
@@ -239,10 +209,7 @@ fn test_connection_state_transitions() {
 fn test_display_mode_default_inline() {
     let state = TerminalViewState::for_local_shell();
     let comp = TerminalViewComponent::new(state, Theme::dark());
-    assert_eq!(
-        comp.state.settings.display_mode,
-        TerminalDisplayMode::Inline
-    );
+    assert_eq!(comp.state.settings.display_mode, TerminalDisplayMode::Inline);
 }
 
 #[test]
@@ -250,10 +217,7 @@ fn test_display_mode_fullscreen() {
     let mut state = TerminalViewState::for_local_shell();
     state.set_display_mode(TerminalDisplayMode::Fullscreen);
     let comp = TerminalViewComponent::new(state, Theme::dark());
-    assert_eq!(
-        comp.state.settings.display_mode,
-        TerminalDisplayMode::Fullscreen
-    );
+    assert_eq!(comp.state.settings.display_mode, TerminalDisplayMode::Fullscreen);
 }
 
 #[test]
@@ -261,10 +225,7 @@ fn test_display_mode_split() {
     let mut state = TerminalViewState::for_local_shell();
     state.set_display_mode(TerminalDisplayMode::Split);
     let comp = TerminalViewComponent::new(state, Theme::dark());
-    assert_eq!(
-        comp.state.settings.display_mode,
-        TerminalDisplayMode::Split
-    );
+    assert_eq!(comp.state.settings.display_mode, TerminalDisplayMode::Split);
 }
 
 #[test]
@@ -272,15 +233,9 @@ fn test_display_mode_change_after_creation() {
     let state = TerminalViewState::for_local_shell();
     let mut comp = TerminalViewComponent::new(state, Theme::dark());
     comp.state.set_display_mode(TerminalDisplayMode::Fullscreen);
-    assert_eq!(
-        comp.state.settings.display_mode,
-        TerminalDisplayMode::Fullscreen
-    );
+    assert_eq!(comp.state.settings.display_mode, TerminalDisplayMode::Fullscreen);
     comp.state.set_display_mode(TerminalDisplayMode::Inline);
-    assert_eq!(
-        comp.state.settings.display_mode,
-        TerminalDisplayMode::Inline
-    );
+    assert_eq!(comp.state.settings.display_mode, TerminalDisplayMode::Inline);
 }
 
 // ---------------------------------------------------------------------------
@@ -411,7 +366,7 @@ fn test_handle_key_input_enter() {
     let mut comp = TerminalViewComponent::new(state, Theme::dark());
     comp.handle_keystroke(&special_key("enter"));
     let buf = comp.take_pending_input();
-    assert_eq!(buf, &[b'\r']);
+    assert_eq!(buf, b"\r");
 }
 
 #[test]
@@ -429,7 +384,7 @@ fn test_handle_key_input_tab() {
     let mut comp = TerminalViewComponent::new(state, Theme::dark());
     comp.handle_keystroke(&special_key("tab"));
     let buf = comp.take_pending_input();
-    assert_eq!(buf, &[b'\t']);
+    assert_eq!(buf, b"\t");
 }
 
 #[test]
@@ -486,7 +441,7 @@ fn test_handle_key_input_sequence() {
     comp.handle_keystroke(&key("s"));
     comp.handle_keystroke(&special_key("enter"));
     let buf = comp.take_pending_input();
-    assert_eq!(buf, &[b'l', b's', b'\r']);
+    assert_eq!(buf, b"ls\r");
 }
 
 // ---------------------------------------------------------------------------
@@ -604,7 +559,7 @@ fn test_input_output_roundtrip() {
     comp.handle_keystroke(&special_key("enter"));
 
     let input = comp.take_pending_input();
-    assert_eq!(input, &[b'l', b's', b'\r']);
+    assert_eq!(input, b"ls\r");
 
     // Simulate receiving output.
     comp.process_output(b"file1  file2\n");
@@ -613,12 +568,8 @@ fn test_input_output_roundtrip() {
 
 #[test]
 fn test_full_lifecycle() {
-    let mut state = TerminalViewState::for_pod_exec(
-        Uuid::new_v4(),
-        "production",
-        "web-server",
-        Some("app"),
-    );
+    let mut state =
+        TerminalViewState::for_pod_exec(Uuid::new_v4(), "production", "web-server", Some("app"));
     state.connect();
     let mut comp = TerminalViewComponent::new(state, Theme::dark());
 
@@ -641,7 +592,7 @@ fn test_full_lifecycle() {
     comp.handle_keystroke(&key("s"));
     comp.handle_keystroke(&special_key("enter"));
     let pending = comp.take_pending_input();
-    assert_eq!(pending, &[b'l', b's', b'\r']);
+    assert_eq!(pending, b"ls\r");
 
     // Resize
     comp.resize(50, 120);

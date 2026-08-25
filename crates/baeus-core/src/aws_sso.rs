@@ -62,18 +62,11 @@ pub fn inject_aws_profile_into_kubeconfig(
         .find(|c| c.name == context_name)
         .with_context(|| format!("Context '{context_name}' not found in kubeconfig"))?;
 
-    let user_name = ctx
-        .context
-        .as_ref()
-        .and_then(|c| c.user.clone())
-        .unwrap_or_default();
+    let user_name = ctx.context.as_ref().and_then(|c| c.user.clone()).unwrap_or_default();
 
     // Find the matching auth info entry and inject the env var.
-    let auth_info = kubeconfig
-        .auth_infos
-        .iter_mut()
-        .find(|a| a.name == user_name)
-        .with_context(|| {
+    let auth_info =
+        kubeconfig.auth_infos.iter_mut().find(|a| a.name == user_name).with_context(|| {
             format!("AuthInfo '{user_name}' (referenced by context '{context_name}') not found")
         })?;
 
@@ -88,8 +81,9 @@ pub fn inject_aws_profile_into_kubeconfig(
             match exec_cfg.env {
                 Some(ref mut envs) => {
                     // Replace existing AWS_PROFILE or append.
-                    if let Some(existing) =
-                        envs.iter_mut().find(|e| e.get("name").map(|n| n.as_str()) == Some("AWS_PROFILE"))
+                    if let Some(existing) = envs
+                        .iter_mut()
+                        .find(|e| e.get("name").map(|n| n.as_str()) == Some("AWS_PROFILE"))
                     {
                         existing.insert("value".to_string(), aws_profile.to_string());
                     } else {
@@ -122,19 +116,13 @@ pub fn inject_aws_credentials_into_kubeconfig(
         .find(|c| c.name == context_name)
         .with_context(|| format!("Context '{context_name}' not found in kubeconfig"))?;
 
-    let user_name = ctx
-        .context
-        .as_ref()
-        .and_then(|c| c.user.clone())
-        .unwrap_or_default();
+    let user_name = ctx.context.as_ref().and_then(|c| c.user.clone()).unwrap_or_default();
 
     let auth_info = kubeconfig
         .auth_infos
         .iter_mut()
         .find(|a| a.name == user_name)
-        .with_context(|| {
-            format!("AuthInfo '{user_name}' not found")
-        })?;
+        .with_context(|| format!("AuthInfo '{user_name}' not found"))?;
 
     if let Some(ref mut ai) = auth_info.auth_info {
         if let Some(ref mut exec_cfg) = ai.exec {
@@ -149,7 +137,10 @@ pub fn inject_aws_credentials_into_kubeconfig(
                 env_var.insert("value".to_string(), value.to_string());
                 match exec_cfg.env {
                     Some(ref mut envs) => {
-                        if let Some(existing) = envs.iter_mut().find(|e| e.get("name").map(|n| n.as_str()) == Some(name)) {
+                        if let Some(existing) = envs
+                            .iter_mut()
+                            .find(|e| e.get("name").map(|n| n.as_str()) == Some(name))
+                        {
                             existing.insert("value".to_string(), value.to_string());
                         } else {
                             envs.push(env_var);
@@ -166,7 +157,10 @@ pub fn inject_aws_credentials_into_kubeconfig(
                 env_var.insert("name".to_string(), "AWS_SESSION_TOKEN".to_string());
                 env_var.insert("value".to_string(), token.to_string());
                 if let Some(ref mut envs) = exec_cfg.env {
-                    if let Some(existing) = envs.iter_mut().find(|e| e.get("name").map(|n| n.as_str()) == Some("AWS_SESSION_TOKEN")) {
+                    if let Some(existing) = envs
+                        .iter_mut()
+                        .find(|e| e.get("name").map(|n| n.as_str()) == Some("AWS_SESSION_TOKEN"))
+                    {
                         existing.insert("value".to_string(), token.to_string());
                     } else {
                         envs.push(env_var);
@@ -201,9 +195,7 @@ mod tests {
     #[test]
     fn test_is_aws_sso_auth_error_positive() {
         assert!(is_aws_sso_auth_error("Error: The SSO token has expired"));
-        assert!(is_aws_sso_auth_error(
-            "The SSO session associated with this profile has expired"
-        ));
+        assert!(is_aws_sso_auth_error("The SSO session associated with this profile has expired"));
         assert!(is_aws_sso_auth_error("Error loading SSO token: token expired"));
         assert!(is_aws_sso_auth_error(
             "To refresh this SSO session run aws sso login with the corresponding profile"
@@ -231,8 +223,7 @@ mod tests {
     #[test]
     fn test_inject_aws_profile_into_kubeconfig() {
         use kube::config::{
-            AuthInfo, Context as KubeContext, ExecConfig, Kubeconfig, NamedAuthInfo,
-            NamedContext,
+            AuthInfo, Context as KubeContext, ExecConfig, Kubeconfig, NamedAuthInfo, NamedContext,
         };
 
         let mut kubeconfig = Kubeconfig {
@@ -268,20 +259,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = inject_aws_profile_into_kubeconfig(
-            &mut kubeconfig,
-            "my-cluster",
-            "secops",
-        );
+        let result = inject_aws_profile_into_kubeconfig(&mut kubeconfig, "my-cluster", "secops");
         assert!(result.is_ok());
 
-        let exec = kubeconfig.auth_infos[0]
-            .auth_info
-            .as_ref()
-            .unwrap()
-            .exec
-            .as_ref()
-            .unwrap();
+        let exec = kubeconfig.auth_infos[0].auth_info.as_ref().unwrap().exec.as_ref().unwrap();
         let envs = exec.env.as_ref().unwrap();
         assert_eq!(envs.len(), 1);
         assert_eq!(envs[0].get("name").unwrap(), "AWS_PROFILE");
@@ -291,8 +272,7 @@ mod tests {
     #[test]
     fn test_inject_aws_profile_overwrites_existing() {
         use kube::config::{
-            AuthInfo, Context as KubeContext, ExecConfig, Kubeconfig,
-            NamedAuthInfo, NamedContext,
+            AuthInfo, Context as KubeContext, ExecConfig, Kubeconfig, NamedAuthInfo, NamedContext,
         };
 
         let mut existing_env = HashMap::new();
@@ -346,11 +326,7 @@ mod tests {
     #[test]
     fn test_inject_missing_context_returns_error() {
         let mut kubeconfig = kube::config::Kubeconfig::default();
-        let result = inject_aws_profile_into_kubeconfig(
-            &mut kubeconfig,
-            "nonexistent",
-            "profile",
-        );
+        let result = inject_aws_profile_into_kubeconfig(&mut kubeconfig, "nonexistent", "profile");
         assert!(result.is_err());
     }
 }

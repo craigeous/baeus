@@ -14,9 +14,7 @@
 
 use baeus_helm::charts::ChartEntry;
 use baeus_ui::theme::Theme;
-use baeus_ui::views::helm_install::{
-    HelmInstallViewComponent, HelmInstallViewState,
-};
+use baeus_ui::views::helm_install::{HelmInstallViewComponent, HelmInstallViewState};
 
 fn sample_chart(name: &str, version: &str) -> ChartEntry {
     ChartEntry {
@@ -26,9 +24,7 @@ fn sample_chart(name: &str, version: &str) -> ChartEntry {
         description: Some(format!("{name} chart")),
         home: Some(format!("https://{name}.example.com")),
         sources: vec![format!("https://github.com/example/{name}")],
-        urls: vec![format!(
-            "https://charts.example.com/{name}-{version}.tgz"
-        )],
+        urls: vec![format!("https://charts.example.com/{name}-{version}.tgz")],
     }
 }
 
@@ -128,10 +124,7 @@ fn test_results_have_versions() {
 #[test]
 fn test_results_have_descriptions() {
     let comp = make_component_with_results();
-    assert_eq!(
-        comp.state.search_results[0].description.as_deref(),
-        Some("nginx chart"),
-    );
+    assert_eq!(comp.state.search_results[0].description.as_deref(), Some("nginx chart"),);
 }
 
 // ========================================================================
@@ -213,22 +206,15 @@ fn test_values_editor_default_empty() {
 #[test]
 fn test_values_editor_with_content() {
     let mut comp = make_component_with_selection();
-    comp.state
-        .values_editor
-        .set_content("replicaCount: 3\nimage:\n  tag: latest");
-    assert_eq!(
-        comp.state.values_editor.content,
-        "replicaCount: 3\nimage:\n  tag: latest",
-    );
+    comp.state.values_editor.set_content("replicaCount: 3\nimage:\n  tag: latest");
+    assert_eq!(comp.state.values_editor.content, "replicaCount: 3\nimage:\n  tag: latest",);
     assert!(comp.state.values_editor.is_valid);
 }
 
 #[test]
 fn test_values_editor_validation_valid() {
     let mut comp = make_component_with_selection();
-    comp.state
-        .values_editor
-        .set_content("service:\n  type: LoadBalancer");
+    comp.state.values_editor.set_content("service:\n  type: LoadBalancer");
     assert!(comp.state.values_editor.is_valid);
     assert!(comp.state.values_editor.validation_error.is_none());
     assert_eq!(comp.validation_label(), "Valid YAML");
@@ -475,9 +461,7 @@ fn test_full_install_workflow() {
     assert_eq!(comp.state.selected_version.as_deref(), Some("15.4.0"));
 
     // 4. Edit values
-    comp.state
-        .values_editor
-        .set_content("replicaCount: 3\nimage:\n  tag: stable");
+    comp.state.values_editor.set_content("replicaCount: 3\nimage:\n  tag: stable");
     assert!(comp.state.values_editor.is_valid);
     assert!(comp.install_button_enabled());
 
@@ -510,9 +494,7 @@ fn test_values_validation_workflow() {
     assert_ne!(comp.validation_label(), "Valid YAML");
 
     // Fix YAML
-    comp.state
-        .values_editor
-        .set_content("key: value\nother: 42");
+    comp.state.values_editor.set_content("key: value\nother: 42");
     assert!(comp.install_button_enabled());
     assert_eq!(comp.validation_label(), "Valid YAML");
 

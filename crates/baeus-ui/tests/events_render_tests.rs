@@ -16,19 +16,14 @@
 use baeus_core::EventType;
 use baeus_ui::theme::Theme;
 use baeus_ui::views::events::{
-    EventRow, EventSeverityFilter, EventsViewComponent,
-    EventsViewState,
+    EventRow, EventSeverityFilter, EventsViewComponent, EventsViewState,
 };
 
 // ========================================================================
 // Helpers
 // ========================================================================
 
-fn sample_event(
-    uid: &str,
-    event_type: EventType,
-    reason: &str,
-) -> EventRow {
+fn sample_event(uid: &str, event_type: EventType, reason: &str) -> EventRow {
     EventRow {
         uid: uid.to_string(),
         event_type,
@@ -43,10 +38,7 @@ fn sample_event(
 }
 
 fn make_component() -> EventsViewComponent {
-    EventsViewComponent::new(
-        EventsViewState::default(),
-        Theme::dark(),
-    )
+    EventsViewComponent::new(EventsViewState::default(), Theme::dark())
 }
 
 fn make_component_with_events() -> EventsViewComponent {
@@ -57,14 +49,9 @@ fn make_component_with_events() -> EventsViewComponent {
         sample_event("e3", EventType::Warning, "BackOff"),
         sample_event("e4", EventType::Warning, "FailedMount"),
         {
-            let mut e = sample_event(
-                "e5",
-                EventType::Normal,
-                "Started",
-            );
+            let mut e = sample_event("e5", EventType::Normal, "Started");
             e.namespace = Some("kube-system".to_string());
-            e.resource_kind =
-                Some("Deployment".to_string());
+            e.resource_kind = Some("Deployment".to_string());
             e.resource_name = Some("coredns".to_string());
             e
         },
@@ -79,16 +66,14 @@ fn make_component_with_events() -> EventsViewComponent {
 #[test]
 fn test_normal_severity_color_is_info() {
     let comp = make_component();
-    let color =
-        comp.severity_color(&EventType::Normal);
+    let color = comp.severity_color(&EventType::Normal);
     assert_eq!(color, Theme::dark().colors.info);
 }
 
 #[test]
 fn test_warning_severity_color_is_warning() {
     let comp = make_component();
-    let color =
-        comp.severity_color(&EventType::Warning);
+    let color = comp.severity_color(&EventType::Warning);
     assert_eq!(color, Theme::dark().colors.warning);
 }
 
@@ -102,12 +87,8 @@ fn test_severity_colors_are_different() {
 
 #[test]
 fn test_severity_color_with_light_theme() {
-    let comp = EventsViewComponent::new(
-        EventsViewState::default(),
-        Theme::light(),
-    );
-    let color =
-        comp.severity_color(&EventType::Normal);
+    let comp = EventsViewComponent::new(EventsViewState::default(), Theme::light());
+    let color = comp.severity_color(&EventType::Normal);
     assert_eq!(color, Theme::light().colors.info);
 }
 
@@ -118,18 +99,14 @@ fn test_severity_color_with_light_theme() {
 #[test]
 fn test_severity_filter_all_shows_all() {
     let comp = make_component_with_events();
-    assert_eq!(
-        comp.state.severity_filter,
-        EventSeverityFilter::All,
-    );
+    assert_eq!(comp.state.severity_filter, EventSeverityFilter::All,);
     assert_eq!(comp.state.filtered_events().len(), 5);
 }
 
 #[test]
 fn test_severity_filter_warning_only() {
     let mut comp = make_component_with_events();
-    comp.state
-        .set_severity_filter(EventSeverityFilter::Warning);
+    comp.state.set_severity_filter(EventSeverityFilter::Warning);
     let filtered = comp.state.filtered_events();
     assert_eq!(filtered.len(), 2);
     assert!(filtered.iter().all(|e| e.is_warning()));
@@ -138,8 +115,7 @@ fn test_severity_filter_warning_only() {
 #[test]
 fn test_severity_filter_normal_only() {
     let mut comp = make_component_with_events();
-    comp.state
-        .set_severity_filter(EventSeverityFilter::Normal);
+    comp.state.set_severity_filter(EventSeverityFilter::Normal);
     let filtered = comp.state.filtered_events();
     assert_eq!(filtered.len(), 3);
     assert!(filtered.iter().all(|e| !e.is_warning()));
@@ -148,16 +124,13 @@ fn test_severity_filter_normal_only() {
 #[test]
 fn test_severity_filter_label_includes_count() {
     let comp = make_component_with_events();
-    let all_label = comp
-        .severity_filter_label(EventSeverityFilter::All);
+    let all_label = comp.severity_filter_label(EventSeverityFilter::All);
     assert!(all_label.contains("5"));
 
-    let normal_label = comp
-        .severity_filter_label(EventSeverityFilter::Normal);
+    let normal_label = comp.severity_filter_label(EventSeverityFilter::Normal);
     assert!(normal_label.contains("3"));
 
-    let warn_label = comp
-        .severity_filter_label(EventSeverityFilter::Warning);
+    let warn_label = comp.severity_filter_label(EventSeverityFilter::Warning);
     assert!(warn_label.contains("2"));
 }
 
@@ -168,16 +141,14 @@ fn test_severity_filter_label_includes_count() {
 #[test]
 fn test_namespace_filter_default() {
     let mut comp = make_component_with_events();
-    comp.state
-        .set_namespace_filter(Some("default".to_string()));
+    comp.state.set_namespace_filter(Some("default".to_string()));
     assert_eq!(comp.state.filtered_events().len(), 4);
 }
 
 #[test]
 fn test_namespace_filter_kube_system() {
     let mut comp = make_component_with_events();
-    comp.state
-        .set_namespace_filter(Some("kube-system".to_string()));
+    comp.state.set_namespace_filter(Some("kube-system".to_string()));
     assert_eq!(comp.state.filtered_events().len(), 1);
 }
 
@@ -191,8 +162,7 @@ fn test_namespace_filter_none_shows_all() {
 #[test]
 fn test_namespace_filter_nonexistent() {
     let mut comp = make_component_with_events();
-    comp.state
-        .set_namespace_filter(Some("ghost".to_string()));
+    comp.state.set_namespace_filter(Some("ghost".to_string()));
     assert_eq!(comp.state.filtered_events().len(), 0);
 }
 
@@ -203,17 +173,14 @@ fn test_namespace_filter_nonexistent() {
 #[test]
 fn test_resource_kind_filter_pod() {
     let mut comp = make_component_with_events();
-    comp.state
-        .set_resource_kind_filter(Some("Pod".to_string()));
+    comp.state.set_resource_kind_filter(Some("Pod".to_string()));
     assert_eq!(comp.state.filtered_events().len(), 4);
 }
 
 #[test]
 fn test_resource_kind_filter_deployment() {
     let mut comp = make_component_with_events();
-    comp.state.set_resource_kind_filter(Some(
-        "Deployment".to_string(),
-    ));
+    comp.state.set_resource_kind_filter(Some("Deployment".to_string()));
     assert_eq!(comp.state.filtered_events().len(), 1);
 }
 
@@ -337,10 +304,7 @@ fn test_error_none_by_default() {
 fn test_set_error() {
     let mut comp = make_component();
     comp.state.set_error("connection timeout".to_string());
-    assert_eq!(
-        comp.state.error.as_deref(),
-        Some("connection timeout"),
-    );
+    assert_eq!(comp.state.error.as_deref(), Some("connection timeout"),);
 }
 
 #[test]
@@ -413,11 +377,7 @@ fn test_counts_with_no_events() {
 #[test]
 fn test_push_event_within_limit() {
     let mut comp = make_component();
-    comp.state.push_event(sample_event(
-        "e1",
-        EventType::Normal,
-        "Started",
-    ));
+    comp.state.push_event(sample_event("e1", EventType::Normal, "Started"));
     assert_eq!(comp.state.total_count(), 1);
 }
 
@@ -426,11 +386,7 @@ fn test_push_event_trims_oldest() {
     let mut comp = make_component();
     comp.state.max_events = 3;
     for i in 0..5 {
-        comp.state.push_event(sample_event(
-            &format!("e{i}"),
-            EventType::Normal,
-            "x",
-        ));
+        comp.state.push_event(sample_event(&format!("e{i}"), EventType::Normal, "x"));
     }
     assert_eq!(comp.state.total_count(), 3);
     assert_eq!(comp.state.events[0].uid, "e2");
@@ -442,11 +398,7 @@ fn test_push_event_max_events_exact() {
     let mut comp = make_component();
     comp.state.max_events = 3;
     for i in 0..3 {
-        comp.state.push_event(sample_event(
-            &format!("e{i}"),
-            EventType::Normal,
-            "x",
-        ));
+        comp.state.push_event(sample_event(&format!("e{i}"), EventType::Normal, "x"));
     }
     assert_eq!(comp.state.total_count(), 3);
     assert_eq!(comp.state.events[0].uid, "e0");
@@ -459,10 +411,8 @@ fn test_push_event_max_events_exact() {
 #[test]
 fn test_combined_severity_and_namespace() {
     let mut comp = make_component_with_events();
-    comp.state
-        .set_severity_filter(EventSeverityFilter::Warning);
-    comp.state
-        .set_namespace_filter(Some("default".to_string()));
+    comp.state.set_severity_filter(EventSeverityFilter::Warning);
+    comp.state.set_namespace_filter(Some("default".to_string()));
     let filtered = comp.state.filtered_events();
     assert_eq!(filtered.len(), 2);
     assert!(filtered.iter().all(|e| e.is_warning()));
@@ -471,8 +421,7 @@ fn test_combined_severity_and_namespace() {
 #[test]
 fn test_combined_severity_and_search() {
     let mut comp = make_component_with_events();
-    comp.state
-        .set_severity_filter(EventSeverityFilter::Normal);
+    comp.state.set_severity_filter(EventSeverityFilter::Normal);
     comp.state.set_search_query("Scheduled");
     let filtered = comp.state.filtered_events();
     assert_eq!(filtered.len(), 1);
@@ -482,12 +431,9 @@ fn test_combined_severity_and_search() {
 #[test]
 fn test_combined_all_filters() {
     let mut comp = make_component_with_events();
-    comp.state
-        .set_severity_filter(EventSeverityFilter::Normal);
-    comp.state
-        .set_namespace_filter(Some("default".to_string()));
-    comp.state
-        .set_resource_kind_filter(Some("Pod".to_string()));
+    comp.state.set_severity_filter(EventSeverityFilter::Normal);
+    comp.state.set_namespace_filter(Some("default".to_string()));
+    comp.state.set_resource_kind_filter(Some("Pod".to_string()));
     comp.state.set_search_query("Scheduled");
     let filtered = comp.state.filtered_events();
     assert_eq!(filtered.len(), 1);
@@ -499,37 +445,22 @@ fn test_combined_all_filters() {
 
 #[test]
 fn test_event_severity_label() {
-    let normal = sample_event(
-        "e1",
-        EventType::Normal,
-        "Started",
-    );
+    let normal = sample_event("e1", EventType::Normal, "Started");
     assert_eq!(normal.severity_label(), "Normal");
 
-    let warning = sample_event(
-        "e2",
-        EventType::Warning,
-        "BackOff",
-    );
+    let warning = sample_event("e2", EventType::Warning, "BackOff");
     assert_eq!(warning.severity_label(), "Warning");
 }
 
 #[test]
 fn test_event_resource_display() {
-    let event = sample_event(
-        "e1",
-        EventType::Normal,
-        "Started",
-    );
+    let event = sample_event("e1", EventType::Normal, "Started");
     assert_eq!(event.resource_display(), "Pod/nginx");
 }
 
 #[test]
 fn test_event_resource_display_no_name() {
-    let event = EventRow {
-        resource_name: None,
-        ..sample_event("e1", EventType::Normal, "x")
-    };
+    let event = EventRow { resource_name: None, ..sample_event("e1", EventType::Normal, "x") };
     assert_eq!(event.resource_display(), "Pod");
 }
 
@@ -558,28 +489,18 @@ fn test_full_events_workflow() {
     // Receive events
     state.set_loading(false);
     for i in 0..10 {
-        let et = if i % 3 == 0 {
-            EventType::Warning
-        } else {
-            EventType::Normal
-        };
-        state.push_event(sample_event(
-            &format!("e{i}"),
-            et,
-            &format!("Reason{i}"),
-        ));
+        let et = if i % 3 == 0 { EventType::Warning } else { EventType::Normal };
+        state.push_event(sample_event(&format!("e{i}"), et, &format!("Reason{i}")));
     }
     assert_eq!(state.total_count(), 10);
 
     // Filter warnings
-    state
-        .set_severity_filter(EventSeverityFilter::Warning);
+    state.set_severity_filter(EventSeverityFilter::Warning);
     let warnings = state.filtered_events();
     assert_eq!(warnings.len(), 4); // i=0,3,6,9
 
     // Search
-    state
-        .set_severity_filter(EventSeverityFilter::All);
+    state.set_severity_filter(EventSeverityFilter::All);
     state.set_search_query("Reason5");
     assert_eq!(state.filtered_events().len(), 1);
 
@@ -592,8 +513,7 @@ fn test_full_events_workflow() {
     assert!(!state.auto_scroll);
 
     // Create component
-    let comp =
-        EventsViewComponent::new(state, Theme::dark());
+    let comp = EventsViewComponent::new(state, Theme::dark());
     assert_eq!(comp.state.warning_count(), 4);
     assert_eq!(comp.state.normal_count(), 6);
 }
@@ -602,10 +522,7 @@ fn test_full_events_workflow() {
 fn test_component_new_defaults() {
     let comp = make_component();
     assert!(comp.state.events.is_empty());
-    assert_eq!(
-        comp.state.severity_filter,
-        EventSeverityFilter::All,
-    );
+    assert_eq!(comp.state.severity_filter, EventSeverityFilter::All,);
     assert!(comp.state.namespace_filter.is_none());
     assert!(comp.state.resource_kind_filter.is_none());
     assert!(comp.state.search_query.is_empty());

@@ -38,12 +38,8 @@ fn sample_items() -> Vec<ClusterListItem> {
 
 #[test]
 fn test_cluster_list_item_new() {
-    let item = ClusterListItem::new(
-        "my-context",
-        "My Cluster",
-        "https://api.example.com:6443",
-        "oidc",
-    );
+    let item =
+        ClusterListItem::new("my-context", "My Cluster", "https://api.example.com:6443", "oidc");
     assert_eq!(item.context_name, "my-context");
     assert_eq!(item.display_name, "My Cluster");
     assert_eq!(item.api_server_url, "https://api.example.com:6443");
@@ -258,12 +254,7 @@ fn test_connected_count() {
 
 #[test]
 fn test_cluster_list_item_serialization() {
-    let item = ClusterListItem::new(
-        "test-ctx",
-        "Test Cluster",
-        "https://localhost:6443",
-        "token",
-    );
+    let item = ClusterListItem::new("test-ctx", "Test Cluster", "https://localhost:6443", "token");
     let json = serde_json::to_string(&item).unwrap();
     let deserialized: ClusterListItem = serde_json::from_str(&json).unwrap();
     assert_eq!(item, deserialized);
@@ -351,10 +342,10 @@ fn test_render_cluster_cards_connect_button_label_and_enabled() {
     let state = ClusterListState::new(render_scenario_items());
 
     let expected: Vec<(&str, bool)> = vec![
-        ("Disconnect", true),   // Connected -> can disconnect
-        ("Connect", true),      // Disconnected -> can connect
-        ("Connecting...", false), // Connecting -> button disabled
-        ("Retry", true),        // Error -> can retry
+        ("Disconnect", true),       // Connected -> can disconnect
+        ("Connect", true),          // Disconnected -> can connect
+        ("Connecting...", false),   // Connecting -> button disabled
+        ("Retry", true),            // Error -> can retry
         ("Reconnecting...", false), // Reconnecting -> button disabled
     ];
 
@@ -406,7 +397,8 @@ fn test_render_cluster_list_favorites_sorted_first() {
     assert!(state.items[0].favorite);
 
     // Remaining items should be alphabetically sorted by display_name
-    let non_fav_names: Vec<&str> = state.items[1..].iter().map(|i| i.display_name.as_str()).collect();
+    let non_fav_names: Vec<&str> =
+        state.items[1..].iter().map(|i| i.display_name.as_str()).collect();
     let mut sorted = non_fav_names.clone();
     sorted.sort();
     assert_eq!(non_fav_names, sorted);

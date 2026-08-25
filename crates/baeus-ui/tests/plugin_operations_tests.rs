@@ -14,10 +14,7 @@ fn sample_manifest(id: &str, name: &str) -> PluginManifest {
 }
 
 fn sample_plugin(id: &str, name: &str) -> Plugin {
-    Plugin::new(
-        sample_manifest(id, name),
-        format!("/plugins/{id}.dylib"),
-    )
+    Plugin::new(sample_manifest(id, name), format!("/plugins/{id}.dylib"))
 }
 
 // --- T083: Plugin operations tests ---

@@ -14,25 +14,20 @@ pub fn decode_helm_release(
     namespace: &str,
     cluster_id: Uuid,
 ) -> Result<HelmRelease> {
-    let decoded = base64::Engine::decode(
-        &base64::engine::general_purpose::STANDARD,
-        secret_data,
-    )
-    .context("Failed to base64 decode Helm release data")?;
+    let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, secret_data)
+        .context("Failed to base64 decode Helm release data")?;
 
     let decoder = flate2::read::GzDecoder::new(&decoded[..]);
     let mut limited = decoder.take(MAX_HELM_DECOMPRESSED_SIZE);
     let mut decompressed = String::new();
-    limited.read_to_string(&mut decompressed)
+    limited
+        .read_to_string(&mut decompressed)
         .context("Failed to gzip decompress Helm release data")?;
 
     let release_json: Value =
         serde_json::from_str(&decompressed).context("Failed to parse Helm release JSON")?;
 
-    let name = release_json["name"]
-        .as_str()
-        .unwrap_or("unknown")
-        .to_string();
+    let name = release_json["name"].as_str().unwrap_or("unknown").to_string();
     let info = &release_json["info"];
     let chart = &release_json["chart"]["metadata"];
 
@@ -63,8 +58,8 @@ pub fn helm_secret_label_selector() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use flate2::write::GzEncoder;
     use flate2::Compression;
+    use flate2::write::GzEncoder;
     use std::io::Write;
 
     fn make_helm_secret_data(name: &str, status: &str) -> String {
@@ -157,8 +152,10 @@ mod tests {
         });
 
         let cluster = Uuid::new_v4();
-        let r1 = decode_helm_release(&make_helm_secret_data_full(rev1_json), "prod", cluster).unwrap();
-        let r5 = decode_helm_release(&make_helm_secret_data_full(rev5_json), "prod", cluster).unwrap();
+        let r1 =
+            decode_helm_release(&make_helm_secret_data_full(rev1_json), "prod", cluster).unwrap();
+        let r5 =
+            decode_helm_release(&make_helm_secret_data_full(rev5_json), "prod", cluster).unwrap();
 
         assert_eq!(r1.name, "my-app");
         assert_eq!(r1.revision, 1);
@@ -189,12 +186,9 @@ mod tests {
             }
         });
 
-        let release = decode_helm_release(
-            &make_helm_secret_data_full(json),
-            "kube-system",
-            Uuid::new_v4(),
-        )
-        .unwrap();
+        let release =
+            decode_helm_release(&make_helm_secret_data_full(json), "kube-system", Uuid::new_v4())
+                .unwrap();
 
         assert_eq!(release.name, "bare-release");
         assert_eq!(release.chart_name, "minimal-chart");
@@ -212,12 +206,9 @@ mod tests {
             "chart": {}
         });
 
-        let release = decode_helm_release(
-            &make_helm_secret_data_full(json),
-            "default",
-            Uuid::new_v4(),
-        )
-        .unwrap();
+        let release =
+            decode_helm_release(&make_helm_secret_data_full(json), "default", Uuid::new_v4())
+                .unwrap();
 
         assert_eq!(release.name, "unknown");
         assert_eq!(release.chart_name, "unknown");
@@ -253,10 +244,8 @@ mod tests {
     #[test]
     fn test_decode_invalid_gzip_data() {
         // Valid base64 but not valid gzip content
-        let data = base64::Engine::encode(
-            &base64::engine::general_purpose::STANDARD,
-            b"this is not gzip",
-        );
+        let data =
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b"this is not gzip");
         let result = decode_helm_release(&data, "ns", Uuid::new_v4());
         assert!(result.is_err());
     }

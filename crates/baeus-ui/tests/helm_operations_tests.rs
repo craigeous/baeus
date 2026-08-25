@@ -286,11 +286,7 @@ fn operation_labels_are_correct() {
         "Rollback"
     );
     assert_eq!(
-        HelmOperation::Uninstall {
-            release_name: String::new(),
-            namespace: String::new(),
-        }
-        .label(),
+        HelmOperation::Uninstall { release_name: String::new(), namespace: String::new() }.label(),
         "Uninstall"
     );
 }
@@ -349,18 +345,14 @@ fn operation_state_in_progress() {
 
 #[test]
 fn operation_state_success() {
-    let state = HelmOperationState::Success {
-        message: "Release installed".to_string(),
-    };
+    let state = HelmOperationState::Success { message: "Release installed".to_string() };
 
     assert!(matches!(state, HelmOperationState::Success { .. }));
 }
 
 #[test]
 fn operation_state_failed() {
-    let state = HelmOperationState::Failed {
-        error: "timeout".to_string(),
-    };
+    let state = HelmOperationState::Failed { error: "timeout".to_string() };
 
     assert!(matches!(state, HelmOperationState::Failed { .. }));
 }
@@ -372,11 +364,7 @@ fn operation_state_failed() {
 #[test]
 fn begin_operation_sets_in_progress() {
     let mut state = HelmReleasesViewState::default();
-    state.set_releases(vec![make_release(
-        "nginx",
-        "default",
-        HelmReleaseStatus::Deployed,
-    )]);
+    state.set_releases(vec![make_release("nginx", "default", HelmReleaseStatus::Deployed)]);
 
     state.begin_operation("Install", "nginx");
 
@@ -400,9 +388,7 @@ fn operation_success_sets_message() {
     assert!(!state.is_operation_in_progress());
     assert_eq!(
         state.operation_state,
-        HelmOperationState::Success {
-            message: "Upgrade of redis to v2.0 complete".to_string(),
-        }
+        HelmOperationState::Success { message: "Upgrade of redis to v2.0 complete".to_string() }
     );
 }
 
@@ -416,9 +402,7 @@ fn operation_failed_sets_error() {
     assert!(!state.is_operation_in_progress());
     assert_eq!(
         state.operation_state,
-        HelmOperationState::Failed {
-            error: "release not found".to_string(),
-        }
+        HelmOperationState::Failed { error: "release not found".to_string() }
     );
 }
 
@@ -471,10 +455,7 @@ fn install_workflow_begin_to_complete() {
 
     state.operation_success("Release new-app installed successfully".to_string());
     assert!(!state.is_operation_in_progress());
-    assert!(matches!(
-        state.operation_state,
-        HelmOperationState::Success { .. }
-    ));
+    assert!(matches!(state.operation_state, HelmOperationState::Success { .. }));
 
     state.dismiss_operation_result();
     assert_eq!(state.operation_state, HelmOperationState::Idle);
@@ -493,10 +474,7 @@ fn install_workflow_begin_to_failed() {
 
     state.operation_failed("chart not found".to_string());
     assert!(!state.is_operation_in_progress());
-    assert!(matches!(
-        state.operation_state,
-        HelmOperationState::Failed { .. }
-    ));
+    assert!(matches!(state.operation_state, HelmOperationState::Failed { .. }));
 }
 
 // ===========================================================================
@@ -528,11 +506,7 @@ fn upgrade_operation_with_reuse_values() {
 #[test]
 fn rollback_lifecycle() {
     let mut state = HelmReleasesViewState::default();
-    state.set_releases(vec![make_release(
-        "web-app",
-        "prod",
-        HelmReleaseStatus::Failed,
-    )]);
+    state.set_releases(vec![make_release("web-app", "prod", HelmReleaseStatus::Failed)]);
 
     // Build the rollback operation
     let op = HelmOperation::Rollback {

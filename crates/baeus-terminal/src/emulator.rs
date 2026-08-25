@@ -153,9 +153,7 @@ impl TerminalEmulator {
 
     /// Get the cell at the given row and column position.
     pub fn cell_at(&self, row: u16, col: u16) -> Option<&TerminalCell> {
-        self.grid
-            .get(row as usize)
-            .and_then(|r| r.get(col as usize))
+        self.grid.get(row as usize).and_then(|r| r.get(col as usize))
     }
 
     /// Write a single character at the current cursor position and advance the cursor.
@@ -228,10 +226,7 @@ impl TerminalEmulator {
 
     /// Get a reference to the visible grid rows.
     pub fn grid_rows(&self) -> Vec<Vec<&TerminalCell>> {
-        self.grid
-            .iter()
-            .map(|row| row.iter().collect())
-            .collect()
+        self.grid.iter().map(|row| row.iter().collect()).collect()
     }
 
     /// Toggle the alternate screen buffer.
@@ -420,16 +415,16 @@ impl TerminalEmulator {
 
     /// Parse CSI parameter string into a Vec of u16 values.
     fn parse_csi_params(&self) -> Vec<u16> {
-        let param_str: String = self.csi_params.iter()
+        let param_str: String = self
+            .csi_params
+            .iter()
             .filter(|&&b| b.is_ascii_digit() || b == b';')
             .map(|&b| b as char)
             .collect();
         if param_str.is_empty() {
             return Vec::new();
         }
-        param_str.split(';')
-            .map(|s| s.parse::<u16>().unwrap_or(0))
-            .collect()
+        param_str.split(';').map(|s| s.parse::<u16>().unwrap_or(0)).collect()
     }
 
     /// Check if the CSI params start with '?'.
@@ -575,10 +570,10 @@ impl TerminalEmulator {
     fn handle_dec_set(&mut self, params: &[u16]) {
         for &p in params {
             match p {
-                25 => self.cursor_visible = true,     // DECTCEM: show cursor
+                25 => self.cursor_visible = true,        // DECTCEM: show cursor
                 1049 => self.set_alternate_screen(true), // Alternate screen buffer
-                2004 => {}                              // Bracketed paste — ignore
-                1 | 7 | 12 | 1000 | 1002 | 1006 => {} // Various modes — ignore
+                2004 => {}                               // Bracketed paste — ignore
+                1 | 7 | 12 | 1000 | 1002 | 1006 => {}    // Various modes — ignore
                 _ => {}
             }
         }
@@ -588,10 +583,10 @@ impl TerminalEmulator {
     fn handle_dec_reset(&mut self, params: &[u16]) {
         for &p in params {
             match p {
-                25 => self.cursor_visible = false,      // DECTCEM: hide cursor
+                25 => self.cursor_visible = false,        // DECTCEM: hide cursor
                 1049 => self.set_alternate_screen(false), // Normal screen buffer
-                2004 => {}                               // Bracketed paste — ignore
-                1 | 7 | 12 | 1000 | 1002 | 1006 => {}  // Various modes — ignore
+                2004 => {}                                // Bracketed paste — ignore
+                1 | 7 | 12 | 1000 | 1002 | 1006 => {}     // Various modes — ignore
                 _ => {}
             }
         }
@@ -648,8 +643,12 @@ impl TerminalEmulator {
                     }
                 }
                 49 => self.current_bg = None,
-                90..=97 => self.current_fg = Some(TerminalColor::Indexed((params[i] - 90 + 8) as u8)),
-                100..=107 => self.current_bg = Some(TerminalColor::Indexed((params[i] - 100 + 8) as u8)),
+                90..=97 => {
+                    self.current_fg = Some(TerminalColor::Indexed((params[i] - 90 + 8) as u8))
+                }
+                100..=107 => {
+                    self.current_bg = Some(TerminalColor::Indexed((params[i] - 100 + 8) as u8))
+                }
                 // Italic, underline, strikethrough, etc. — acknowledge but don't track.
                 2..=9 | 21..=29 | 50..=65 => {}
                 _ => {}
@@ -747,9 +746,7 @@ impl TerminalEmulator {
 
     /// Create an empty grid of the given size filled with default cells.
     fn create_empty_grid(size: TerminalSize) -> Vec<Vec<TerminalCell>> {
-        (0..size.rows as usize)
-            .map(|_| vec![TerminalCell::default(); size.cols as usize])
-            .collect()
+        (0..size.rows as usize).map(|_| vec![TerminalCell::default(); size.cols as usize]).collect()
     }
 
     /// Advance the cursor row by one, scrolling the grid if at the bottom.
@@ -768,8 +765,7 @@ impl TerminalEmulator {
                     self.scrollback.drain(0..excess);
                 }
             }
-            self.grid
-                .push(vec![TerminalCell::default(); self.size.cols as usize]);
+            self.grid.push(vec![TerminalCell::default(); self.size.cols as usize]);
         }
     }
 }

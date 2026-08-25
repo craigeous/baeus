@@ -1,6 +1,4 @@
-use gpui::{
-    div, px, rgb, prelude::*, Context, ElementId, FontWeight, SharedString, Window,
-};
+use gpui::{Context, ElementId, FontWeight, SharedString, Window, div, prelude::*, px, rgb};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -20,10 +18,7 @@ pub struct ClusterOption {
 
 impl ClusterSelector {
     pub fn new() -> Self {
-        Self {
-            available_contexts: Vec::new(),
-            active_context: None,
-        }
+        Self { available_contexts: Vec::new(), active_context: None }
     }
 
     pub fn set_contexts(&mut self, contexts: Vec<ClusterOption>) {
@@ -31,11 +26,7 @@ impl ClusterSelector {
     }
 
     pub fn select_context(&mut self, context_name: &str) -> bool {
-        if self
-            .available_contexts
-            .iter()
-            .any(|c| c.context_name == context_name)
-        {
+        if self.available_contexts.iter().any(|c| c.context_name == context_name) {
             self.active_context = Some(context_name.to_string());
             true
         } else {
@@ -68,11 +59,7 @@ impl Default for NamespaceSelector {
 
 impl NamespaceSelector {
     pub fn new() -> Self {
-        Self {
-            available_namespaces: Vec::new(),
-            active_namespace: None,
-            show_all: true,
-        }
+        Self { available_namespaces: Vec::new(), active_namespace: None, show_all: true }
     }
 
     pub fn set_namespaces(&mut self, namespaces: Vec<String>) {
@@ -129,9 +116,8 @@ impl HeaderState {
     pub fn switch_cluster(&mut self, context_name: &str) -> bool {
         if self.cluster_selector.select_context(context_name) {
             self.namespace_selector = NamespaceSelector::new();
-            self.pending_action = Some(HeaderAction::ClusterChanged {
-                context_name: context_name.to_string(),
-            });
+            self.pending_action =
+                Some(HeaderAction::ClusterChanged { context_name: context_name.to_string() });
             true
         } else {
             false
@@ -141,9 +127,8 @@ impl HeaderState {
     /// Switch the active namespace and emit a NamespaceChanged action.
     pub fn switch_namespace(&mut self, namespace: &str) {
         self.namespace_selector.select_namespace(namespace);
-        self.pending_action = Some(HeaderAction::NamespaceChanged {
-            namespace: Some(namespace.to_string()),
-        });
+        self.pending_action =
+            Some(HeaderAction::NamespaceChanged { namespace: Some(namespace.to_string()) });
     }
 
     /// Switch to "All Namespaces" and emit a NamespaceChanged action.
@@ -300,26 +285,14 @@ impl NamespaceSelectorViewComponent {
             .cursor_pointer()
             .hover(|s| s.bg(rgb(0x4B5563)))
             .child(label)
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(rgb(0x9CA3AF))
-                    .child(arrow),
-            )
+            .child(div().text_xs().text_color(rgb(0x9CA3AF)).child(arrow))
     }
 
     /// Render a single namespace checkbox row.
-    fn render_namespace_row(
-        &self,
-        namespace: &str,
-        idx: usize,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_namespace_row(&self, namespace: &str, idx: usize) -> gpui::Stateful<gpui::Div> {
         let is_selected = self.selector.is_namespace_selected(namespace);
-        let check_mark = if is_selected {
-            SharedString::from("[x]")
-        } else {
-            SharedString::from("[ ]")
-        };
+        let check_mark =
+            if is_selected { SharedString::from("[x]") } else { SharedString::from("[ ]") };
         let ns_label = SharedString::from(namespace.to_string());
         let row_id = ElementId::Name(SharedString::from(format!("ns-row-{idx}")));
 
@@ -333,18 +306,8 @@ impl NamespaceSelectorViewComponent {
             .py_1()
             .cursor_pointer()
             .hover(|s| s.bg(rgb(0x374151)))
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(rgb(0x9CA3AF))
-                    .child(check_mark),
-            )
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(rgb(0xD1D5DB))
-                    .child(ns_label),
-            )
+            .child(div().text_xs().text_color(rgb(0x9CA3AF)).child(check_mark))
+            .child(div().text_sm().text_color(rgb(0xD1D5DB)).child(ns_label))
     }
 
     /// Render the action buttons at the top of the dropdown.
@@ -402,10 +365,7 @@ impl NamespaceSelectorViewComponent {
 
 impl Render for NamespaceSelectorViewComponent {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        let mut container = div()
-            .flex()
-            .flex_col()
-            .child(self.render_button());
+        let mut container = div().flex().flex_col().child(self.render_button());
 
         if self.selector.is_dropdown_open {
             container = container.child(self.render_dropdown());
@@ -506,10 +466,7 @@ impl MultiNamespaceSelector {
     /// Synchronize the `all_selected` flag based on current state.
     fn sync_all_selected(&mut self) {
         self.all_selected = !self.available_namespaces.is_empty()
-            && self
-                .available_namespaces
-                .iter()
-                .all(|ns| self.selected_namespaces.contains(ns));
+            && self.available_namespaces.iter().all(|ns| self.selected_namespaces.contains(ns));
     }
 }
 
@@ -529,9 +486,7 @@ impl Default for HeaderView {
 
 impl HeaderView {
     pub fn new() -> Self {
-        Self {
-            state: HeaderState::default(),
-        }
+        Self { state: HeaderState::default() }
     }
 
     pub fn state(&self) -> &HeaderState {
@@ -545,12 +500,8 @@ impl HeaderView {
 
 impl Render for HeaderView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        let cluster_name = self
-            .state
-            .cluster_selector
-            .active_display_name()
-            .unwrap_or("No Cluster")
-            .to_string();
+        let cluster_name =
+            self.state.cluster_selector.active_display_name().unwrap_or("No Cluster").to_string();
 
         let namespace_label = self.state.namespace_selector.display_label().to_string();
 
@@ -584,21 +535,17 @@ impl Render for HeaderView {
             )
             // Right: search trigger
             .child(
-                div()
-                    .flex_1()
-                    .flex()
-                    .justify_end()
-                    .child(
-                        div()
-                            .px_3()
-                            .py_1()
-                            .rounded(px(6.0))
-                            .bg(rgb(0x374151))
-                            .text_xs()
-                            .text_color(rgb(0x9CA3AF))
-                            .cursor_pointer()
-                            .child("Search... (Cmd+K)"),
-                    ),
+                div().flex_1().flex().justify_end().child(
+                    div()
+                        .px_3()
+                        .py_1()
+                        .rounded(px(6.0))
+                        .bg(rgb(0x374151))
+                        .text_xs()
+                        .text_color(rgb(0x9CA3AF))
+                        .cursor_pointer()
+                        .child("Search... (Cmd+K)"),
+                ),
             )
     }
 }
@@ -639,10 +586,7 @@ mod tests {
     #[test]
     fn test_namespace_selector_select_and_all() {
         let mut selector = NamespaceSelector::new();
-        selector.set_namespaces(vec![
-            "default".to_string(),
-            "kube-system".to_string(),
-        ]);
+        selector.set_namespaces(vec!["default".to_string(), "kube-system".to_string()]);
 
         assert_eq!(selector.display_label(), "All Namespaces");
 
@@ -690,12 +634,7 @@ mod tests {
         assert!(header.switch_cluster("prod"));
 
         let action = header.take_action().unwrap();
-        assert_eq!(
-            action,
-            HeaderAction::ClusterChanged {
-                context_name: "prod".to_string()
-            }
-        );
+        assert_eq!(action, HeaderAction::ClusterChanged { context_name: "prod".to_string() });
     }
 
     #[test]
@@ -728,9 +667,7 @@ mod tests {
         let action = header.take_action().unwrap();
         assert_eq!(
             action,
-            HeaderAction::NamespaceChanged {
-                namespace: Some("kube-system".to_string())
-            }
+            HeaderAction::NamespaceChanged { namespace: Some("kube-system".to_string()) }
         );
     }
 

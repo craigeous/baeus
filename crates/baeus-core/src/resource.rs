@@ -134,9 +134,7 @@ pub struct ResourceService {
 impl ResourceService {
     /// Create a new empty ResourceService.
     pub fn new() -> Self {
-        Self {
-            resources: Vec::new(),
-        }
+        Self { resources: Vec::new() }
     }
 
     /// List resources by kind, optionally filtered by namespace.
@@ -153,9 +151,9 @@ impl ResourceService {
 
     /// Get a specific resource by kind, name, and optional namespace.
     pub fn get(&self, kind: &str, name: &str, namespace: Option<&str>) -> Option<&Resource> {
-        self.resources.iter().find(|r| {
-            r.kind == kind && r.name == name && r.namespace.as_deref() == namespace
-        })
+        self.resources
+            .iter()
+            .find(|r| r.kind == kind && r.name == name && r.namespace.as_deref() == namespace)
     }
 
     /// Create a new resource. Returns an error if a resource with the same
@@ -175,14 +173,9 @@ impl ResourceService {
     /// not found or if the resource_version does not match (optimistic
     /// concurrency).
     pub fn update(&mut self, resource: Resource) -> Result<(), ResourceError> {
-        let idx = self
-            .resources
-            .iter()
-            .position(|r| r.uid == resource.uid)
-            .ok_or_else(|| ResourceError::NotFound {
-                kind: resource.kind.clone(),
-                name: resource.name.clone(),
-            })?;
+        let idx = self.resources.iter().position(|r| r.uid == resource.uid).ok_or_else(|| {
+            ResourceError::NotFound { kind: resource.kind.clone(), name: resource.name.clone() }
+        })?;
 
         let existing = &self.resources[idx];
         if existing.resource_version != resource.resource_version {
@@ -207,9 +200,7 @@ impl ResourceService {
         let idx = self
             .resources
             .iter()
-            .position(|r| {
-                r.kind == kind && r.name == name && r.namespace.as_deref() == namespace
-            })
+            .position(|r| r.kind == kind && r.name == name && r.namespace.as_deref() == namespace)
             .ok_or_else(|| ResourceError::NotFound {
                 kind: kind.to_string(),
                 name: name.to_string(),
@@ -225,11 +216,7 @@ impl ResourceService {
 
     /// Return a sorted, deduplicated list of resource kinds in the store.
     pub fn kinds(&self) -> Vec<String> {
-        let mut kinds: Vec<String> = self
-            .resources
-            .iter()
-            .map(|r| r.kind.clone())
-            .collect();
+        let mut kinds: Vec<String> = self.resources.iter().map(|r| r.kind.clone()).collect();
         kinds.sort();
         kinds.dedup();
         kinds
@@ -342,10 +329,7 @@ pub struct InMemoryKubeClient {
 impl InMemoryKubeClient {
     /// Create a new in-memory client targeting the given cluster.
     pub fn new(cluster_id: Uuid) -> Self {
-        Self {
-            cluster_id,
-            store: Arc::new(RwLock::new(ResourceService::new())),
-        }
+        Self { cluster_id, store: Arc::new(RwLock::new(ResourceService::new())) }
     }
 
     /// Create a new in-memory client with a pre-populated store.
@@ -382,13 +366,10 @@ impl KubeResourceClient for InMemoryKubeClient {
         let store = self.store.read().map_err(|e| KubeApiError::ConnectionError {
             message: format!("lock poisoned: {e}"),
         })?;
-        store
-            .get(kind, name, namespace)
-            .cloned()
-            .ok_or_else(|| KubeApiError::NotFound {
-                kind: kind.to_string(),
-                name: name.to_string(),
-            })
+        store.get(kind, name, namespace).cloned().ok_or_else(|| KubeApiError::NotFound {
+            kind: kind.to_string(),
+            name: name.to_string(),
+        })
     }
 
     fn create(
@@ -426,10 +407,7 @@ impl KubeResourceClient for InMemoryKubeClient {
                 status_code: 409,
                 message: format!("resource already exists: {kind}/{name}"),
             },
-            _ => KubeApiError::ApiError {
-                status_code: 500,
-                message: e.to_string(),
-            },
+            _ => KubeApiError::ApiError { status_code: 500, message: e.to_string() },
         })?;
 
         Ok(resource)
@@ -449,20 +427,15 @@ impl KubeResourceClient for InMemoryKubeClient {
 
         // Find the existing resource to get its uid and resource_version.
         let existing = store.get(kind, name, namespace).cloned().ok_or_else(|| {
-            KubeApiError::NotFound {
-                kind: kind.to_string(),
-                name: name.to_string(),
-            }
+            KubeApiError::NotFound { kind: kind.to_string(), name: name.to_string() }
         })?;
 
         let mut updated = existing.clone();
         if let Some(spec) = data.get("spec") {
             updated.spec = spec.clone();
         }
-        if let Some(labels) = data
-            .get("metadata")
-            .and_then(|m| m.get("labels"))
-            .and_then(|l| l.as_object())
+        if let Some(labels) =
+            data.get("metadata").and_then(|m| m.get("labels")).and_then(|l| l.as_object())
         {
             for (k, v) in labels {
                 if let Some(val) = v.as_str() {
@@ -474,10 +447,7 @@ impl KubeResourceClient for InMemoryKubeClient {
         store.update(updated.clone()).map_err(|e| match e {
             ResourceError::VersionConflict { .. } => KubeApiError::Conflict,
             ResourceError::NotFound { kind, name } => KubeApiError::NotFound { kind, name },
-            _ => KubeApiError::ApiError {
-                status_code: 500,
-                message: e.to_string(),
-            },
+            _ => KubeApiError::ApiError { status_code: 500, message: e.to_string() },
         })?;
 
         Ok(updated)
@@ -496,10 +466,7 @@ impl KubeResourceClient for InMemoryKubeClient {
 
         store.delete(kind, name, namespace).map_err(|e| match e {
             ResourceError::NotFound { kind, name } => KubeApiError::NotFound { kind, name },
-            _ => KubeApiError::ApiError {
-                status_code: 500,
-                message: e.to_string(),
-            },
+            _ => KubeApiError::ApiError { status_code: 500, message: e.to_string() },
         })?;
 
         Ok(())
@@ -517,14 +484,9 @@ impl KubeResourceClient for InMemoryKubeClient {
             message: format!("lock poisoned: {e}"),
         })?;
 
-        let existing =
-            store
-                .get(kind, name, Some(namespace))
-                .cloned()
-                .ok_or_else(|| KubeApiError::NotFound {
-                    kind: kind.to_string(),
-                    name: name.to_string(),
-                })?;
+        let existing = store.get(kind, name, Some(namespace)).cloned().ok_or_else(|| {
+            KubeApiError::NotFound { kind: kind.to_string(), name: name.to_string() }
+        })?;
 
         let scalable = matches!(kind, "Deployment" | "StatefulSet" | "ReplicaSet");
         if !scalable {
@@ -545,10 +507,7 @@ impl KubeResourceClient for InMemoryKubeClient {
         store.update(updated).map_err(|e| match e {
             ResourceError::VersionConflict { .. } => KubeApiError::Conflict,
             ResourceError::NotFound { kind, name } => KubeApiError::NotFound { kind, name },
-            _ => KubeApiError::ApiError {
-                status_code: 500,
-                message: e.to_string(),
-            },
+            _ => KubeApiError::ApiError { status_code: 500, message: e.to_string() },
         })?;
 
         Ok(())
@@ -565,14 +524,9 @@ impl KubeResourceClient for InMemoryKubeClient {
             message: format!("lock poisoned: {e}"),
         })?;
 
-        let existing =
-            store
-                .get(kind, name, Some(namespace))
-                .cloned()
-                .ok_or_else(|| KubeApiError::NotFound {
-                    kind: kind.to_string(),
-                    name: name.to_string(),
-                })?;
+        let existing = store.get(kind, name, Some(namespace)).cloned().ok_or_else(|| {
+            KubeApiError::NotFound { kind: kind.to_string(), name: name.to_string() }
+        })?;
 
         let restartable = matches!(kind, "Deployment" | "StatefulSet" | "DaemonSet");
         if !restartable {
@@ -584,18 +538,14 @@ impl KubeResourceClient for InMemoryKubeClient {
 
         let mut updated = existing;
         // Simulate restart by adding a restart annotation with current timestamp.
-        updated.annotations.insert(
-            "kubectl.kubernetes.io/restartedAt".to_string(),
-            Utc::now().to_rfc3339(),
-        );
+        updated
+            .annotations
+            .insert("kubectl.kubernetes.io/restartedAt".to_string(), Utc::now().to_rfc3339());
 
         store.update(updated).map_err(|e| match e {
             ResourceError::VersionConflict { .. } => KubeApiError::Conflict,
             ResourceError::NotFound { kind, name } => KubeApiError::NotFound { kind, name },
-            _ => KubeApiError::ApiError {
-                status_code: 500,
-                message: e.to_string(),
-            },
+            _ => KubeApiError::ApiError { status_code: 500, message: e.to_string() },
         })?;
 
         Ok(())
@@ -615,12 +565,12 @@ pub struct ResourceRef {
 }
 
 impl ResourceRef {
-    pub fn new(kind: impl Into<String>, name: impl Into<String>, namespace: Option<String>) -> Self {
-        Self {
-            kind: kind.into(),
-            name: name.into(),
-            namespace,
-        }
+    pub fn new(
+        kind: impl Into<String>,
+        name: impl Into<String>,
+        namespace: Option<String>,
+    ) -> Self {
+        Self { kind: kind.into(), name: name.into(), namespace }
     }
 
     /// Produce a stable key for graph deduplication.
@@ -688,10 +638,7 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
     let mut pods_by_ns: HashMap<Option<&str>, Vec<&Resource>> = HashMap::new();
     for r in resources {
         if r.kind == "Pod" {
-            pods_by_ns
-                .entry(r.namespace.as_deref())
-                .or_default()
-                .push(r);
+            pods_by_ns.entry(r.namespace.as_deref()).or_default().push(r);
         }
     }
 
@@ -705,11 +652,8 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
                 ResourceRef::new(&owner_ref.kind, &owner_ref.name, resource.namespace.clone())
             };
 
-            let owned_ref = ResourceRef::new(
-                &resource.kind,
-                &resource.name,
-                resource.namespace.clone(),
-            );
+            let owned_ref =
+                ResourceRef::new(&resource.kind, &resource.name, resource.namespace.clone());
 
             relationships.push(ResourceRelationship::new(
                 owner_resource_ref,
@@ -722,11 +666,8 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
         if resource.kind == "Service" {
             if let Some(selector) = resource.spec.get("selector").and_then(|s| s.as_object()) {
                 if !selector.is_empty() {
-                    let service_ref = ResourceRef::new(
-                        "Service",
-                        &resource.name,
-                        resource.namespace.clone(),
-                    );
+                    let service_ref =
+                        ResourceRef::new("Service", &resource.name, resource.namespace.clone());
 
                     // Use pre-indexed Pods for the same namespace
                     let ns_key = resource.namespace.as_deref();
@@ -761,17 +702,12 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
         // 3. Ingress backend: Ingress -> Service
         if resource.kind == "Ingress" {
             if let Some(rules) = resource.spec.get("rules").and_then(|r| r.as_array()) {
-                let ingress_ref = ResourceRef::new(
-                    "Ingress",
-                    &resource.name,
-                    resource.namespace.clone(),
-                );
+                let ingress_ref =
+                    ResourceRef::new("Ingress", &resource.name, resource.namespace.clone());
 
                 for rule in rules {
-                    if let Some(paths) = rule
-                        .get("http")
-                        .and_then(|h| h.get("paths"))
-                        .and_then(|p| p.as_array())
+                    if let Some(paths) =
+                        rule.get("http").and_then(|h| h.get("paths")).and_then(|p| p.as_array())
                     {
                         for path in paths {
                             if let Some(svc_name) = path
@@ -801,11 +737,7 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
         if resource.kind == "Pod" {
             if let Some(node_name) = resource.spec.get("nodeName").and_then(|n| n.as_str()) {
                 let node_ref = ResourceRef::new("Node", node_name, None);
-                let pod_ref = ResourceRef::new(
-                    "Pod",
-                    &resource.name,
-                    resource.namespace.clone(),
-                );
+                let pod_ref = ResourceRef::new("Pod", &resource.name, resource.namespace.clone());
                 relationships.push(ResourceRelationship::new(
                     node_ref,
                     pod_ref,
@@ -816,12 +748,9 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
 
         // 5. Pod -> Secret (imagePullSecrets, volumes)
         if resource.kind == "Pod" {
-            let pod_ref = ResourceRef::new(
-                "Pod",
-                &resource.name,
-                resource.namespace.clone(),
-            );
-            let mut seen_secrets: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let pod_ref = ResourceRef::new("Pod", &resource.name, resource.namespace.clone());
+            let mut seen_secrets: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
 
             // imagePullSecrets
             if let Some(ips) = resource.spec.get("imagePullSecrets").and_then(|v| v.as_array()) {
@@ -840,10 +769,8 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
             // volumes[].secret.secretName
             if let Some(volumes) = resource.spec.get("volumes").and_then(|v| v.as_array()) {
                 for vol in volumes {
-                    if let Some(name) = vol
-                        .get("secret")
-                        .and_then(|s| s.get("secretName"))
-                        .and_then(|n| n.as_str())
+                    if let Some(name) =
+                        vol.get("secret").and_then(|s| s.get("secretName")).and_then(|n| n.as_str())
                     {
                         if seen_secrets.insert(name.to_string()) {
                             relationships.push(ResourceRelationship::new(
@@ -859,20 +786,14 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
 
         // 6. Pod -> ConfigMap (volumes, envFrom)
         if resource.kind == "Pod" {
-            let pod_ref = ResourceRef::new(
-                "Pod",
-                &resource.name,
-                resource.namespace.clone(),
-            );
+            let pod_ref = ResourceRef::new("Pod", &resource.name, resource.namespace.clone());
             let mut seen_cms: std::collections::HashSet<String> = std::collections::HashSet::new();
 
             // volumes[].configMap.name
             if let Some(volumes) = resource.spec.get("volumes").and_then(|v| v.as_array()) {
                 for vol in volumes {
-                    if let Some(name) = vol
-                        .get("configMap")
-                        .and_then(|cm| cm.get("name"))
-                        .and_then(|n| n.as_str())
+                    if let Some(name) =
+                        vol.get("configMap").and_then(|cm| cm.get("name")).and_then(|n| n.as_str())
                     {
                         if seen_cms.insert(name.to_string()) {
                             relationships.push(ResourceRelationship::new(
@@ -885,13 +806,9 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
                 }
             }
             // containers[].envFrom[].configMapRef.name
-            if let Some(containers) =
-                resource.spec.get("containers").and_then(|c| c.as_array())
-            {
+            if let Some(containers) = resource.spec.get("containers").and_then(|c| c.as_array()) {
                 for container in containers {
-                    if let Some(env_from) =
-                        container.get("envFrom").and_then(|e| e.as_array())
-                    {
+                    if let Some(env_from) = container.get("envFrom").and_then(|e| e.as_array()) {
                         for ef in env_from {
                             if let Some(name) = ef
                                 .get("configMapRef")
@@ -919,11 +836,7 @@ pub fn build_relationship_graph(resources: &[Resource]) -> Vec<ResourceRelations
         // 7. Pod -> PVC (volumes.persistentVolumeClaim.claimName)
         if resource.kind == "Pod" {
             if let Some(volumes) = resource.spec.get("volumes").and_then(|v| v.as_array()) {
-                let pod_ref = ResourceRef::new(
-                    "Pod",
-                    &resource.name,
-                    resource.namespace.clone(),
-                );
+                let pod_ref = ResourceRef::new("Pod", &resource.name, resource.namespace.clone());
                 for vol in volumes {
                     if let Some(claim) = vol
                         .get("persistentVolumeClaim")
@@ -1015,8 +928,8 @@ pub fn build_dag(
     let mut node_indices: HashMap<String, petgraph::graph::NodeIndex> = HashMap::new();
 
     let get_or_insert = |graph: &mut DiGraph<ResourceRef, RelationshipKind>,
-                              node_map: &mut HashMap<String, petgraph::graph::NodeIndex>,
-                              resource_ref: &ResourceRef|
+                         node_map: &mut HashMap<String, petgraph::graph::NodeIndex>,
+                         resource_ref: &ResourceRef|
      -> petgraph::graph::NodeIndex {
         let key = resource_ref.key();
         if let Some(&idx) = node_map.get(&key) {
@@ -1098,22 +1011,11 @@ pub fn resource_from_json(json: &Value, cluster_id: Uuid) -> Option<Resource> {
     let metadata = json.get("metadata")?;
     let name = metadata.get("name")?.as_str()?.to_string();
     let namespace = metadata.get("namespace").and_then(|n| n.as_str()).map(String::from);
-    let uid = metadata
-        .get("uid")
-        .and_then(|u| u.as_str())
-        .unwrap_or("")
-        .to_string();
+    let uid = metadata.get("uid").and_then(|u| u.as_str()).unwrap_or("").to_string();
     let kind = json.get("kind").and_then(|k| k.as_str()).unwrap_or("").to_string();
-    let api_version = json
-        .get("apiVersion")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let resource_version = metadata
-        .get("resourceVersion")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+    let api_version = json.get("apiVersion").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let resource_version =
+        metadata.get("resourceVersion").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let creation_timestamp = metadata
         .get("creationTimestamp")
         .and_then(|t| t.as_str())
@@ -1124,9 +1026,7 @@ pub fn resource_from_json(json: &Value, cluster_id: Uuid) -> Option<Resource> {
         .get("labels")
         .and_then(|l| l.as_object())
         .map(|obj| {
-            obj.iter()
-                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                .collect()
+            obj.iter().filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string()))).collect()
         })
         .unwrap_or_default();
 
@@ -1134,9 +1034,7 @@ pub fn resource_from_json(json: &Value, cluster_id: Uuid) -> Option<Resource> {
         .get("annotations")
         .and_then(|a| a.as_object())
         .map(|obj| {
-            obj.iter()
-                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                .collect()
+            obj.iter().filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string()))).collect()
         })
         .unwrap_or_default();
 
@@ -1155,10 +1053,7 @@ pub fn resource_from_json(json: &Value, cluster_id: Uuid) -> Option<Resource> {
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string(),
-                        controller: or
-                            .get("controller")
-                            .and_then(|c| c.as_bool())
-                            .unwrap_or(false),
+                        controller: or.get("controller").and_then(|c| c.as_bool()).unwrap_or(false),
                     })
                 })
                 .collect()
@@ -1177,11 +1072,7 @@ pub fn resource_from_json(json: &Value, cluster_id: Uuid) -> Option<Resource> {
                 .filter_map(|c| {
                     Some(Condition {
                         type_name: c.get("type")?.as_str()?.to_string(),
-                        status: c
-                            .get("status")
-                            .and_then(|s| s.as_str())
-                            .unwrap_or("")
-                            .to_string(),
+                        status: c.get("status").and_then(|s| s.as_str()).unwrap_or("").to_string(),
                         reason: c.get("reason").and_then(|r| r.as_str()).map(String::from),
                         message: c.get("message").and_then(|m| m.as_str()).map(String::from),
                         last_transition: c
@@ -1233,12 +1124,7 @@ pub struct SearchQuery {
 impl SearchQuery {
     /// Create a new search query with just a query string.
     pub fn new(query: impl Into<String>) -> Self {
-        Self {
-            query: query.into(),
-            clusters: None,
-            namespaces: None,
-            kinds: None,
-        }
+        Self { query: query.into(), clusters: None, namespaces: None, kinds: None }
     }
 
     /// Builder method to filter by clusters.
@@ -1290,12 +1176,7 @@ pub struct GlobalSearchState {
 
 impl Default for GlobalSearchState {
     fn default() -> Self {
-        Self {
-            results: Vec::new(),
-            loading: false,
-            error: None,
-            debounce_ms: 300,
-        }
+        Self { results: Vec::new(), loading: false, error: None, debounce_ms: 300 }
     }
 }
 
@@ -1307,10 +1188,7 @@ impl GlobalSearchState {
 
     /// Create a new global search state with a custom debounce interval.
     pub fn with_debounce(debounce_ms: u64) -> Self {
-        Self {
-            debounce_ms,
-            ..Default::default()
-        }
+        Self { debounce_ms, ..Default::default() }
     }
 
     /// Set the search query, marking the state as loading and clearing previous errors.
@@ -1781,10 +1659,7 @@ mod tests {
         let err = result.unwrap_err();
         assert_eq!(
             err,
-            ResourceError::AlreadyExists {
-                kind: "Pod".to_string(),
-                name: "my-pod".to_string(),
-            }
+            ResourceError::AlreadyExists { kind: "Pod".to_string(), name: "my-pod".to_string() }
         );
     }
 
@@ -1818,8 +1693,7 @@ mod tests {
         let mut svc = ResourceService::new();
 
         svc.create(
-            Resource::new("my-pod", "default", "Pod", "v1", cluster)
-                .with_label("version", "1"),
+            Resource::new("my-pod", "default", "Pod", "v1", cluster).with_label("version", "1"),
         )
         .unwrap();
 
@@ -1827,8 +1701,8 @@ mod tests {
         let uid = existing.uid.clone();
         let version = existing.resource_version.clone();
 
-        let mut updated = Resource::new("my-pod", "default", "Pod", "v1", cluster)
-            .with_label("version", "2");
+        let mut updated =
+            Resource::new("my-pod", "default", "Pod", "v1", cluster).with_label("version", "2");
         updated.uid = uid;
         updated.resource_version = version;
 
@@ -1908,10 +1782,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
-            ResourceError::NotFound {
-                kind: "Pod".to_string(),
-                name: "no-such-pod".to_string(),
-            }
+            ResourceError::NotFound { kind: "Pod".to_string(), name: "no-such-pod".to_string() }
         );
     }
 
@@ -1997,22 +1868,16 @@ mod tests {
 
     #[test]
     fn test_resource_error_display() {
-        let not_found = ResourceError::NotFound {
-            kind: "Pod".to_string(),
-            name: "my-pod".to_string(),
-        };
+        let not_found =
+            ResourceError::NotFound { kind: "Pod".to_string(), name: "my-pod".to_string() };
         assert_eq!(not_found.to_string(), "resource not found: Pod/my-pod");
 
-        let already_exists = ResourceError::AlreadyExists {
-            kind: "Pod".to_string(),
-            name: "my-pod".to_string(),
-        };
+        let already_exists =
+            ResourceError::AlreadyExists { kind: "Pod".to_string(), name: "my-pod".to_string() };
         assert_eq!(already_exists.to_string(), "resource already exists: Pod/my-pod");
 
-        let conflict = ResourceError::VersionConflict {
-            expected: "2".to_string(),
-            actual: "1".to_string(),
-        };
+        let conflict =
+            ResourceError::VersionConflict { expected: "2".to_string(), actual: "1".to_string() };
         assert_eq!(conflict.to_string(), "version conflict: expected 2, actual 1");
     }
 
@@ -2039,7 +1904,9 @@ mod tests {
         // Update
         let mut updated = Resource::new("lifecycle-pod", "default", "Pod", "v1", cluster)
             .with_label("phase", "updated")
-            .with_spec(serde_json::json!({"containers": [{"name": "app", "image": "nginx:latest"}]}));
+            .with_spec(
+                serde_json::json!({"containers": [{"name": "app", "image": "nginx:latest"}]}),
+            );
         updated.uid = uid;
         updated.resource_version = version;
         svc.update(updated).unwrap();
@@ -2070,10 +1937,7 @@ mod tests {
 
     #[test]
     fn test_kube_api_error_display_not_found() {
-        let err = KubeApiError::NotFound {
-            kind: "Pod".to_string(),
-            name: "my-pod".to_string(),
-        };
+        let err = KubeApiError::NotFound { kind: "Pod".to_string(), name: "my-pod".to_string() };
         assert_eq!(err.to_string(), "not found: Pod/my-pod");
     }
 
@@ -2085,17 +1949,13 @@ mod tests {
 
     #[test]
     fn test_kube_api_error_display_forbidden() {
-        let err = KubeApiError::Forbidden {
-            message: "access denied".to_string(),
-        };
+        let err = KubeApiError::Forbidden { message: "access denied".to_string() };
         assert_eq!(err.to_string(), "forbidden: access denied");
     }
 
     #[test]
     fn test_kube_api_error_display_connection() {
-        let err = KubeApiError::ConnectionError {
-            message: "timeout".to_string(),
-        };
+        let err = KubeApiError::ConnectionError { message: "timeout".to_string() };
         assert_eq!(err.to_string(), "connection error: timeout");
     }
 
@@ -2117,19 +1977,15 @@ mod tests {
         // Pre-populate with some resources
         {
             let mut s = store.write().unwrap();
-            s.create(Resource::new("pod-a", "default", "Pod", "v1", cluster))
-                .unwrap();
-            s.create(Resource::new("pod-b", "default", "Pod", "v1", cluster))
-                .unwrap();
-            s.create(Resource::new("pod-c", "kube-system", "Pod", "v1", cluster))
-                .unwrap();
+            s.create(Resource::new("pod-a", "default", "Pod", "v1", cluster)).unwrap();
+            s.create(Resource::new("pod-b", "default", "Pod", "v1", cluster)).unwrap();
+            s.create(Resource::new("pod-c", "kube-system", "Pod", "v1", cluster)).unwrap();
             s.create(
                 Resource::new("deploy-a", "default", "Deployment", "apps/v1", cluster)
                     .with_spec(serde_json::json!({"replicas": 1})),
             )
             .unwrap();
-            s.create(Resource::new("node-1", "", "Node", "v1", cluster))
-                .unwrap();
+            s.create(Resource::new("node-1", "", "Node", "v1", cluster)).unwrap();
         }
 
         (client, cluster)
@@ -2359,9 +2215,7 @@ mod tests {
         let result = client.scale("Deployment", "apps/v1", "deploy-a", "default", 5);
         assert!(result.is_ok());
 
-        let fetched = client
-            .get("Deployment", "apps/v1", "deploy-a", Some("default"))
-            .unwrap();
+        let fetched = client.get("Deployment", "apps/v1", "deploy-a", Some("default")).unwrap();
         assert_eq!(fetched.spec["replicas"], 5);
     }
 
@@ -2371,9 +2225,7 @@ mod tests {
         let result = client.scale("Deployment", "apps/v1", "deploy-a", "default", 0);
         assert!(result.is_ok());
 
-        let fetched = client
-            .get("Deployment", "apps/v1", "deploy-a", Some("default"))
-            .unwrap();
+        let fetched = client.get("Deployment", "apps/v1", "deploy-a", Some("default")).unwrap();
         assert_eq!(fetched.spec["replicas"], 0);
     }
 
@@ -2403,12 +2255,8 @@ mod tests {
         let result = client.restart("Deployment", "apps/v1", "deploy-a", "default");
         assert!(result.is_ok());
 
-        let fetched = client
-            .get("Deployment", "apps/v1", "deploy-a", Some("default"))
-            .unwrap();
-        assert!(fetched
-            .annotations
-            .contains_key("kubectl.kubernetes.io/restartedAt"));
+        let fetched = client.get("Deployment", "apps/v1", "deploy-a", Some("default")).unwrap();
+        assert!(fetched.annotations.contains_key("kubectl.kubernetes.io/restartedAt"));
     }
 
     #[test]
@@ -2449,8 +2297,7 @@ mod tests {
         // Add through the store directly
         {
             let mut s = store.write().unwrap();
-            s.create(Resource::new("shared-pod", "default", "Pod", "v1", cluster))
-                .unwrap();
+            s.create(Resource::new("shared-pod", "default", "Pod", "v1", cluster)).unwrap();
         }
 
         // Verify the client can see it
@@ -2503,15 +2350,12 @@ mod tests {
         let update_data = serde_json::json!({
             "spec": {"containers": [{"name": "app", "image": "nginx:2.0"}]}
         });
-        let updated = client
-            .update("Pod", "v1", "lifecycle-pod", Some("default"), &update_data)
-            .unwrap();
+        let updated =
+            client.update("Pod", "v1", "lifecycle-pod", Some("default"), &update_data).unwrap();
         assert_eq!(updated.spec["containers"][0]["image"], "nginx:2.0");
 
         // Delete
-        client
-            .delete("Pod", "v1", "lifecycle-pod", Some("default"))
-            .unwrap();
+        client.delete("Pod", "v1", "lifecycle-pod", Some("default")).unwrap();
 
         // Verify deletion
         let pods = client.list("Pod", "v1", None).unwrap();
@@ -2622,10 +2466,8 @@ mod tests {
         let rels = build_relationship_graph(&resources);
 
         // Should have 2 relationships: Deployment -> ReplicaSet, ReplicaSet -> Pod
-        let owner_rels: Vec<_> = rels
-            .iter()
-            .filter(|r| r.kind == RelationshipKind::OwnerReference)
-            .collect();
+        let owner_rels: Vec<_> =
+            rels.iter().filter(|r| r.kind == RelationshipKind::OwnerReference).collect();
         assert_eq!(owner_rels.len(), 2);
 
         // Deployment -> ReplicaSet
@@ -2650,14 +2492,8 @@ mod tests {
         let cluster = Uuid::new_v4();
 
         // Pod with owner reference to a ReplicaSet not in the resource set
-        let mut pod = make_resource_with_uid(
-            "pod-uid-1",
-            "orphan-pod",
-            "default",
-            "Pod",
-            "v1",
-            cluster,
-        );
+        let mut pod =
+            make_resource_with_uid("pod-uid-1", "orphan-pod", "default", "Pod", "v1", cluster);
         pod.owner_references.push(OwnerReference {
             uid: "missing-rs-uid".to_string(),
             kind: "ReplicaSet".to_string(),
@@ -2681,10 +2517,12 @@ mod tests {
     #[test]
     fn test_no_owner_references_yields_no_owner_relationships() {
         let cluster = Uuid::new_v4();
-        let pod = make_resource_with_uid("pod-uid-1", "standalone-pod", "default", "Pod", "v1", cluster);
+        let pod =
+            make_resource_with_uid("pod-uid-1", "standalone-pod", "default", "Pod", "v1", cluster);
         let resources = vec![pod];
         let rels = build_relationship_graph(&resources);
-        let owner_rels: Vec<_> = rels.iter().filter(|r| r.kind == RelationshipKind::OwnerReference).collect();
+        let owner_rels: Vec<_> =
+            rels.iter().filter(|r| r.kind == RelationshipKind::OwnerReference).collect();
         assert!(owner_rels.is_empty());
     }
 
@@ -2694,45 +2532,25 @@ mod tests {
     fn test_build_relationships_from_service_selector() {
         let cluster = Uuid::new_v4();
 
-        let svc = make_resource_with_uid(
-            "svc-uid-1",
-            "my-service",
-            "default",
-            "Service",
-            "v1",
-            cluster,
-        )
-        .with_spec(serde_json::json!({
-            "selector": {"app": "web"}
-        }));
+        let svc =
+            make_resource_with_uid("svc-uid-1", "my-service", "default", "Service", "v1", cluster)
+                .with_spec(serde_json::json!({
+                    "selector": {"app": "web"}
+                }));
 
-        let pod_match = make_resource_with_uid(
-            "pod-uid-1",
-            "web-pod",
-            "default",
-            "Pod",
-            "v1",
-            cluster,
-        )
-        .with_label("app", "web");
+        let pod_match =
+            make_resource_with_uid("pod-uid-1", "web-pod", "default", "Pod", "v1", cluster)
+                .with_label("app", "web");
 
-        let pod_no_match = make_resource_with_uid(
-            "pod-uid-2",
-            "api-pod",
-            "default",
-            "Pod",
-            "v1",
-            cluster,
-        )
-        .with_label("app", "api");
+        let pod_no_match =
+            make_resource_with_uid("pod-uid-2", "api-pod", "default", "Pod", "v1", cluster)
+                .with_label("app", "api");
 
         let resources = vec![svc, pod_match, pod_no_match];
         let rels = build_relationship_graph(&resources);
 
-        let svc_rels: Vec<_> = rels
-            .iter()
-            .filter(|r| r.kind == RelationshipKind::ServiceSelector)
-            .collect();
+        let svc_rels: Vec<_> =
+            rels.iter().filter(|r| r.kind == RelationshipKind::ServiceSelector).collect();
         assert_eq!(svc_rels.len(), 1);
         assert_eq!(svc_rels[0].source.kind, "Service");
         assert_eq!(svc_rels[0].source.name, "my-service");
@@ -2744,47 +2562,27 @@ mod tests {
     fn test_service_selector_multi_label_match() {
         let cluster = Uuid::new_v4();
 
-        let svc = make_resource_with_uid(
-            "svc-uid-1",
-            "my-service",
-            "default",
-            "Service",
-            "v1",
-            cluster,
-        )
-        .with_spec(serde_json::json!({
-            "selector": {"app": "web", "tier": "frontend"}
-        }));
+        let svc =
+            make_resource_with_uid("svc-uid-1", "my-service", "default", "Service", "v1", cluster)
+                .with_spec(serde_json::json!({
+                    "selector": {"app": "web", "tier": "frontend"}
+                }));
 
-        let pod_full_match = make_resource_with_uid(
-            "pod-uid-1",
-            "frontend-pod",
-            "default",
-            "Pod",
-            "v1",
-            cluster,
-        )
-        .with_label("app", "web")
-        .with_label("tier", "frontend");
+        let pod_full_match =
+            make_resource_with_uid("pod-uid-1", "frontend-pod", "default", "Pod", "v1", cluster)
+                .with_label("app", "web")
+                .with_label("tier", "frontend");
 
         // Partial match should not count
-        let pod_partial = make_resource_with_uid(
-            "pod-uid-2",
-            "partial-pod",
-            "default",
-            "Pod",
-            "v1",
-            cluster,
-        )
-        .with_label("app", "web");
+        let pod_partial =
+            make_resource_with_uid("pod-uid-2", "partial-pod", "default", "Pod", "v1", cluster)
+                .with_label("app", "web");
 
         let resources = vec![svc, pod_full_match, pod_partial];
         let rels = build_relationship_graph(&resources);
 
-        let svc_rels: Vec<_> = rels
-            .iter()
-            .filter(|r| r.kind == RelationshipKind::ServiceSelector)
-            .collect();
+        let svc_rels: Vec<_> =
+            rels.iter().filter(|r| r.kind == RelationshipKind::ServiceSelector).collect();
         assert_eq!(svc_rels.len(), 1);
         assert_eq!(svc_rels[0].target.name, "frontend-pod");
     }
@@ -2793,36 +2591,22 @@ mod tests {
     fn test_service_selector_cross_namespace_no_match() {
         let cluster = Uuid::new_v4();
 
-        let svc = make_resource_with_uid(
-            "svc-uid-1",
-            "my-service",
-            "default",
-            "Service",
-            "v1",
-            cluster,
-        )
-        .with_spec(serde_json::json!({
-            "selector": {"app": "web"}
-        }));
+        let svc =
+            make_resource_with_uid("svc-uid-1", "my-service", "default", "Service", "v1", cluster)
+                .with_spec(serde_json::json!({
+                    "selector": {"app": "web"}
+                }));
 
         // Pod in a different namespace should not match
-        let pod_other_ns = make_resource_with_uid(
-            "pod-uid-1",
-            "web-pod",
-            "kube-system",
-            "Pod",
-            "v1",
-            cluster,
-        )
-        .with_label("app", "web");
+        let pod_other_ns =
+            make_resource_with_uid("pod-uid-1", "web-pod", "kube-system", "Pod", "v1", cluster)
+                .with_label("app", "web");
 
         let resources = vec![svc, pod_other_ns];
         let rels = build_relationship_graph(&resources);
 
-        let svc_rels: Vec<_> = rels
-            .iter()
-            .filter(|r| r.kind == RelationshipKind::ServiceSelector)
-            .collect();
+        let svc_rels: Vec<_> =
+            rels.iter().filter(|r| r.kind == RelationshipKind::ServiceSelector).collect();
         assert!(svc_rels.is_empty());
     }
 
@@ -2842,23 +2626,14 @@ mod tests {
             "selector": {}
         }));
 
-        let pod = make_resource_with_uid(
-            "pod-uid-1",
-            "any-pod",
-            "default",
-            "Pod",
-            "v1",
-            cluster,
-        )
-        .with_label("app", "web");
+        let pod = make_resource_with_uid("pod-uid-1", "any-pod", "default", "Pod", "v1", cluster)
+            .with_label("app", "web");
 
         let resources = vec![svc, pod];
         let rels = build_relationship_graph(&resources);
 
-        let svc_rels: Vec<_> = rels
-            .iter()
-            .filter(|r| r.kind == RelationshipKind::ServiceSelector)
-            .collect();
+        let svc_rels: Vec<_> =
+            rels.iter().filter(|r| r.kind == RelationshipKind::ServiceSelector).collect();
         assert!(svc_rels.is_empty());
     }
 
@@ -2893,22 +2668,14 @@ mod tests {
             }]
         }));
 
-        let svc = make_resource_with_uid(
-            "svc-uid-1",
-            "my-service",
-            "default",
-            "Service",
-            "v1",
-            cluster,
-        );
+        let svc =
+            make_resource_with_uid("svc-uid-1", "my-service", "default", "Service", "v1", cluster);
 
         let resources = vec![ingress, svc];
         let rels = build_relationship_graph(&resources);
 
-        let ingress_rels: Vec<_> = rels
-            .iter()
-            .filter(|r| r.kind == RelationshipKind::IngressBackend)
-            .collect();
+        let ingress_rels: Vec<_> =
+            rels.iter().filter(|r| r.kind == RelationshipKind::IngressBackend).collect();
         assert_eq!(ingress_rels.len(), 1);
         assert_eq!(ingress_rels[0].source.kind, "Ingress");
         assert_eq!(ingress_rels[0].source.name, "my-ingress");
@@ -2953,10 +2720,8 @@ mod tests {
         let resources = vec![ingress];
         let rels = build_relationship_graph(&resources);
 
-        let ingress_rels: Vec<_> = rels
-            .iter()
-            .filter(|r| r.kind == RelationshipKind::IngressBackend)
-            .collect();
+        let ingress_rels: Vec<_> =
+            rels.iter().filter(|r| r.kind == RelationshipKind::IngressBackend).collect();
         assert_eq!(ingress_rels.len(), 2);
 
         let target_names: Vec<&str> = ingress_rels.iter().map(|r| r.target.name.as_str()).collect();
@@ -2971,11 +2736,15 @@ mod tests {
         let cluster = Uuid::new_v4();
 
         let deployment = make_resource_with_uid(
-            "deploy-uid", "my-deploy", "default", "Deployment", "apps/v1", cluster,
+            "deploy-uid",
+            "my-deploy",
+            "default",
+            "Deployment",
+            "apps/v1",
+            cluster,
         );
-        let mut rs = make_resource_with_uid(
-            "rs-uid", "my-rs", "default", "ReplicaSet", "apps/v1", cluster,
-        );
+        let mut rs =
+            make_resource_with_uid("rs-uid", "my-rs", "default", "ReplicaSet", "apps/v1", cluster);
         rs.owner_references.push(OwnerReference {
             uid: "deploy-uid".to_string(),
             kind: "Deployment".to_string(),
@@ -2983,9 +2752,7 @@ mod tests {
             api_version: "apps/v1".to_string(),
             controller: true,
         });
-        let mut pod = make_resource_with_uid(
-            "pod-uid", "my-pod", "default", "Pod", "v1", cluster,
-        );
+        let mut pod = make_resource_with_uid("pod-uid", "my-pod", "default", "Pod", "v1", cluster);
         pod.owner_references.push(OwnerReference {
             uid: "rs-uid".to_string(),
             kind: "ReplicaSet".to_string(),
@@ -3046,7 +2813,12 @@ mod tests {
         let cluster = Uuid::new_v4();
 
         let ingress = make_resource_with_uid(
-            "ing-uid", "my-ingress", "default", "Ingress", "networking.k8s.io/v1", cluster,
+            "ing-uid",
+            "my-ingress",
+            "default",
+            "Ingress",
+            "networking.k8s.io/v1",
+            cluster,
         )
         .with_spec(serde_json::json!({
             "rules": [{
@@ -3060,20 +2832,17 @@ mod tests {
             }]
         }));
 
-        let svc = make_resource_with_uid(
-            "svc-uid", "my-service", "default", "Service", "v1", cluster,
-        )
-        .with_spec(serde_json::json!({ "selector": {"app": "web"} }));
+        let svc =
+            make_resource_with_uid("svc-uid", "my-service", "default", "Service", "v1", cluster)
+                .with_spec(serde_json::json!({ "selector": {"app": "web"} }));
 
-        let pod1 = make_resource_with_uid(
-            "pod-uid-1", "web-pod-1", "default", "Pod", "v1", cluster,
-        )
-        .with_label("app", "web");
+        let pod1 =
+            make_resource_with_uid("pod-uid-1", "web-pod-1", "default", "Pod", "v1", cluster)
+                .with_label("app", "web");
 
-        let pod2 = make_resource_with_uid(
-            "pod-uid-2", "web-pod-2", "default", "Pod", "v1", cluster,
-        )
-        .with_label("app", "web");
+        let pod2 =
+            make_resource_with_uid("pod-uid-2", "web-pod-2", "default", "Pod", "v1", cluster)
+                .with_label("app", "web");
 
         let resources = vec![ingress, svc, pod1, pod2];
         let rels = build_relationship_graph(&resources);
@@ -3126,8 +2895,8 @@ mod tests {
 
     #[test]
     fn test_search_query_with_kinds() {
-        let q = SearchQuery::new("test")
-            .with_kinds(vec!["Pod".to_string(), "Deployment".to_string()]);
+        let q =
+            SearchQuery::new("test").with_kinds(vec!["Pod".to_string(), "Deployment".to_string()]);
         assert_eq!(q.kinds.as_ref().unwrap().len(), 2);
     }
 
@@ -3412,12 +3181,9 @@ mod tests {
     #[test]
     fn test_global_search_filter_by_namespace() {
         let (resources, _, _) = make_search_resources();
-        let q = SearchQuery::new("nginx")
-            .with_namespaces(vec!["default".to_string()]);
+        let q = SearchQuery::new("nginx").with_namespaces(vec!["default".to_string()]);
         let results = global_search(&q, &resources);
-        assert!(results
-            .iter()
-            .all(|r| r.namespace.as_deref() == Some("default")));
+        assert!(results.iter().all(|r| r.namespace.as_deref() == Some("default")));
     }
 
     #[test]
@@ -3466,8 +3232,7 @@ mod tests {
     #[test]
     fn test_global_search_cluster_scoped_excluded_by_namespace_filter() {
         let (resources, _, _) = make_search_resources();
-        let q = SearchQuery::new("node")
-            .with_namespaces(vec!["default".to_string()]);
+        let q = SearchQuery::new("node").with_namespaces(vec!["default".to_string()]);
         let results = global_search(&q, &resources);
         // "node-1" is cluster-scoped (no namespace), so it should be excluded
         assert!(results.is_empty());

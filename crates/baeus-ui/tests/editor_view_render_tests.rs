@@ -16,28 +16,18 @@
 use baeus_editor::buffer::TextBuffer;
 use baeus_editor::diff::DiffLineKind;
 use baeus_editor::highlight::HighlightToken;
-use baeus_ui::components::editor_view::{
-    EditorMode, EditorViewComponent, EditorViewState,
-};
+use baeus_ui::components::editor_view::{EditorMode, EditorViewComponent, EditorViewState};
 use baeus_ui::theme::{Color, Theme};
 
-const SAMPLE_YAML: &str = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\nspec:\n  replicas: 3\n";
+const SAMPLE_YAML: &str =
+    "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\nspec:\n  replicas: 3\n";
 
 fn make_state() -> EditorViewState {
-    EditorViewState::new(
-        SAMPLE_YAML,
-        "Deployment",
-        "nginx",
-        Some("default".to_string()),
-        "12345",
-    )
+    EditorViewState::new(SAMPLE_YAML, "Deployment", "nginx", Some("default".to_string()), "12345")
 }
 
 fn make_component() -> EditorViewComponent {
-    EditorViewComponent::new(
-        make_state(),
-        Theme::dark(),
-    )
+    EditorViewComponent::new(make_state(), Theme::dark())
 }
 
 // ========================================================================
@@ -54,28 +44,19 @@ fn test_line_count_matches_yaml() {
 #[test]
 fn test_line_content_at_index_zero() {
     let comp = make_component();
-    assert_eq!(
-        comp.state.line(0).unwrap(),
-        "apiVersion: apps/v1\n"
-    );
+    assert_eq!(comp.state.line(0).unwrap(), "apiVersion: apps/v1\n");
 }
 
 #[test]
 fn test_line_content_at_index_one() {
     let comp = make_component();
-    assert_eq!(
-        comp.state.line(1).unwrap(),
-        "kind: Deployment\n"
-    );
+    assert_eq!(comp.state.line(1).unwrap(), "kind: Deployment\n");
 }
 
 #[test]
 fn test_line_content_last_data_line() {
     let comp = make_component();
-    assert_eq!(
-        comp.state.line(5).unwrap(),
-        "  replicas: 3\n"
-    );
+    assert_eq!(comp.state.line(5).unwrap(), "  replicas: 3\n");
 }
 
 #[test]
@@ -97,55 +78,37 @@ fn test_show_line_numbers_on_by_default() {
 #[test]
 fn test_token_key_maps_to_accent() {
     let comp = make_component();
-    assert_eq!(
-        comp.color_for_token(HighlightToken::Key),
-        Theme::dark().colors.accent,
-    );
+    assert_eq!(comp.color_for_token(HighlightToken::Key), Theme::dark().colors.accent,);
 }
 
 #[test]
 fn test_token_string_maps_to_success() {
     let comp = make_component();
-    assert_eq!(
-        comp.color_for_token(HighlightToken::StringValue),
-        Theme::dark().colors.success,
-    );
+    assert_eq!(comp.color_for_token(HighlightToken::StringValue), Theme::dark().colors.success,);
 }
 
 #[test]
 fn test_token_number_maps_to_warning() {
     let comp = make_component();
-    assert_eq!(
-        comp.color_for_token(HighlightToken::NumberValue),
-        Theme::dark().colors.warning,
-    );
+    assert_eq!(comp.color_for_token(HighlightToken::NumberValue), Theme::dark().colors.warning,);
 }
 
 #[test]
 fn test_token_boolean_maps_to_purple() {
     let comp = make_component();
-    assert_eq!(
-        comp.color_for_token(HighlightToken::BooleanValue),
-        Color::rgb(167, 139, 250),
-    );
+    assert_eq!(comp.color_for_token(HighlightToken::BooleanValue), Color::rgb(167, 139, 250),);
 }
 
 #[test]
 fn test_token_null_maps_to_muted() {
     let comp = make_component();
-    assert_eq!(
-        comp.color_for_token(HighlightToken::NullValue),
-        Theme::dark().colors.text_muted,
-    );
+    assert_eq!(comp.color_for_token(HighlightToken::NullValue), Theme::dark().colors.text_muted,);
 }
 
 #[test]
 fn test_token_comment_maps_to_muted() {
     let comp = make_component();
-    assert_eq!(
-        comp.color_for_token(HighlightToken::Comment),
-        Theme::dark().colors.text_muted,
-    );
+    assert_eq!(comp.color_for_token(HighlightToken::Comment), Theme::dark().colors.text_muted,);
 }
 
 #[test]
@@ -160,25 +123,15 @@ fn test_token_punctuation_maps_to_secondary() {
 #[test]
 fn test_token_default_maps_to_primary() {
     let comp = make_component();
-    assert_eq!(
-        comp.color_for_token(HighlightToken::Default),
-        Theme::dark().colors.text_primary,
-    );
+    assert_eq!(comp.color_for_token(HighlightToken::Default), Theme::dark().colors.text_primary,);
 }
 
 #[test]
 fn test_token_colors_with_light_theme() {
     let state = make_state();
-    let comp =
-        EditorViewComponent::new(state, Theme::light());
-    assert_eq!(
-        comp.color_for_token(HighlightToken::Key),
-        Theme::light().colors.accent,
-    );
-    assert_eq!(
-        comp.color_for_token(HighlightToken::StringValue),
-        Theme::light().colors.success,
-    );
+    let comp = EditorViewComponent::new(state, Theme::light());
+    assert_eq!(comp.color_for_token(HighlightToken::Key), Theme::light().colors.accent,);
+    assert_eq!(comp.color_for_token(HighlightToken::StringValue), Theme::light().colors.success,);
 }
 
 // ========================================================================
@@ -195,10 +148,7 @@ fn test_cursor_position_initial_zero() {
 fn test_cursor_position_after_insert_at_cursor() {
     let mut comp = make_component();
     comp.state.insert_at_cursor("# test\n");
-    assert_eq!(
-        comp.state.cursor_position,
-        "# test\n".len()
-    );
+    assert_eq!(comp.state.cursor_position, "# test\n".len());
 }
 
 #[test]
@@ -227,26 +177,16 @@ fn test_validation_error_none_for_valid_yaml() {
 
 #[test]
 fn test_validation_error_some_for_invalid_yaml() {
-    let mut state = EditorViewState::new(
-        "key: [invalid\n  yaml: here",
-        "ConfigMap",
-        "test",
-        None,
-        "1",
-    );
+    let mut state =
+        EditorViewState::new("key: [invalid\n  yaml: here", "ConfigMap", "test", None, "1");
     state.validate();
     assert!(state.validation_error.is_some());
 }
 
 #[test]
 fn test_validation_error_has_line_number() {
-    let mut state = EditorViewState::new(
-        "key: [invalid\n  yaml: here",
-        "ConfigMap",
-        "test",
-        None,
-        "1",
-    );
+    let mut state =
+        EditorViewState::new("key: [invalid\n  yaml: here", "ConfigMap", "test", None, "1");
     state.validate();
     let err = state.validation_error.as_ref().unwrap();
     // serde_yaml_ng reports a line number for syntax errors
@@ -255,13 +195,8 @@ fn test_validation_error_has_line_number() {
 
 #[test]
 fn test_validation_clears_on_fix() {
-    let mut state = EditorViewState::new(
-        "key: [invalid\n  yaml: here",
-        "ConfigMap",
-        "test",
-        None,
-        "1",
-    );
+    let mut state =
+        EditorViewState::new("key: [invalid\n  yaml: here", "ConfigMap", "test", None, "1");
     state.validate();
     assert!(state.validation_error.is_some());
 
@@ -365,28 +300,15 @@ fn test_diff_lines_have_correct_kinds() {
     );
     let diff = comp.state.compute_diff();
 
-    let unchanged: Vec<_> = diff
-        .lines
-        .iter()
-        .filter(|l| l.kind == DiffLineKind::Unchanged)
-        .collect();
-    let added: Vec<_> = diff
-        .lines
-        .iter()
-        .filter(|l| l.kind == DiffLineKind::Added)
-        .collect();
-    let removed: Vec<_> = diff
-        .lines
-        .iter()
-        .filter(|l| l.kind == DiffLineKind::Removed)
-        .collect();
+    let unchanged: Vec<_> =
+        diff.lines.iter().filter(|l| l.kind == DiffLineKind::Unchanged).collect();
+    let added: Vec<_> = diff.lines.iter().filter(|l| l.kind == DiffLineKind::Added).collect();
+    let removed: Vec<_> = diff.lines.iter().filter(|l| l.kind == DiffLineKind::Removed).collect();
 
     assert_eq!(unchanged.len(), 5);
     assert_eq!(added.len(), 1);
     assert_eq!(removed.len(), 1);
-    assert_eq!(
-        removed[0].content, "  replicas: 3"
-    );
+    assert_eq!(removed[0].content, "  replicas: 3");
     assert_eq!(added[0].content, "  replicas: 5");
 }
 
@@ -398,19 +320,11 @@ fn test_diff_line_numbers_present() {
     );
     let diff = comp.state.compute_diff();
 
-    let added: Vec<_> = diff
-        .lines
-        .iter()
-        .filter(|l| l.kind == DiffLineKind::Added)
-        .collect();
+    let added: Vec<_> = diff.lines.iter().filter(|l| l.kind == DiffLineKind::Added).collect();
     assert!(added[0].new_line_number.is_some());
     assert!(added[0].old_line_number.is_none());
 
-    let removed: Vec<_> = diff
-        .lines
-        .iter()
-        .filter(|l| l.kind == DiffLineKind::Removed)
-        .collect();
+    let removed: Vec<_> = diff.lines.iter().filter(|l| l.kind == DiffLineKind::Removed).collect();
     assert!(removed[0].old_line_number.is_some());
     assert!(removed[0].new_line_number.is_none());
 }
@@ -520,13 +434,9 @@ fn test_apply_failure() {
     let mut comp = make_component();
     comp.state.insert(0, "# mod\n");
     comp.state.begin_apply();
-    comp.state
-        .apply_failure("server error".to_string());
+    comp.state.apply_failure("server error".to_string());
     assert!(!comp.state.applying);
-    assert_eq!(
-        comp.state.apply_error.as_deref(),
-        Some("server error")
-    );
+    assert_eq!(comp.state.apply_error.as_deref(), Some("server error"));
     assert!(comp.state.is_dirty);
 }
 
@@ -535,12 +445,12 @@ fn test_apply_conflict() {
     let mut comp = make_component();
     comp.state.insert(0, "# my change\n");
     comp.state.begin_apply();
-    let server = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\nspec:\n  replicas: 10\n";
+    let server =
+        "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\nspec:\n  replicas: 10\n";
     comp.state.apply_conflict(server.to_string());
     assert!(!comp.state.applying);
     assert!(comp.state.has_conflict());
-    let conflict =
-        comp.state.conflict.as_ref().unwrap();
+    let conflict = comp.state.conflict.as_ref().unwrap();
     assert_eq!(conflict.server_yaml, server);
     assert!(conflict.message.contains("Deployment"));
     assert!(conflict.message.contains("nginx"));
@@ -559,12 +469,8 @@ fn test_status_text_error() {
     let mut comp = make_component();
     comp.state.insert(0, "# mod\n");
     comp.state.begin_apply();
-    comp.state
-        .apply_failure("timeout".to_string());
-    assert_eq!(
-        comp.status_text(),
-        "Error: timeout"
-    );
+    comp.state.apply_failure("timeout".to_string());
+    assert_eq!(comp.status_text(), "Error: timeout");
 }
 
 #[test]
@@ -575,16 +481,9 @@ fn test_status_text_valid() {
 
 #[test]
 fn test_status_text_invalid_yaml() {
-    let mut state = EditorViewState::new(
-        "key: [invalid",
-        "ConfigMap",
-        "test",
-        None,
-        "1",
-    );
+    let mut state = EditorViewState::new("key: [invalid", "ConfigMap", "test", None, "1");
     state.validate();
-    let comp =
-        EditorViewComponent::new(state, Theme::dark());
+    let comp = EditorViewComponent::new(state, Theme::dark());
     assert!(comp.status_text().starts_with("Invalid YAML:"));
 }
 
@@ -597,18 +496,13 @@ fn test_accept_server_version() {
     let mut comp = make_component();
     comp.state.insert(0, "# my change\n");
     comp.state.begin_apply();
-    comp.state
-        .apply_conflict("server: yaml".to_string());
+    comp.state.apply_conflict("server: yaml".to_string());
 
-    comp.state
-        .accept_server_version("server: yaml\n", "99999");
+    comp.state.accept_server_version("server: yaml\n", "99999");
 
     assert!(!comp.state.has_conflict());
     assert_eq!(comp.state.text(), "server: yaml\n");
-    assert_eq!(
-        comp.state.original_yaml,
-        "server: yaml\n"
-    );
+    assert_eq!(comp.state.original_yaml, "server: yaml\n");
     assert_eq!(comp.state.resource_version, "99999");
     assert!(!comp.state.is_dirty);
 }
@@ -618,15 +512,12 @@ fn test_dismiss_conflict() {
     let mut comp = make_component();
     comp.state.insert(0, "# my change\n");
     comp.state.begin_apply();
-    comp.state
-        .apply_conflict("server: yaml".to_string());
+    comp.state.apply_conflict("server: yaml".to_string());
 
     comp.state.dismiss_conflict();
     assert!(!comp.state.has_conflict());
     // Local edits preserved
-    assert!(
-        comp.state.text().starts_with("# my change\n")
-    );
+    assert!(comp.state.text().starts_with("# my change\n"));
 }
 
 #[test]
@@ -634,11 +525,9 @@ fn test_conflict_message_contains_resource_info() {
     let mut comp = make_component();
     comp.state.insert(0, "x");
     comp.state.begin_apply();
-    comp.state
-        .apply_conflict("server yaml".to_string());
+    comp.state.apply_conflict("server yaml".to_string());
 
-    let conflict =
-        comp.state.conflict.as_ref().unwrap();
+    let conflict = comp.state.conflict.as_ref().unwrap();
     assert!(conflict.message.contains("Deployment"));
     assert!(conflict.message.contains("nginx"));
     assert!(conflict.message.contains("default"));
@@ -646,13 +535,8 @@ fn test_conflict_message_contains_resource_info() {
 
 #[test]
 fn test_conflict_message_cluster_scoped() {
-    let mut state = EditorViewState::new(
-        "apiVersion: v1\nkind: Node\n",
-        "Node",
-        "node-1",
-        None,
-        "1",
-    );
+    let mut state =
+        EditorViewState::new("apiVersion: v1\nkind: Node\n", "Node", "node-1", None, "1");
     state.insert(0, "x");
     state.begin_apply();
     state.apply_conflict("server yaml".to_string());
@@ -660,9 +544,7 @@ fn test_conflict_message_cluster_scoped() {
     let conflict = state.conflict.as_ref().unwrap();
     assert!(conflict.message.contains("Node"));
     assert!(conflict.message.contains("node-1"));
-    assert!(
-        !conflict.message.contains("namespace")
-    );
+    assert!(!conflict.message.contains("namespace"));
 }
 
 // ========================================================================
@@ -672,20 +554,14 @@ fn test_conflict_message_cluster_scoped() {
 #[test]
 fn test_title_clean() {
     let comp = make_component();
-    assert_eq!(
-        comp.state.title(),
-        "Deployment/nginx"
-    );
+    assert_eq!(comp.state.title(), "Deployment/nginx");
 }
 
 #[test]
 fn test_title_dirty() {
     let mut comp = make_component();
     comp.state.insert(0, "x");
-    assert_eq!(
-        comp.state.title(),
-        "Deployment/nginx *"
-    );
+    assert_eq!(comp.state.title(), "Deployment/nginx *");
 }
 
 #[test]
@@ -710,18 +586,14 @@ fn test_title_clean_no_asterisk() {
 #[test]
 fn test_component_new_dark_theme() {
     let state = make_state();
-    let comp =
-        EditorViewComponent::new(state, Theme::dark());
+    let comp = EditorViewComponent::new(state, Theme::dark());
     assert_eq!(comp.state.line_count(), 7);
 }
 
 #[test]
 fn test_component_new_light_theme() {
     let state = make_state();
-    let comp = EditorViewComponent::new(
-        state,
-        Theme::light(),
-    );
+    let comp = EditorViewComponent::new(state, Theme::light());
     assert_eq!(comp.state.line_count(), 7);
 }
 
@@ -753,8 +625,7 @@ fn test_can_apply_while_applying() {
 #[test]
 fn test_can_apply_invalid_yaml() {
     let mut comp = make_component();
-    comp.state.buffer =
-        TextBuffer::from_str("key: [invalid");
+    comp.state.buffer = TextBuffer::from_str("key: [invalid");
     comp.state.is_dirty = true;
     comp.state.validate();
     assert!(!comp.state.can_apply());
@@ -771,10 +642,7 @@ fn test_full_editor_workflow() {
     // 1. Initial state
     assert!(!comp.state.is_dirty);
     assert!(!comp.state.can_apply());
-    assert_eq!(
-        comp.state.title(),
-        "Deployment/nginx"
-    );
+    assert_eq!(comp.state.title(), "Deployment/nginx");
     assert_eq!(comp.status_text(), "Valid YAML");
 
     // 2. Make edits
@@ -816,15 +684,12 @@ fn test_full_conflict_workflow() {
 
     // 2. Apply fails with conflict
     comp.state.begin_apply();
-    comp.state.apply_conflict(
-        "server: yaml\n".to_string(),
-    );
+    comp.state.apply_conflict("server: yaml\n".to_string());
     assert!(comp.state.has_conflict());
     assert!(!comp.state.applying);
 
     // 3. Accept server version
-    comp.state
-        .accept_server_version("server: yaml\n", "99999");
+    comp.state.accept_server_version("server: yaml\n", "99999");
     assert!(!comp.state.has_conflict());
     assert!(!comp.state.is_dirty);
     assert_eq!(comp.state.text(), "server: yaml\n");

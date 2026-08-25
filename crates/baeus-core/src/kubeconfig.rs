@@ -48,56 +48,31 @@ impl KubeconfigLoader {
     }
 
     pub fn load_from_str(yaml: &str) -> Result<Self> {
-        let config: serde_json::Value = serde_yaml_ng::from_str(yaml)
-            .context("Failed to parse kubeconfig YAML")?;
+        let config: serde_json::Value =
+            serde_yaml_ng::from_str(yaml).context("Failed to parse kubeconfig YAML")?;
 
-        let current_context = config
-            .get("current-context")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+        let current_context =
+            config.get("current-context").and_then(|v| v.as_str()).map(|s| s.to_string());
 
         let mut contexts = Vec::new();
 
-        let context_entries = config
-            .get("contexts")
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default();
+        let context_entries =
+            config.get("contexts").and_then(|v| v.as_array()).cloned().unwrap_or_default();
 
-        let clusters_array = config
-            .get("clusters")
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default();
+        let clusters_array =
+            config.get("clusters").and_then(|v| v.as_array()).cloned().unwrap_or_default();
 
-        let users_array = config
-            .get("users")
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default();
+        let users_array =
+            config.get("users").and_then(|v| v.as_array()).cloned().unwrap_or_default();
 
         for ctx_entry in &context_entries {
-            let name = ctx_entry
-                .get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+            let name = ctx_entry.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let ctx = ctx_entry.get("context").cloned().unwrap_or_default();
 
-            let cluster_name = ctx
-                .get("cluster")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let user_name = ctx
-                .get("user")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let namespace = ctx
-                .get("namespace")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
+            let cluster_name =
+                ctx.get("cluster").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let user_name = ctx.get("user").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let namespace = ctx.get("namespace").and_then(|v| v.as_str()).map(|s| s.to_string());
 
             let api_server_url = clusters_array
                 .iter()
@@ -119,10 +94,7 @@ impl KubeconfigLoader {
             });
         }
 
-        Ok(Self {
-            contexts,
-            current_context,
-        })
+        Ok(Self { contexts, current_context })
     }
 
     pub fn contexts(&self) -> &[KubeContext] {
@@ -222,9 +194,7 @@ impl KubeconfigDiscovery {
         // directories to prevent a compromised preferences file from reading
         // arbitrary filesystem locations.
         if home.is_none() {
-            tracing::warn!(
-                "Cannot determine home directory; rejecting all additional scan dirs"
-            );
+            tracing::warn!("Cannot determine home directory; rejecting all additional scan dirs");
             return self;
         }
         let home = home.unwrap();
@@ -233,21 +203,14 @@ impl KubeconfigDiscovery {
             let canonical = match dir.canonicalize() {
                 Ok(p) => p,
                 Err(e) => {
-                    tracing::warn!(
-                        "Skipping scan dir '{}': {}",
-                        dir.display(),
-                        e,
-                    );
+                    tracing::warn!("Skipping scan dir '{}': {}", dir.display(), e,);
                     continue;
                 }
             };
             // Restrict to paths under the user's home directory to prevent
             // a compromised preferences.json from reading arbitrary locations.
             if !canonical.starts_with(&home) {
-                tracing::warn!(
-                    "Skipping scan dir '{}': outside home directory",
-                    dir.display(),
-                );
+                tracing::warn!("Skipping scan dir '{}': outside home directory", dir.display(),);
                 continue;
             }
             self.scan_paths.push(canonical);
@@ -303,8 +266,8 @@ impl KubeconfigDiscovery {
 pub fn is_kubeconfig_file(path: &std::path::Path) -> Result<bool> {
     // Guard: skip oversized files (kubeconfigs are typically <100KB).
     const MAX_KUBECONFIG_SIZE: u64 = 1_048_576; // 1 MB
-    let metadata = std::fs::metadata(path)
-        .with_context(|| format!("Failed to stat {}", path.display()))?;
+    let metadata =
+        std::fs::metadata(path).with_context(|| format!("Failed to stat {}", path.display()))?;
     if metadata.len() > MAX_KUBECONFIG_SIZE {
         return Ok(false);
     }
@@ -492,9 +455,7 @@ impl KubeconfigWatcher {
         use std::sync::{Arc, Mutex};
 
         // Take an initial snapshot of contexts.
-        let discovery = KubeconfigDiscovery {
-            scan_paths: scan_paths.clone(),
-        };
+        let discovery = KubeconfigDiscovery { scan_paths: scan_paths.clone() };
         let initial = Self::snapshot(&discovery);
         let prev_snapshot = Arc::new(Mutex::new(initial));
 
@@ -505,16 +466,12 @@ impl KubeconfigWatcher {
 
                 // Only react to create/modify/remove events.
                 match event.kind {
-                    EventKind::Create(_)
-                    | EventKind::Modify(_)
-                    | EventKind::Remove(_) => {}
+                    EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {}
                     _ => return,
                 }
 
                 // Re-run discovery.
-                let disc = KubeconfigDiscovery {
-                    scan_paths: paths_for_handler.clone(),
-                };
+                let disc = KubeconfigDiscovery { scan_paths: paths_for_handler.clone() };
                 let new_snapshot = Self::snapshot(&disc);
 
                 // Diff against previous.
@@ -536,11 +493,7 @@ impl KubeconfigWatcher {
                     // Watch the parent directory for file-level changes.
                     RecursiveMode::NonRecursive
                 };
-                let watch_path = if path.is_file() {
-                    path.parent().unwrap_or(path)
-                } else {
-                    path
-                };
+                let watch_path = if path.is_file() { path.parent().unwrap_or(path) } else { path };
                 watcher.watch(watch_path, mode)?;
             }
         }
@@ -674,10 +627,7 @@ users:
         assert_eq!(prod.cluster_name, "prod-cluster");
         assert_eq!(prod.user_name, "prod-user");
         assert_eq!(prod.namespace.as_deref(), Some("production"));
-        assert_eq!(
-            prod.api_server_url.as_deref(),
-            Some("https://prod.example.com:6443")
-        );
+        assert_eq!(prod.api_server_url.as_deref(), Some("https://prod.example.com:6443"));
 
         let dev = loader.find_context("dev-context").unwrap();
         assert_eq!(dev.cluster_name, "dev-cluster");
@@ -741,7 +691,8 @@ users:
     fn test_is_kubeconfig_file_with_kind_config() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config");
-        std::fs::write(&path, "apiVersion: v1\nkind: Config\nclusters: []\ncontexts: []\n").unwrap();
+        std::fs::write(&path, "apiVersion: v1\nkind: Config\nclusters: []\ncontexts: []\n")
+            .unwrap();
         assert!(is_kubeconfig_file(&path).unwrap());
     }
 
@@ -749,7 +700,8 @@ users:
     fn test_is_kubeconfig_file_with_markers() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("kubeconfig");
-        std::fs::write(&path, "apiVersion: v1\nclusters:\n- name: test\ncontexts:\n- name: ctx\n").unwrap();
+        std::fs::write(&path, "apiVersion: v1\nclusters:\n- name: test\ncontexts:\n- name: ctx\n")
+            .unwrap();
         assert!(is_kubeconfig_file(&path).unwrap());
     }
 
@@ -863,9 +815,8 @@ users:
         let config = dir.path().join("config");
         std::fs::write(&config, SAMPLE_KUBECONFIG).unwrap();
 
-        let discovery = KubeconfigDiscovery {
-            scan_paths: vec![config.clone(), dir.path().to_path_buf()],
-        };
+        let discovery =
+            KubeconfigDiscovery { scan_paths: vec![config.clone(), dir.path().to_path_buf()] };
         let found = discovery.discover().unwrap();
         // The file should appear exactly once (dedup by sort+dedup)
         let config_count = found.iter().filter(|p| p.ends_with("config")).count();
@@ -883,8 +834,7 @@ users:
             // .kube is very likely to exist; if it does, it should be accepted.
             if test_dir.exists() {
                 let base_count = KubeconfigDiscovery::new().scan_paths.len();
-                let discovery = KubeconfigDiscovery::new()
-                    .with_additional_dirs(vec![test_dir]);
+                let discovery = KubeconfigDiscovery::new().with_additional_dirs(vec![test_dir]);
                 assert!(discovery.scan_paths.len() >= base_count);
             }
         } else {
@@ -903,9 +853,7 @@ users:
         let config = dir.path().join("config");
         std::fs::write(&config, SAMPLE_KUBECONFIG).unwrap();
 
-        let discovery = KubeconfigDiscovery {
-            scan_paths: vec![config],
-        };
+        let discovery = KubeconfigDiscovery { scan_paths: vec![config] };
         let loaded = discovery.load_all().unwrap();
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].1.contexts().len(), 2);
@@ -938,10 +886,8 @@ users:
     #[test]
     fn test_diff_added_contexts() {
         let old = vec![make_context("prod", "pc", "pu", None)];
-        let new = vec![
-            make_context("prod", "pc", "pu", None),
-            make_context("staging", "sc", "su", None),
-        ];
+        let new =
+            vec![make_context("prod", "pc", "pu", None), make_context("staging", "sc", "su", None)];
         let diff = diff_contexts(&old, &new);
         assert_eq!(diff.added, vec!["staging"]);
         assert!(diff.removed.is_empty());
@@ -950,10 +896,8 @@ users:
 
     #[test]
     fn test_diff_removed_contexts() {
-        let old = vec![
-            make_context("prod", "pc", "pu", None),
-            make_context("dev", "dc", "du", None),
-        ];
+        let old =
+            vec![make_context("prod", "pc", "pu", None), make_context("dev", "dc", "du", None)];
         let new = vec![make_context("prod", "pc", "pu", None)];
         let diff = diff_contexts(&old, &new);
         assert!(diff.added.is_empty());
@@ -1004,10 +948,10 @@ users:
             make_context("gamma", "gc", "gu", None),
         ];
         let new = vec![
-            make_context("alpha", "ac", "au", None),   // unchanged
+            make_context("alpha", "ac", "au", None),    // unchanged
             make_context("beta", "bc-new", "bu", None), // modified
             make_context("delta", "dc", "du", None),    // added
-            // gamma removed
+                                                        // gamma removed
         ];
         let diff = diff_contexts(&old, &new);
         assert_eq!(diff.added, vec!["delta"]);
@@ -1038,10 +982,7 @@ users:
         let diff = KubeconfigDiff::default();
         assert!(diff.is_empty());
 
-        let diff_with_added = KubeconfigDiff {
-            added: vec!["x".into()],
-            ..Default::default()
-        };
+        let diff_with_added = KubeconfigDiff { added: vec!["x".into()], ..Default::default() };
         assert!(!diff_with_added.is_empty());
     }
 

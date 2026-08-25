@@ -3,16 +3,8 @@ use uuid::Uuid;
 /// The kind of content displayed in a dock tab.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DockTabKind {
-    Terminal {
-        pod: String,
-        container: String,
-        cluster: String,
-    },
-    LogViewer {
-        pod: String,
-        container: String,
-        cluster: String,
-    },
+    Terminal { pod: String, container: String, cluster: String },
+    LogViewer { pod: String, container: String, cluster: String },
     PortForwardManager,
 }
 
@@ -44,12 +36,7 @@ pub struct DockState {
 
 impl Default for DockState {
     fn default() -> Self {
-        Self {
-            tabs: Vec::new(),
-            active_tab_id: None,
-            collapsed: true,
-            height: DEFAULT_DOCK_HEIGHT,
-        }
+        Self { tabs: Vec::new(), active_tab_id: None, collapsed: true, height: DEFAULT_DOCK_HEIGHT }
     }
 }
 
@@ -58,26 +45,20 @@ impl DockState {
     /// If this is the first tab, it is automatically selected.
     pub fn add_tab(&mut self, kind: DockTabKind) -> Uuid {
         let label = match &kind {
-            DockTabKind::Terminal {
-                pod, container, cluster,
-            } => {
+            DockTabKind::Terminal { pod, container, cluster } => {
                 if pod.is_empty() && container.is_empty() {
                     "Terminal".to_string()
                 } else {
                     format!("Terminal: {cluster}/{pod}/{container}")
                 }
             }
-            DockTabKind::LogViewer {
-                pod, container, cluster,
-            } => format!("Logs: {cluster}/{pod}/{container}"),
+            DockTabKind::LogViewer { pod, container, cluster } => {
+                format!("Logs: {cluster}/{pod}/{container}")
+            }
             DockTabKind::PortForwardManager => "Port Forwards".to_string(),
         };
         let id = Uuid::new_v4();
-        self.tabs.push(DockTab {
-            id,
-            kind,
-            label,
-        });
+        self.tabs.push(DockTab { id, kind, label });
         // Auto-select the first tab added.
         if self.tabs.len() == 1 {
             self.active_tab_id = Some(id);

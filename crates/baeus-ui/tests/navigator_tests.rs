@@ -5,8 +5,8 @@
 // resource types.
 
 use baeus_ui::icons::ResourceCategory;
-use baeus_ui::layout::sidebar::*;
 use baeus_ui::layout::NavigationTarget;
+use baeus_ui::layout::sidebar::*;
 use uuid::Uuid;
 
 // ===================================================================
@@ -416,11 +416,7 @@ fn test_all_fr071_categories_independently_expandable_per_cluster() {
 
     // All should be expanded
     for &cat in SidebarState::fr071_categories() {
-        assert!(
-            state.is_category_expanded(id, cat),
-            "Category {:?} should be expanded",
-            cat
-        );
+        assert!(state.is_category_expanded(id, cat), "Category {:?} should be expanded", cat);
     }
 
     // Collapse every category
@@ -430,11 +426,7 @@ fn test_all_fr071_categories_independently_expandable_per_cluster() {
 
     // All should be collapsed again
     for &cat in SidebarState::fr071_categories() {
-        assert!(
-            !state.is_category_expanded(id, cat),
-            "Category {:?} should be collapsed",
-            cat
-        );
+        assert!(!state.is_category_expanded(id, cat), "Category {:?} should be collapsed", cat);
     }
 }
 
@@ -454,9 +446,7 @@ fn test_navigation_target_cluster_context_for_resource_list() {
 
 #[test]
 fn test_navigation_target_cluster_context_for_dashboard() {
-    let target = NavigationTarget::Dashboard {
-        cluster_context: "staging".to_string(),
-    };
+    let target = NavigationTarget::Dashboard { cluster_context: "staging".to_string() };
     assert_eq!(target.cluster_context(), Some("staging"));
 }
 
@@ -615,7 +605,8 @@ fn test_update_cluster_badge_sets_count() {
     state.update_cluster_badge(id, "Pod", Some(42));
 
     let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
-    let workloads = cluster.sections.iter().find(|s| s.category == ResourceCategory::Workloads).unwrap();
+    let workloads =
+        cluster.sections.iter().find(|s| s.category == ResourceCategory::Workloads).unwrap();
     let pod_item = workloads.items.iter().find(|i| i.kind == "Pod").unwrap();
     assert_eq!(pod_item.badge_count, Some(42));
 }
@@ -629,7 +620,8 @@ fn test_update_cluster_badge_clears_count() {
     state.update_cluster_badge(id, "Pod", None);
 
     let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
-    let workloads = cluster.sections.iter().find(|s| s.category == ResourceCategory::Workloads).unwrap();
+    let workloads =
+        cluster.sections.iter().find(|s| s.category == ResourceCategory::Workloads).unwrap();
     let pod_item = workloads.items.iter().find(|i| i.kind == "Pod").unwrap();
     assert_eq!(pod_item.badge_count, None);
 }
@@ -644,15 +636,27 @@ fn test_update_cluster_badge_isolated_per_cluster() {
     state.update_cluster_badge(id2, "Pod", Some(200));
 
     let c1 = state.clusters.iter().find(|c| c.id == id1).unwrap();
-    let c1_pods = c1.sections.iter()
-        .find(|s| s.category == ResourceCategory::Workloads).unwrap()
-        .items.iter().find(|i| i.kind == "Pod").unwrap();
+    let c1_pods = c1
+        .sections
+        .iter()
+        .find(|s| s.category == ResourceCategory::Workloads)
+        .unwrap()
+        .items
+        .iter()
+        .find(|i| i.kind == "Pod")
+        .unwrap();
     assert_eq!(c1_pods.badge_count, Some(10));
 
     let c2 = state.clusters.iter().find(|c| c.id == id2).unwrap();
-    let c2_pods = c2.sections.iter()
-        .find(|s| s.category == ResourceCategory::Workloads).unwrap()
-        .items.iter().find(|i| i.kind == "Pod").unwrap();
+    let c2_pods = c2
+        .sections
+        .iter()
+        .find(|s| s.category == ResourceCategory::Workloads)
+        .unwrap()
+        .items
+        .iter()
+        .find(|i| i.kind == "Pod")
+        .unwrap();
     assert_eq!(c2_pods.badge_count, Some(200));
 }
 
@@ -666,9 +670,15 @@ fn test_update_cluster_badge_on_nonexistent_cluster_is_noop() {
 
     // Original cluster unaffected
     let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
-    let pods = cluster.sections.iter()
-        .find(|s| s.category == ResourceCategory::Workloads).unwrap()
-        .items.iter().find(|i| i.kind == "Pod").unwrap();
+    let pods = cluster
+        .sections
+        .iter()
+        .find(|s| s.category == ResourceCategory::Workloads)
+        .unwrap()
+        .items
+        .iter()
+        .find(|i| i.kind == "Pod")
+        .unwrap();
     assert_eq!(pods.badge_count, None);
 }
 
@@ -683,23 +693,17 @@ fn test_update_cluster_badge_multiple_kinds() {
 
     let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
 
-    let workloads = cluster.sections.iter()
-        .find(|s| s.category == ResourceCategory::Workloads).unwrap();
-    assert_eq!(
-        workloads.items.iter().find(|i| i.kind == "Pod").unwrap().badge_count,
-        Some(5)
-    );
+    let workloads =
+        cluster.sections.iter().find(|s| s.category == ResourceCategory::Workloads).unwrap();
+    assert_eq!(workloads.items.iter().find(|i| i.kind == "Pod").unwrap().badge_count, Some(5));
     assert_eq!(
         workloads.items.iter().find(|i| i.kind == "Deployment").unwrap().badge_count,
         Some(3)
     );
 
-    let network = cluster.sections.iter()
-        .find(|s| s.category == ResourceCategory::Network).unwrap();
-    assert_eq!(
-        network.items.iter().find(|i| i.kind == "Service").unwrap().badge_count,
-        Some(12)
-    );
+    let network =
+        cluster.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    assert_eq!(network.items.iter().find(|i| i.kind == "Service").unwrap().badge_count, Some(12));
 }
 
 // ===================================================================
@@ -969,9 +973,8 @@ fn test_drill_into_filters_to_single_cluster() {
     state.enter_drill_into(id1);
 
     // Verify only one cluster matches the drill-into filter
-    let visible: Vec<_> = state.clusters.iter()
-        .filter(|c| state.drill_into_cluster == Some(c.id))
-        .collect();
+    let visible: Vec<_> =
+        state.clusters.iter().filter(|c| state.drill_into_cluster == Some(c.id)).collect();
     assert_eq!(visible.len(), 1);
     assert_eq!(visible[0].context_name, "kind-dev");
 }

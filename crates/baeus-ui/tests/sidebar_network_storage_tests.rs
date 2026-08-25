@@ -3,8 +3,8 @@
 //! Tests verify that the sidebar correctly includes Network and Storage sections
 //! with the appropriate resource kinds and navigation works properly.
 
-use baeus_ui::layout::sidebar::SidebarState;
 use baeus_ui::icons::ResourceCategory;
+use baeus_ui::layout::sidebar::SidebarState;
 
 // ---------------------------------------------------------------------------
 // T073: Network section verification
@@ -25,7 +25,8 @@ fn test_sidebar_has_network_section() {
 fn test_network_section_contains_service() {
     let state = SidebarState::default();
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     let service_item = network_section.items.iter().find(|i| i.kind == "Service");
 
     assert!(service_item.is_some(), "Network section should contain Service");
@@ -37,7 +38,8 @@ fn test_network_section_contains_service() {
 fn test_network_section_contains_ingress() {
     let state = SidebarState::default();
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     let ingress_item = network_section.items.iter().find(|i| i.kind == "Ingress");
 
     assert!(ingress_item.is_some(), "Network section should contain Ingress");
@@ -49,7 +51,8 @@ fn test_network_section_contains_ingress() {
 fn test_network_section_contains_network_policy() {
     let state = SidebarState::default();
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     let np_item = network_section.items.iter().find(|i| i.kind == "NetworkPolicy");
 
     assert!(np_item.is_some(), "Network section should contain NetworkPolicy");
@@ -61,7 +64,8 @@ fn test_network_section_contains_network_policy() {
 fn test_network_section_contains_endpoints() {
     let state = SidebarState::default();
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     let endpoints_item = network_section.items.iter().find(|i| i.kind == "Endpoints");
 
     assert!(endpoints_item.is_some(), "Network section should contain Endpoints");
@@ -73,7 +77,8 @@ fn test_network_section_contains_endpoints() {
 fn test_network_section_has_four_items() {
     let state = SidebarState::default();
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert_eq!(network_section.items.len(), 6, "Network section should have exactly 6 items");
 }
 
@@ -96,7 +101,8 @@ fn test_sidebar_has_storage_section() {
 fn test_storage_section_contains_persistent_volume() {
     let state = SidebarState::default();
 
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     let pv_item = storage_section.items.iter().find(|i| i.kind == "PersistentVolume");
 
     assert!(pv_item.is_some(), "Storage section should contain PersistentVolume");
@@ -108,7 +114,8 @@ fn test_storage_section_contains_persistent_volume() {
 fn test_storage_section_contains_persistent_volume_claim() {
     let state = SidebarState::default();
 
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     let pvc_item = storage_section.items.iter().find(|i| i.kind == "PersistentVolumeClaim");
 
     assert!(pvc_item.is_some(), "Storage section should contain PersistentVolumeClaim");
@@ -120,7 +127,8 @@ fn test_storage_section_contains_persistent_volume_claim() {
 fn test_storage_section_contains_storage_class() {
     let state = SidebarState::default();
 
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     let sc_item = storage_section.items.iter().find(|i| i.kind == "StorageClass");
 
     assert!(sc_item.is_some(), "Storage section should contain StorageClass");
@@ -132,7 +140,8 @@ fn test_storage_section_contains_storage_class() {
 fn test_storage_section_has_three_items() {
     let state = SidebarState::default();
 
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert_eq!(storage_section.items.len(), 3, "Storage section should have exactly 3 items");
 }
 
@@ -150,8 +159,12 @@ fn test_navigate_to_service() {
     assert!(state.is_active("Service"));
 
     // Verify the Network section is auto-expanded
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
-    assert!(network_section.expanded, "Network section should be expanded after navigating to Service");
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    assert!(
+        network_section.expanded,
+        "Network section should be expanded after navigating to Service"
+    );
 }
 
 #[test]
@@ -163,7 +176,8 @@ fn test_navigate_to_ingress() {
     assert_eq!(state.active_kind, Some("Ingress".to_string()));
     assert!(state.is_active("Ingress"));
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(network_section.expanded);
 }
 
@@ -176,7 +190,8 @@ fn test_navigate_to_network_policy() {
     assert_eq!(state.active_kind, Some("NetworkPolicy".to_string()));
     assert!(state.is_active("NetworkPolicy"));
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(network_section.expanded);
 }
 
@@ -189,7 +204,8 @@ fn test_navigate_to_endpoints() {
     assert_eq!(state.active_kind, Some("Endpoints".to_string()));
     assert!(state.is_active("Endpoints"));
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(network_section.expanded);
 }
 
@@ -200,7 +216,8 @@ fn test_set_active_kind_service() {
     state.set_active_kind("Service");
     assert_eq!(state.active_kind, Some("Service".to_string()));
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(network_section.expanded);
 }
 
@@ -218,8 +235,12 @@ fn test_navigate_to_persistent_volume() {
     assert!(state.is_active("PersistentVolume"));
 
     // Verify the Storage section is auto-expanded
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
-    assert!(storage_section.expanded, "Storage section should be expanded after navigating to PersistentVolume");
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    assert!(
+        storage_section.expanded,
+        "Storage section should be expanded after navigating to PersistentVolume"
+    );
 }
 
 #[test]
@@ -231,7 +252,8 @@ fn test_navigate_to_persistent_volume_claim() {
     assert_eq!(state.active_kind, Some("PersistentVolumeClaim".to_string()));
     assert!(state.is_active("PersistentVolumeClaim"));
 
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(storage_section.expanded);
 }
 
@@ -244,7 +266,8 @@ fn test_navigate_to_storage_class() {
     assert_eq!(state.active_kind, Some("StorageClass".to_string()));
     assert!(state.is_active("StorageClass"));
 
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(storage_section.expanded);
 }
 
@@ -255,7 +278,8 @@ fn test_set_active_kind_persistent_volume() {
     state.set_active_kind("PersistentVolume");
     assert_eq!(state.active_kind, Some("PersistentVolume".to_string()));
 
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(storage_section.expanded);
 }
 
@@ -268,17 +292,20 @@ fn test_toggle_network_section() {
     let mut state = SidebarState::default();
 
     // Network starts collapsed
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(!network_section.expanded);
 
     // Toggle to expand
     state.toggle_section(ResourceCategory::Network);
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(network_section.expanded);
 
     // Toggle to collapse
     state.toggle_section(ResourceCategory::Network);
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(!network_section.expanded);
 }
 
@@ -287,17 +314,20 @@ fn test_toggle_storage_section() {
     let mut state = SidebarState::default();
 
     // Storage starts collapsed
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(!storage_section.expanded);
 
     // Toggle to expand
     state.toggle_section(ResourceCategory::Storage);
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(storage_section.expanded);
 
     // Toggle to collapse
     state.toggle_section(ResourceCategory::Storage);
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(!storage_section.expanded);
 }
 
@@ -306,7 +336,8 @@ fn test_expand_network_section() {
     let mut state = SidebarState::default();
 
     state.expand_section(ResourceCategory::Network);
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(network_section.expanded);
 }
 
@@ -315,7 +346,8 @@ fn test_expand_storage_section() {
     let mut state = SidebarState::default();
 
     state.expand_section(ResourceCategory::Storage);
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(storage_section.expanded);
 }
 
@@ -330,8 +362,10 @@ fn test_collapse_all_includes_network_and_storage() {
     // Collapse all
     state.collapse_all();
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
 
     assert!(!network_section.expanded);
     assert!(!storage_section.expanded);
@@ -347,7 +381,8 @@ fn test_update_service_badge() {
 
     state.update_badge("Service", Some(5));
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     let service_item = network_section.items.iter().find(|i| i.kind == "Service").unwrap();
 
     assert_eq!(service_item.badge_count, Some(5));
@@ -359,7 +394,8 @@ fn test_update_persistent_volume_badge() {
 
     state.update_badge("PersistentVolume", Some(12));
 
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     let pv_item = storage_section.items.iter().find(|i| i.kind == "PersistentVolume").unwrap();
 
     assert_eq!(pv_item.badge_count, Some(12));
@@ -372,7 +408,8 @@ fn test_clear_ingress_badge() {
     state.update_badge("Ingress", Some(3));
     state.update_badge("Ingress", None);
 
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     let ingress_item = network_section.items.iter().find(|i| i.kind == "Ingress").unwrap();
 
     assert_eq!(ingress_item.badge_count, None);
@@ -449,14 +486,16 @@ fn test_navigate_between_network_and_storage() {
     // Navigate to Service
     state.navigate_to_kind("Service", "test");
     assert!(state.is_active("Service"));
-    let network_section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
+    let network_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(network_section.expanded);
 
     // Navigate to PersistentVolume
     state.navigate_to_kind("PersistentVolume", "test");
     assert!(state.is_active("PersistentVolume"));
     assert!(!state.is_active("Service"));
-    let storage_section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
+    let storage_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(storage_section.expanded);
 }
 
@@ -493,7 +532,8 @@ fn test_network_section_position() {
     let state = SidebarState::default();
 
     let network_idx = state.sections.iter().position(|s| s.category == ResourceCategory::Network);
-    let workloads_idx = state.sections.iter().position(|s| s.category == ResourceCategory::Workloads);
+    let workloads_idx =
+        state.sections.iter().position(|s| s.category == ResourceCategory::Workloads);
 
     assert!(network_idx.is_some());
     assert!(workloads_idx.is_some());

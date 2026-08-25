@@ -12,9 +12,9 @@ use crate::theme::Color;
 /// dashboard background, giving a donut appearance.
 pub struct DonutChart {
     pub label: &'static str,
-    pub value: f32,           // 0.0–1.0 fraction
-    pub used_label: String,   // e.g. "2.4 cores" or "45/78"
-    pub total_label: String,  // e.g. "8 cores" or "78 pods"
+    pub value: f32,          // 0.0–1.0 fraction
+    pub used_label: String,  // e.g. "2.4 cores" or "45/78"
+    pub total_label: String, // e.g. "8 cores" or "78 pods"
     pub color: Color,
     pub bg: Color,
 }
@@ -65,23 +65,21 @@ impl DonutChart {
                             .items_center()
                             .justify_center()
                             .child(
-                                div().text_lg().font_weight(FontWeight::BOLD)
+                                div()
+                                    .text_lg()
+                                    .font_weight(FontWeight::BOLD)
                                     .text_color(text_primary)
                                     .child(pct_text),
                             )
-                            .child(
-                                div().text_xs().text_color(text_secondary)
-                                    .child(used_text),
-                            )
-                            .child(
-                                div().text_xs().text_color(text_secondary)
-                                    .child(total_text),
-                            ),
+                            .child(div().text_xs().text_color(text_secondary).child(used_text))
+                            .child(div().text_xs().text_color(text_secondary).child(total_text)),
                     ),
             )
             // Label below
             .child(
-                div().text_sm().font_weight(FontWeight::SEMIBOLD)
+                div()
+                    .text_sm()
+                    .font_weight(FontWeight::SEMIBOLD)
                     .text_color(text_primary)
                     .child(label_text),
             )
@@ -99,13 +97,13 @@ pub struct ResourceCountCircle {
 pub fn resource_kind_color(kind: &str) -> Color {
     match kind {
         "Pods" => Color::rgb(0x4c, 0xaf, 0x50),         // green
-        "Deployments" => Color::rgb(0x00, 0xa7, 0xa0),   // teal
-        "DaemonSets" => Color::rgb(0xff, 0x98, 0x00),    // amber
-        "StatefulSets" => Color::rgb(0xce, 0x39, 0x33),  // red
-        "ReplicaSets" => Color::rgb(0x7c, 0x4d, 0xff),   // purple
-        "Jobs" => Color::rgb(0x21, 0x96, 0xf3),          // blue
-        "CronJobs" => Color::rgb(0xff, 0x57, 0x22),      // deep orange
-        _ => Color::rgb(0x9e, 0x9e, 0x9e),               // grey
+        "Deployments" => Color::rgb(0x00, 0xa7, 0xa0),  // teal
+        "DaemonSets" => Color::rgb(0xff, 0x98, 0x00),   // amber
+        "StatefulSets" => Color::rgb(0xce, 0x39, 0x33), // red
+        "ReplicaSets" => Color::rgb(0x7c, 0x4d, 0xff),  // purple
+        "Jobs" => Color::rgb(0x21, 0x96, 0xf3),         // blue
+        "CronJobs" => Color::rgb(0xff, 0x57, 0x22),     // deep orange
+        _ => Color::rgb(0x9e, 0x9e, 0x9e),              // grey
     }
 }
 
@@ -131,15 +129,14 @@ impl ResourceCountCircle {
                     .items_center()
                     .justify_center()
                     .child(
-                        div().text_base().font_weight(FontWeight::BOLD)
+                        div()
+                            .text_base()
+                            .font_weight(FontWeight::BOLD)
                             .text_color(gpui::rgb(0xFFFFFF))
                             .child(count_text),
                     ),
             )
-            .child(
-                div().text_xs().text_color(text_primary)
-                    .child(kind_text),
-            )
+            .child(div().text_xs().text_color(text_primary).child(kind_text))
     }
 }
 
@@ -166,9 +163,8 @@ impl ResourceDistributionBar {
     ) -> Div {
         let total: u32 = entries.iter().map(|e| e.count).sum();
 
-        let mut bar = div()
-            .flex().flex_row().w_full().h(px(28.0)).rounded(px(6.0))
-            .overflow_hidden();
+        let mut bar =
+            div().flex().flex_row().w_full().h(px(28.0)).rounded(px(6.0)).overflow_hidden();
 
         if total == 0 {
             // Empty state: muted gray bar
@@ -195,21 +191,19 @@ impl ResourceDistributionBar {
         }
 
         // Legend: colored dot + kind name + count
-        let mut legend = div()
-            .flex().flex_row().flex_wrap().gap_x(px(16.0)).gap_y(px(4.0))
-            .pt_2();
+        let mut legend = div().flex().flex_row().flex_wrap().gap_x(px(16.0)).gap_y(px(4.0)).pt_2();
 
         for entry in entries {
             let dot_color = entry.color.to_gpui();
             let label = SharedString::from(format!("{}: {}", entry.kind, entry.count));
             legend = legend.child(
-                div().flex().flex_row().items_center().gap(px(6.0))
-                    .child(
-                        div().w(px(10.0)).h(px(10.0)).rounded(px(2.0)).bg(dot_color),
-                    )
-                    .child(
-                        div().text_xs().text_color(text_primary).child(label),
-                    ),
+                div()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap(px(6.0))
+                    .child(div().w(px(10.0)).h(px(10.0)).rounded(px(2.0)).bg(dot_color))
+                    .child(div().text_xs().text_color(text_primary).child(label)),
             );
         }
 
@@ -217,16 +211,24 @@ impl ResourceDistributionBar {
         let total_label = SharedString::from(format!("Total: {}", total));
 
         div()
-            .flex().flex_col().w_full().gap_1()
+            .flex()
+            .flex_col()
+            .w_full()
+            .gap_1()
             .child(
-                div().flex().flex_row().items_center().justify_between()
+                div()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .justify_between()
                     .child(
-                        div().text_sm().font_weight(FontWeight::SEMIBOLD).text_color(text_primary)
+                        div()
+                            .text_sm()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(text_primary)
                             .child("Resource Distribution"),
                     )
-                    .child(
-                        div().text_xs().text_color(text_secondary).child(total_label),
-                    ),
+                    .child(div().text_xs().text_color(text_secondary).child(total_label)),
             )
             .child(bar)
             .child(legend)

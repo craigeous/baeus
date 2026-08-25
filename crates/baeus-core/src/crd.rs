@@ -28,11 +28,7 @@ impl CrdSchema {
     }
 
     pub fn api_resource_name(&self) -> String {
-        self.name
-            .split('.')
-            .next()
-            .unwrap_or(&self.name)
-            .to_string()
+        self.name.split('.').next().unwrap_or(&self.name).to_string()
     }
 
     pub fn is_namespaced(&self) -> bool {
@@ -41,11 +37,7 @@ impl CrdSchema {
 
     pub fn full_api_version(&self) -> Option<String> {
         self.preferred_version().map(|v| {
-            if self.group.is_empty() {
-                v.to_string()
-            } else {
-                format!("{}/{v}", self.group)
-            }
+            if self.group.is_empty() { v.to_string() } else { format!("{}/{v}", self.group) }
         })
     }
 
@@ -97,9 +89,11 @@ impl CrdRegistry {
     }
 
     pub fn register(&mut self, schema: CrdSchema) {
-        if let Some(existing) = self.schemas.iter_mut().find(|s| {
-            s.name == schema.name && s.cluster_id == schema.cluster_id
-        }) {
+        if let Some(existing) = self
+            .schemas
+            .iter_mut()
+            .find(|s| s.name == schema.name && s.cluster_id == schema.cluster_id)
+        {
             *existing = schema;
         } else {
             self.schemas.push(schema);
@@ -107,8 +101,7 @@ impl CrdRegistry {
     }
 
     pub fn unregister(&mut self, name: &str, cluster_id: Uuid) {
-        self.schemas
-            .retain(|s| !(s.name == name && s.cluster_id == cluster_id));
+        self.schemas.retain(|s| !(s.name == name && s.cluster_id == cluster_id));
     }
 
     /// List all registered CRD schemas.
@@ -134,27 +127,17 @@ impl CrdRegistry {
     pub fn group_by_api_group(&self) -> HashMap<String, Vec<&CrdSchema>> {
         let mut groups: HashMap<String, Vec<&CrdSchema>> = HashMap::new();
         for schema in &self.schemas {
-            groups
-                .entry(schema.group.clone())
-                .or_default()
-                .push(schema);
+            groups.entry(schema.group.clone()).or_default().push(schema);
         }
         groups
     }
 
     pub fn for_cluster(&self, cluster_id: Uuid) -> Vec<&CrdSchema> {
-        self.schemas
-            .iter()
-            .filter(|s| s.cluster_id == cluster_id)
-            .collect()
+        self.schemas.iter().filter(|s| s.cluster_id == cluster_id).collect()
     }
 
     pub fn groups(&self) -> Vec<&str> {
-        let mut groups: Vec<&str> = self
-            .schemas
-            .iter()
-            .map(|s| s.group.as_str())
-            .collect();
+        let mut groups: Vec<&str> = self.schemas.iter().map(|s| s.group.as_str()).collect();
         groups.sort();
         groups.dedup();
         groups
@@ -238,10 +221,7 @@ mod tests {
         assert_eq!(crd.kind, "Certificate");
         assert_eq!(crd.versions.len(), 2);
         assert_eq!(crd.scope, CrdScope::Namespaced);
-        assert_eq!(
-            crd.description.as_deref(),
-            Some("Certificate resource for TLS")
-        );
+        assert_eq!(crd.description.as_deref(), Some("Certificate resource for TLS"));
         assert!(crd.schema_properties.is_some());
     }
 
@@ -292,10 +272,7 @@ mod tests {
     #[test]
     fn test_crd_schema_full_api_version() {
         let crd = sample_crd("certificates", "cert-manager.io", "Certificate");
-        assert_eq!(
-            crd.full_api_version(),
-            Some("cert-manager.io/v1".to_string())
-        );
+        assert_eq!(crd.full_api_version(), Some("cert-manager.io/v1".to_string()));
     }
 
     #[test]
@@ -370,14 +347,8 @@ mod tests {
 
     #[test]
     fn test_crd_scope_serialization() {
-        assert_eq!(
-            serde_json::to_string(&CrdScope::Namespaced).unwrap(),
-            "\"Namespaced\""
-        );
-        assert_eq!(
-            serde_json::to_string(&CrdScope::Cluster).unwrap(),
-            "\"Cluster\""
-        );
+        assert_eq!(serde_json::to_string(&CrdScope::Namespaced).unwrap(), "\"Namespaced\"");
+        assert_eq!(serde_json::to_string(&CrdScope::Cluster).unwrap(), "\"Cluster\"");
     }
 
     // --- T110: DynamicResourceInstance (DynamicObject listing simulation) ---
@@ -473,10 +444,8 @@ mod tests {
         assert_eq!(instances.len(), 3);
 
         // Filter by namespace
-        let default_ns: Vec<&DynamicResourceInstance> = instances
-            .iter()
-            .filter(|i| i.namespace.as_deref() == Some("default"))
-            .collect();
+        let default_ns: Vec<&DynamicResourceInstance> =
+            instances.iter().filter(|i| i.namespace.as_deref() == Some("default")).collect();
         assert_eq!(default_ns.len(), 2);
 
         // All are namespaced
@@ -633,10 +602,7 @@ mod tests {
         registry.register(crd);
 
         assert_eq!(registry.count(), 1);
-        assert_eq!(
-            registry.find_by_kind("Certificate").unwrap().versions.len(),
-            2
-        );
+        assert_eq!(registry.find_by_kind("Certificate").unwrap().versions.len(), 2);
     }
 
     #[test]

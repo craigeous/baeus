@@ -1,8 +1,6 @@
 use crate::icons::{ResourceCategory, ResourceIcon};
 use crate::layout::NavigationTarget;
-use gpui::{
-    div, px, rgb, rgba, prelude::*, Context, ElementId, FontWeight, SharedString, Window,
-};
+use gpui::{Context, ElementId, FontWeight, SharedString, Window, div, prelude::*, px, rgb, rgba};
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -31,7 +29,11 @@ pub struct SidebarItem {
 }
 
 impl SidebarItem {
-    pub fn navigation_target(&self, category: ResourceCategory, cluster_context: &str) -> NavigationTarget {
+    pub fn navigation_target(
+        &self,
+        category: ResourceCategory,
+        cluster_context: &str,
+    ) -> NavigationTarget {
         NavigationTarget::ResourceList {
             cluster_context: cluster_context.to_string(),
             category,
@@ -59,10 +61,7 @@ pub enum ClusterSource {
     #[default]
     Kubeconfig,
     /// Connected via native AWS EKS integration.
-    AwsEks {
-        region: String,
-        account_id: Option<String>,
-    },
+    AwsEks { region: String, account_id: Option<String> },
 }
 
 #[derive(Debug, Clone)]
@@ -88,9 +87,7 @@ pub struct ClusterEntry {
 /// Takes the first letter of the first two words. Single-word names repeat the first letter.
 /// E.g. "kind-dev" → "KD", "production" → "PR", "my-cool-cluster" → "MC"
 pub fn generate_initials(name: &str) -> String {
-    let parts: Vec<&str> = name.split(['-', '_', '.', ' '])
-        .filter(|s| !s.is_empty())
-        .collect();
+    let parts: Vec<&str> = name.split(['-', '_', '.', ' ']).filter(|s| !s.is_empty()).collect();
 
     match parts.len() {
         0 => "??".to_string(),
@@ -258,23 +255,22 @@ impl SidebarState {
 
     /// Navigate to a resource kind: sets active, expands section, returns the NavigationTarget.
     /// Requires a cluster_context to scope the navigation target.
-    pub fn navigate_to_kind(&mut self, kind: &str, cluster_context: &str) -> Option<NavigationTarget> {
+    pub fn navigate_to_kind(
+        &mut self,
+        kind: &str,
+        cluster_context: &str,
+    ) -> Option<NavigationTarget> {
         self.set_active_kind(kind);
-        self.find_kind_category(kind).map(|category| {
-            NavigationTarget::ResourceList {
-                cluster_context: cluster_context.to_string(),
-                category,
-                kind: kind.to_string(),
-            }
+        self.find_kind_category(kind).map(|category| NavigationTarget::ResourceList {
+            cluster_context: cluster_context.to_string(),
+            category,
+            kind: kind.to_string(),
         })
     }
 
     /// Find which category a kind belongs to.
     pub fn find_kind_category(&self, kind: &str) -> Option<ResourceCategory> {
-        self.sections
-            .iter()
-            .find(|s| s.items.iter().any(|i| i.kind == kind))
-            .map(|s| s.category)
+        self.sections.iter().find(|s| s.items.iter().any(|i| i.kind == kind)).map(|s| s.category)
     }
 
     /// Returns true if the given kind is the currently active one.
@@ -287,9 +283,7 @@ impl SidebarState {
     /// to a sentinel value so it can be detected.
     pub fn navigate_to_map(&mut self, cluster_context: &str) -> NavigationTarget {
         self.active_kind = Some("__NamespaceMap__".to_string());
-        NavigationTarget::NamespaceMap {
-            cluster_context: cluster_context.to_string(),
-        }
+        NavigationTarget::NamespaceMap { cluster_context: cluster_context.to_string() }
     }
 
     /// Returns true if the namespace map is currently active.
@@ -353,8 +347,7 @@ impl SidebarState {
 
     /// Get a reference to the currently selected cluster.
     pub fn selected_cluster(&self) -> Option<&ClusterEntry> {
-        self.selected_cluster_id
-            .and_then(|id| self.clusters.iter().find(|c| c.id == id))
+        self.selected_cluster_id.and_then(|id| self.clusters.iter().find(|c| c.id == id))
     }
 
     /// Returns true if clusters are populated (use cluster-first layout).
@@ -402,10 +395,7 @@ impl SidebarState {
     /// Find a cluster by its context name and return its ID.
     /// Used by T310 to map from an active tab's cluster_context to a cluster ID.
     pub fn find_cluster_id_by_context(&self, context_name: &str) -> Option<Uuid> {
-        self.clusters
-            .iter()
-            .find(|c| c.context_name == context_name)
-            .map(|c| c.id)
+        self.clusters.iter().find(|c| c.context_name == context_name).map(|c| c.id)
     }
 
     /// Resolve a context name to its display name (e.g. "ClusterName(Context)").
@@ -444,28 +434,50 @@ impl SidebarState {
     pub fn fr071_category_kinds(category: ResourceCategory) -> Vec<&'static str> {
         match category {
             ResourceCategory::Workloads => vec![
-                "Pod", "Deployment", "DaemonSet", "StatefulSet", "ReplicaSet",
-                "ReplicationController", "Job", "CronJob",
+                "Pod",
+                "Deployment",
+                "DaemonSet",
+                "StatefulSet",
+                "ReplicaSet",
+                "ReplicationController",
+                "Job",
+                "CronJob",
             ],
             ResourceCategory::Configuration => vec![
-                "ConfigMap", "Secret", "ResourceQuota", "LimitRange",
-                "HorizontalPodAutoscaler", "VerticalPodAutoscaler",
-                "PodDisruptionBudget", "PriorityClass", "RuntimeClass",
-                "Lease", "MutatingWebhookConfiguration", "ValidatingWebhookConfiguration",
+                "ConfigMap",
+                "Secret",
+                "ResourceQuota",
+                "LimitRange",
+                "HorizontalPodAutoscaler",
+                "VerticalPodAutoscaler",
+                "PodDisruptionBudget",
+                "PriorityClass",
+                "RuntimeClass",
+                "Lease",
+                "MutatingWebhookConfiguration",
+                "ValidatingWebhookConfiguration",
             ],
             ResourceCategory::Network => vec![
-                "Service", "Endpoints", "Ingress", "IngressClass",
-                "NetworkPolicy", "PortForwarding",
+                "Service",
+                "Endpoints",
+                "Ingress",
+                "IngressClass",
+                "NetworkPolicy",
+                "PortForwarding",
             ],
-            ResourceCategory::Storage => vec![
-                "PersistentVolumeClaim", "PersistentVolume", "StorageClass",
-            ],
+            ResourceCategory::Storage => {
+                vec!["PersistentVolumeClaim", "PersistentVolume", "StorageClass"]
+            }
             ResourceCategory::Cluster => vec!["Namespace", "Node"],
             ResourceCategory::Monitoring => vec!["Event"],
             ResourceCategory::Helm => vec!["HelmChart", "HelmRelease"],
             ResourceCategory::Rbac => vec![
-                "ServiceAccount", "ClusterRole", "Role",
-                "ClusterRoleBinding", "RoleBinding", "PodSecurityPolicy",
+                "ServiceAccount",
+                "ClusterRole",
+                "Role",
+                "ClusterRoleBinding",
+                "RoleBinding",
+                "PodSecurityPolicy",
             ],
             ResourceCategory::Custom => vec!["CustomResourceDefinition"],
             ResourceCategory::ArgoCD => vec!["Application", "ApplicationSet", "AppProject"],
@@ -487,7 +499,11 @@ impl SidebarState {
     /// Get the resource types (sidebar items) for a given category within a specific cluster.
     /// If the cluster already has a section for that category, returns references to its items.
     /// Otherwise, builds items from the FR-071 category kinds specification.
-    pub fn get_resource_types(&self, cluster_id: Uuid, category: ResourceCategory) -> Vec<&SidebarItem> {
+    pub fn get_resource_types(
+        &self,
+        cluster_id: Uuid,
+        category: ResourceCategory,
+    ) -> Vec<&SidebarItem> {
         if let Some(cluster) = self.clusters.iter().find(|c| c.id == cluster_id) {
             // Check if the cluster already has a section for this category
             if let Some(section) = cluster.sections.iter().find(|s| s.category == category) {
@@ -905,14 +921,12 @@ fn default_sections() -> Vec<SidebarSection> {
         SidebarSection {
             category: ResourceCategory::Monitoring,
             expanded: false,
-            items: vec![
-                SidebarItem {
-                    icon: ResourceIcon::Event,
-                    label: "Events".to_string(),
-                    kind: "Event".to_string(),
-                    badge_count: None,
-                },
-            ],
+            items: vec![SidebarItem {
+                icon: ResourceIcon::Event,
+                label: "Events".to_string(),
+                kind: "Event".to_string(),
+                badge_count: None,
+            }],
         },
         SidebarSection {
             category: ResourceCategory::Helm,
@@ -959,26 +973,22 @@ fn default_sections() -> Vec<SidebarSection> {
         SidebarSection {
             category: ResourceCategory::Plugins,
             expanded: false,
-            items: vec![
-                SidebarItem {
-                    icon: ResourceIcon::Plugin,
-                    label: "Plugins".to_string(),
-                    kind: "Plugin".to_string(),
-                    badge_count: None,
-                },
-            ],
+            items: vec![SidebarItem {
+                icon: ResourceIcon::Plugin,
+                label: "Plugins".to_string(),
+                kind: "Plugin".to_string(),
+                badge_count: None,
+            }],
         },
         SidebarSection {
             category: ResourceCategory::Custom,
             expanded: false,
-            items: vec![
-                SidebarItem {
-                    icon: ResourceIcon::CustomResource,
-                    label: "Custom Resources".to_string(),
-                    kind: "CustomResourceDefinition".to_string(),
-                    badge_count: None,
-                },
-            ],
+            items: vec![SidebarItem {
+                icon: ResourceIcon::CustomResource,
+                label: "Custom Resources".to_string(),
+                kind: "CustomResourceDefinition".to_string(),
+                badge_count: None,
+            }],
         },
     ]
 }
@@ -999,9 +1009,7 @@ impl Default for SidebarView {
 
 impl SidebarView {
     pub fn new() -> Self {
-        Self {
-            state: SidebarState::default(),
-        }
+        Self { state: SidebarState::default() }
     }
 
     pub fn state(&self) -> &SidebarState {
@@ -1041,9 +1049,8 @@ impl Render for SidebarView {
             let mut section_div = div().flex().flex_col().w_full();
 
             // Section header -- clickable to toggle expand/collapse
-            let header_id = ElementId::Name(
-                SharedString::from(format!("sidebar-section-{section_idx}")),
-            );
+            let header_id =
+                ElementId::Name(SharedString::from(format!("sidebar-section-{section_idx}")));
             let header = div()
                 .id(header_id)
                 .flex()
@@ -1069,9 +1076,9 @@ impl Render for SidebarView {
                     let item_label = SharedString::from(item.label.clone());
                     let item_kind = item.kind.clone();
 
-                    let item_id = ElementId::Name(
-                        SharedString::from(format!("sidebar-item-{section_idx}-{item_idx}")),
-                    );
+                    let item_id = ElementId::Name(SharedString::from(format!(
+                        "sidebar-item-{section_idx}-{item_idx}"
+                    )));
 
                     let mut item_row = div()
                         .id(item_id)
@@ -1086,16 +1093,13 @@ impl Render for SidebarView {
 
                     // Active item highlight
                     if is_active {
-                        item_row = item_row
-                            .bg(rgba(0x60A5FA20))
-                            .text_color(rgb(0x60A5FA));
+                        item_row = item_row.bg(rgba(0x60A5FA20)).text_color(rgb(0x60A5FA));
                     }
 
                     // Click handler to navigate
-                    item_row =
-                        item_row.on_click(cx.listener(move |this, _event, _window, _cx| {
-                            this.state.navigate_to_kind(&item_kind, "default");
-                        }));
+                    item_row = item_row.on_click(cx.listener(move |this, _event, _window, _cx| {
+                        this.state.navigate_to_kind(&item_kind, "default");
+                    }));
 
                     // Icon placeholder: small colored dot
                     let dot = div()
@@ -1103,11 +1107,7 @@ impl Render for SidebarView {
                         .h(px(6.0))
                         .rounded(px(3.0))
                         .flex_shrink_0()
-                        .bg(if is_active {
-                            rgb(0x60A5FA)
-                        } else {
-                            rgb(0x6B7280)
-                        });
+                        .bg(if is_active { rgb(0x60A5FA) } else { rgb(0x6B7280) });
 
                     item_row = item_row.child(dot).child(item_label);
 
@@ -1422,11 +1422,7 @@ mod tests {
 
         // All should be expanded
         for &cat in SidebarState::fr071_categories() {
-            assert!(
-                state.is_category_expanded(id, cat),
-                "Category {:?} should be expanded",
-                cat
-            );
+            assert!(state.is_category_expanded(id, cat), "Category {:?} should be expanded", cat);
         }
 
         // Collapse every category
@@ -1436,11 +1432,7 @@ mod tests {
 
         // All should be collapsed again
         for &cat in SidebarState::fr071_categories() {
-            assert!(
-                !state.is_category_expanded(id, cat),
-                "Category {:?} should be collapsed",
-                cat
-            );
+            assert!(!state.is_category_expanded(id, cat), "Category {:?} should be collapsed", cat);
         }
     }
 
@@ -1456,11 +1448,8 @@ mod tests {
         state.update_cluster_badge(id, "Pod", Some(42));
 
         let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
-        let workloads = cluster
-            .sections
-            .iter()
-            .find(|s| s.category == ResourceCategory::Workloads)
-            .unwrap();
+        let workloads =
+            cluster.sections.iter().find(|s| s.category == ResourceCategory::Workloads).unwrap();
         let pod_item = workloads.items.iter().find(|i| i.kind == "Pod").unwrap();
         assert_eq!(pod_item.badge_count, Some(42));
     }
@@ -1474,11 +1463,8 @@ mod tests {
         state.update_cluster_badge(id, "Pod", None);
 
         let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
-        let workloads = cluster
-            .sections
-            .iter()
-            .find(|s| s.category == ResourceCategory::Workloads)
-            .unwrap();
+        let workloads =
+            cluster.sections.iter().find(|s| s.category == ResourceCategory::Workloads).unwrap();
         let pod_item = workloads.items.iter().find(|i| i.kind == "Pod").unwrap();
         assert_eq!(pod_item.badge_count, None);
     }
@@ -1550,25 +1536,16 @@ mod tests {
 
         let cluster = state.clusters.iter().find(|c| c.id == id).unwrap();
 
-        let workloads = cluster
-            .sections
-            .iter()
-            .find(|s| s.category == ResourceCategory::Workloads)
-            .unwrap();
-        assert_eq!(
-            workloads.items.iter().find(|i| i.kind == "Pod").unwrap().badge_count,
-            Some(5)
-        );
+        let workloads =
+            cluster.sections.iter().find(|s| s.category == ResourceCategory::Workloads).unwrap();
+        assert_eq!(workloads.items.iter().find(|i| i.kind == "Pod").unwrap().badge_count, Some(5));
         assert_eq!(
             workloads.items.iter().find(|i| i.kind == "Deployment").unwrap().badge_count,
             Some(3)
         );
 
-        let network = cluster
-            .sections
-            .iter()
-            .find(|s| s.category == ResourceCategory::Network)
-            .unwrap();
+        let network =
+            cluster.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
         assert_eq!(
             network.items.iter().find(|i| i.kind == "Service").unwrap().badge_count,
             Some(12)
@@ -1884,4 +1861,3 @@ mod tests {
         assert_eq!(state.sidebar_width, 1000.0);
     }
 }
-

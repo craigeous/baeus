@@ -10,13 +10,7 @@ const SAMPLE_YAML: &str =
     "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\nspec:\n  replicas: 3\n";
 
 fn make_editor() -> EditorViewState {
-    EditorViewState::new(
-        SAMPLE_YAML,
-        "Deployment",
-        "nginx",
-        Some("default".to_string()),
-        "12345",
-    )
+    EditorViewState::new(SAMPLE_YAML, "Deployment", "nginx", Some("default".to_string()), "12345")
 }
 
 // === Switching to Diff mode computes diff correctly ===
@@ -62,9 +56,8 @@ fn test_added_lines_count() {
 fn test_removed_lines_count() {
     let mut editor = make_editor();
     // Remove the "spec:" and "  replicas: 3" lines
-    editor.buffer = TextBuffer::from_str(
-        "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\n",
-    );
+    editor.buffer =
+        TextBuffer::from_str("apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\n");
     editor.is_dirty = true;
     let diff = editor.compute_diff();
     assert_eq!(diff.removed_count, 2); // "spec:" and "  replicas: 3"
@@ -140,22 +133,14 @@ fn test_diff_line_numbers_with_changes() {
     let diff = editor.compute_diff();
 
     // Check that removed lines have old_line_number but no new_line_number
-    let removed: Vec<_> = diff
-        .lines
-        .iter()
-        .filter(|l| l.kind == DiffLineKind::Removed)
-        .collect();
+    let removed: Vec<_> = diff.lines.iter().filter(|l| l.kind == DiffLineKind::Removed).collect();
     for r in &removed {
         assert!(r.old_line_number.is_some());
         assert!(r.new_line_number.is_none());
     }
 
     // Check that added lines have new_line_number but no old_line_number
-    let added: Vec<_> = diff
-        .lines
-        .iter()
-        .filter(|l| l.kind == DiffLineKind::Added)
-        .collect();
+    let added: Vec<_> = diff.lines.iter().filter(|l| l.kind == DiffLineKind::Added).collect();
     for a in &added {
         assert!(a.old_line_number.is_none());
         assert!(a.new_line_number.is_some());
@@ -197,9 +182,7 @@ fn test_diff_summary_with_additions_only() {
 #[test]
 fn test_diff_summary_with_removals_only() {
     let mut editor = make_editor();
-    editor.buffer = TextBuffer::from_str(
-        "apiVersion: apps/v1\nkind: Deployment\n",
-    );
+    editor.buffer = TextBuffer::from_str("apiVersion: apps/v1\nkind: Deployment\n");
     editor.is_dirty = true;
     let summary = editor.diff_summary();
     assert!(summary.contains("+0"));
@@ -248,11 +231,7 @@ fn test_diff_removed_line_content() {
     );
     editor.is_dirty = true;
     let diff = editor.compute_diff();
-    let removed: Vec<_> = diff
-        .lines
-        .iter()
-        .filter(|l| l.kind == DiffLineKind::Removed)
-        .collect();
+    let removed: Vec<_> = diff.lines.iter().filter(|l| l.kind == DiffLineKind::Removed).collect();
     assert_eq!(removed.len(), 1);
     assert_eq!(removed[0].content, "  replicas: 3");
 }
@@ -265,11 +244,7 @@ fn test_diff_added_line_content() {
     );
     editor.is_dirty = true;
     let diff = editor.compute_diff();
-    let added: Vec<_> = diff
-        .lines
-        .iter()
-        .filter(|l| l.kind == DiffLineKind::Added)
-        .collect();
+    let added: Vec<_> = diff.lines.iter().filter(|l| l.kind == DiffLineKind::Added).collect();
     assert_eq!(added.len(), 1);
     assert_eq!(added[0].content, "  replicas: 5");
 }

@@ -1,9 +1,9 @@
 use baeus_editor::buffer::TextBuffer;
-use baeus_editor::diff::{compute_diff, DiffLine, DiffLineKind, DiffResult};
+use baeus_editor::diff::{DiffLine, DiffLineKind, DiffResult, compute_diff};
 use baeus_editor::highlight::HighlightToken;
-use baeus_editor::yaml::{validate_yaml, YamlError};
+use baeus_editor::yaml::{YamlError, validate_yaml};
 use gpui::prelude::FluentBuilder as _;
-use gpui::{div, px, prelude::*, Context, Rgba, SharedString, Window};
+use gpui::{Context, Rgba, SharedString, Window, div, prelude::*, px};
 
 use crate::theme::{Color, Theme};
 
@@ -323,10 +323,7 @@ impl EditorViewState {
     /// Returns a display title for the editor (e.g., "Deployment/nginx").
     pub fn title(&self) -> String {
         let dirty_marker = if self.is_dirty { " *" } else { "" };
-        format!(
-            "{}/{}{}",
-            self.resource_kind, self.resource_name, dirty_marker
-        )
+        format!("{}/{}{}", self.resource_kind, self.resource_name, dirty_marker)
     }
 
     // -- T056: Keyboard input handling --
@@ -350,12 +347,30 @@ impl EditorViewState {
         if self.read_only {
             // Arrow keys still work in read-only mode
             match key {
-                "left" => { self.move_cursor(CursorDirection::Left); return true; }
-                "right" => { self.move_cursor(CursorDirection::Right); return true; }
-                "up" => { self.move_cursor(CursorDirection::Up); return true; }
-                "down" => { self.move_cursor(CursorDirection::Down); return true; }
-                "home" => { self.move_cursor(CursorDirection::Home); return true; }
-                "end" => { self.move_cursor(CursorDirection::End); return true; }
+                "left" => {
+                    self.move_cursor(CursorDirection::Left);
+                    return true;
+                }
+                "right" => {
+                    self.move_cursor(CursorDirection::Right);
+                    return true;
+                }
+                "up" => {
+                    self.move_cursor(CursorDirection::Up);
+                    return true;
+                }
+                "down" => {
+                    self.move_cursor(CursorDirection::Down);
+                    return true;
+                }
+                "home" => {
+                    self.move_cursor(CursorDirection::Home);
+                    return true;
+                }
+                "end" => {
+                    self.move_cursor(CursorDirection::End);
+                    return true;
+                }
                 _ => return false,
             }
         }
@@ -513,13 +528,7 @@ impl EditorViewState {
         for i in 0..line_count {
             lines.push(self.line(i).unwrap_or_default());
         }
-        EditorRenderSnapshot {
-            lines,
-            cursor_line,
-            cursor_col,
-            error_line,
-            line_count,
-        }
+        EditorRenderSnapshot { lines, cursor_line, cursor_col, error_line, line_count }
     }
 
     /// Set the cursor to a specific line and column (0-based).
@@ -663,53 +672,25 @@ pub struct EditorViewComponent {
 }
 
 impl EditorViewComponent {
-    pub fn new(
-        state: EditorViewState,
-        theme: Theme,
-    ) -> Self {
+    pub fn new(state: EditorViewState, theme: Theme) -> Self {
         Self { state, theme }
     }
 
     /// Maps a `HighlightToken` to the appropriate theme
     /// color.
-    pub fn color_for_token(
-        &self,
-        token: HighlightToken,
-    ) -> Color {
+    pub fn color_for_token(&self, token: HighlightToken) -> Color {
         match token {
-            HighlightToken::Key => {
-                self.theme.colors.accent
-            }
-            HighlightToken::StringValue => {
-                self.theme.colors.success
-            }
-            HighlightToken::NumberValue => {
-                self.theme.colors.warning
-            }
-            HighlightToken::BooleanValue => {
-                Color::rgb(167, 139, 250)
-            }
-            HighlightToken::NullValue => {
-                self.theme.colors.text_muted
-            }
-            HighlightToken::Comment => {
-                self.theme.colors.text_muted
-            }
-            HighlightToken::Punctuation => {
-                self.theme.colors.text_secondary
-            }
-            HighlightToken::Tag => {
-                self.theme.colors.info
-            }
-            HighlightToken::Anchor => {
-                self.theme.colors.info
-            }
-            HighlightToken::Alias => {
-                self.theme.colors.info
-            }
-            HighlightToken::Default => {
-                self.theme.colors.text_primary
-            }
+            HighlightToken::Key => self.theme.colors.accent,
+            HighlightToken::StringValue => self.theme.colors.success,
+            HighlightToken::NumberValue => self.theme.colors.warning,
+            HighlightToken::BooleanValue => Color::rgb(167, 139, 250),
+            HighlightToken::NullValue => self.theme.colors.text_muted,
+            HighlightToken::Comment => self.theme.colors.text_muted,
+            HighlightToken::Punctuation => self.theme.colors.text_secondary,
+            HighlightToken::Tag => self.theme.colors.info,
+            HighlightToken::Anchor => self.theme.colors.info,
+            HighlightToken::Alias => self.theme.colors.info,
+            HighlightToken::Default => self.theme.colors.text_primary,
         }
     }
 
@@ -721,9 +702,7 @@ impl EditorViewComponent {
         if let Some(ref err) = self.state.apply_error {
             return format!("Error: {err}");
         }
-        if let Some(ref ve) =
-            self.state.validation_error
-        {
+        if let Some(ref ve) = self.state.validation_error {
             return format!("Invalid YAML: {ve}");
         }
         if self.state.read_only {
@@ -738,15 +717,13 @@ impl EditorViewComponent {
     /// mode toggle, Apply button.
     fn render_title_bar(&self) -> gpui::Div {
         let c = self.make_colors();
-        let title =
-            SharedString::from(self.state.title());
+        let title = SharedString::from(self.state.title());
         let mode_lbl = match self.state.mode {
             EditorMode::Edit => "Edit",
             EditorMode::Diff => "Diff",
         };
         let can = self.state.can_apply();
-        let apply_c =
-            if can { c.accent } else { c.text_muted };
+        let apply_c = if can { c.accent } else { c.text_muted };
 
         div()
             .flex()
@@ -759,37 +736,18 @@ impl EditorViewComponent {
             .border_b_1()
             .border_color(c.border)
             .bg(c.surface)
-            .child(self.render_title_text(
-                title,
-                c.text_primary,
-            ))
-            .child(
-                self.render_mode_pill(mode_lbl, &c),
-            )
-            .child(
-                self.render_apply_btn(apply_c, &c),
-            )
+            .child(self.render_title_text(title, c.text_primary))
+            .child(self.render_mode_pill(mode_lbl, &c))
+            .child(self.render_apply_btn(apply_c, &c))
     }
 
     /// Title label helper.
-    fn render_title_text(
-        &self,
-        title: SharedString,
-        color: Rgba,
-    ) -> gpui::Div {
-        div()
-            .flex_1()
-            .text_sm()
-            .text_color(color)
-            .child(title)
+    fn render_title_text(&self, title: SharedString, color: Rgba) -> gpui::Div {
+        div().flex_1().text_sm().text_color(color).child(title)
     }
 
     /// Mode toggle pill.
-    fn render_mode_pill(
-        &self,
-        label: &str,
-        c: &EditorColors,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_mode_pill(&self, label: &str, c: &EditorColors) -> gpui::Stateful<gpui::Div> {
         div()
             .id("editor-mode-toggle")
             .px_2()
@@ -805,11 +763,7 @@ impl EditorViewComponent {
     }
 
     /// Apply button.
-    fn render_apply_btn(
-        &self,
-        text_color: Rgba,
-        c: &EditorColors,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_apply_btn(&self, text_color: Rgba, c: &EditorColors) -> gpui::Stateful<gpui::Div> {
         div()
             .id("editor-apply-btn")
             .px_3()
@@ -828,24 +782,11 @@ impl EditorViewComponent {
     fn render_edit_mode(&self) -> gpui::Div {
         let c = self.make_colors();
         let lc = self.state.line_count();
-        let mut body = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .w_full()
-            .overflow_hidden()
-            .bg(c.background);
+        let mut body = div().flex().flex_col().flex_1().w_full().overflow_hidden().bg(c.background);
 
         for idx in 0..lc {
-            let content = self
-                .state
-                .line(idx)
-                .unwrap_or_default();
-            body = body.child(
-                self.render_line_with_numbers(
-                    idx, &content,
-                ),
-            );
+            let content = self.state.line(idx).unwrap_or_default();
+            body = body.child(self.render_line_with_numbers(idx, &content));
         }
 
         body
@@ -855,37 +796,21 @@ impl EditorViewComponent {
     fn render_diff_mode(&self) -> gpui::Div {
         let c = self.make_colors();
         let diff = self.state.compute_diff();
-        let summary = SharedString::from(format!(
-            "+{} -{}",
-            diff.added_count, diff.removed_count,
-        ));
+        let summary = SharedString::from(format!("+{} -{}", diff.added_count, diff.removed_count,));
 
-        let mut body = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .w_full()
-            .overflow_hidden()
-            .bg(c.background);
+        let mut body = div().flex().flex_col().flex_1().w_full().overflow_hidden().bg(c.background);
 
-        body = body.child(
-            self.render_diff_summary(summary, &c),
-        );
+        body = body.child(self.render_diff_summary(summary, &c));
 
         for dl in &diff.lines {
-            body =
-                body.child(self.render_diff_line(dl));
+            body = body.child(self.render_diff_line(dl));
         }
 
         body
     }
 
     /// Diff summary header.
-    fn render_diff_summary(
-        &self,
-        summary: SharedString,
-        c: &EditorColors,
-    ) -> gpui::Div {
+    fn render_diff_summary(&self, summary: SharedString, c: &EditorColors) -> gpui::Div {
         div()
             .flex()
             .flex_row()
@@ -893,89 +818,42 @@ impl EditorViewComponent {
             .py_1()
             .border_b_1()
             .border_color(c.border)
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(c.text_secondary)
-                    .child(summary),
-            )
+            .child(div().text_xs().text_color(c.text_secondary).child(summary))
     }
 
     /// A single line with line numbers gutter and
     /// error gutter.
-    fn render_line_with_numbers(
-        &self,
-        line_idx: usize,
-        content: &str,
-    ) -> gpui::Div {
+    fn render_line_with_numbers(&self, line_idx: usize, content: &str) -> gpui::Div {
         let c = self.make_colors();
-        let num = SharedString::from(format!(
-            "{}",
-            line_idx + 1
-        ));
+        let num = SharedString::from(format!("{}", line_idx + 1));
 
-        let mut row =
-            div().flex().flex_row().w_full();
+        let mut row = div().flex().flex_row().w_full();
 
         if self.state.show_line_numbers {
-            row = row.child(
-                self.render_line_num(
-                    num,
-                    c.text_muted,
-                ),
-            );
+            row = row.child(self.render_line_num(num, c.text_muted));
         }
 
-        row = row.child(
-            self.render_error_gutter(line_idx),
-        );
+        row = row.child(self.render_error_gutter(line_idx));
 
-        row = row.child(
-            self.render_highlighted_line(content),
-        );
+        row = row.child(self.render_highlighted_line(content));
 
         row
     }
 
     /// Line number cell.
-    fn render_line_num(
-        &self,
-        num: SharedString,
-        color: Rgba,
-    ) -> gpui::Div {
-        div()
-            .w(px(40.0))
-            .flex_shrink_0()
-            .text_right()
-            .pr_2()
-            .text_xs()
-            .text_color(color)
-            .child(num)
+    fn render_line_num(&self, num: SharedString, color: Rgba) -> gpui::Div {
+        div().w(px(40.0)).flex_shrink_0().text_right().pr_2().text_xs().text_color(color).child(num)
     }
 
     /// Renders a line with syntax highlighting.
-    fn render_highlighted_line(
-        &self,
-        content: &str,
-    ) -> gpui::Div {
+    fn render_highlighted_line(&self, content: &str) -> gpui::Div {
         let c = self.make_colors();
-        let txt = SharedString::from(
-            content
-                .trim_end_matches('\n')
-                .to_string(),
-        );
-        div()
-            .flex_1()
-            .text_xs()
-            .text_color(c.text_primary)
-            .child(txt)
+        let txt = SharedString::from(content.trim_end_matches('\n').to_string());
+        div().flex_1().text_xs().text_color(c.text_primary).child(txt)
     }
 
     /// Error gutter indicator for a specific line.
-    fn render_error_gutter(
-        &self,
-        line_idx: usize,
-    ) -> gpui::Div {
+    fn render_error_gutter(&self, line_idx: usize) -> gpui::Div {
         let c = self.make_colors();
         let has_err = self
             .state
@@ -985,8 +863,7 @@ impl EditorViewComponent {
             .map(|l| l == line_idx + 1)
             .unwrap_or(false);
 
-        let mut gutter =
-            div().w(px(4.0)).flex_shrink_0().mr_1();
+        let mut gutter = div().w(px(4.0)).flex_shrink_0().mr_1();
 
         if has_err {
             gutter = gutter.bg(c.error);
@@ -998,23 +875,17 @@ impl EditorViewComponent {
     /// Status bar: validation status, apply progress.
     fn render_status_bar(&self) -> gpui::Div {
         let c = self.make_colors();
-        let status =
-            SharedString::from(self.status_text());
+        let status = SharedString::from(self.status_text());
 
-        let sc =
-            if self.state.apply_error.is_some() {
-                c.error
-            } else if self
-                .state
-                .validation_error
-                .is_some()
-            {
-                c.warning
-            } else if self.state.applying {
-                c.accent
-            } else {
-                c.success
-            };
+        let sc = if self.state.apply_error.is_some() {
+            c.error
+        } else if self.state.validation_error.is_some() {
+            c.warning
+        } else if self.state.applying {
+            c.accent
+        } else {
+            c.success
+        };
 
         div()
             .flex()
@@ -1026,30 +897,16 @@ impl EditorViewComponent {
             .border_t_1()
             .border_color(c.border)
             .bg(c.surface)
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(sc)
-                    .child(status),
-            )
+            .child(div().text_xs().text_color(sc).child(status))
     }
 
     /// Renders a single diff line with background.
-    fn render_diff_line(
-        &self,
-        diff_line: &DiffLine,
-    ) -> gpui::Div {
+    fn render_diff_line(&self, diff_line: &DiffLine) -> gpui::Div {
         let c = self.make_colors();
 
         let bg = match diff_line.kind {
-            DiffLineKind::Added => {
-                Color::rgba(34, 197, 94, 30)
-                    .to_gpui()
-            }
-            DiffLineKind::Removed => {
-                Color::rgba(239, 68, 68, 30)
-                    .to_gpui()
-            }
+            DiffLineKind::Added => Color::rgba(34, 197, 94, 30).to_gpui(),
+            DiffLineKind::Removed => Color::rgba(239, 68, 68, 30).to_gpui(),
             DiffLineKind::Unchanged => c.background,
         };
 
@@ -1059,43 +916,23 @@ impl EditorViewComponent {
             DiffLineKind::Unchanged => " ",
         };
 
-        let old_n = diff_line
-            .old_line_number
-            .map(|n| format!("{n}"))
-            .unwrap_or_default();
-        let new_n = diff_line
-            .new_line_number
-            .map(|n| format!("{n}"))
-            .unwrap_or_default();
-        let ct = SharedString::from(
-            diff_line.content.clone(),
-        );
+        let old_n = diff_line.old_line_number.map(|n| format!("{n}")).unwrap_or_default();
+        let new_n = diff_line.new_line_number.map(|n| format!("{n}")).unwrap_or_default();
+        let ct = SharedString::from(diff_line.content.clone());
 
         div()
             .flex()
             .flex_row()
             .w_full()
             .bg(bg)
-            .child(
-                self.render_diff_num(old_n, &c),
-            )
-            .child(
-                self.render_diff_num(new_n, &c),
-            )
-            .child(
-                self.render_diff_prefix(prefix, &c),
-            )
-            .child(
-                self.render_diff_content(ct, &c),
-            )
+            .child(self.render_diff_num(old_n, &c))
+            .child(self.render_diff_num(new_n, &c))
+            .child(self.render_diff_prefix(prefix, &c))
+            .child(self.render_diff_content(ct, &c))
     }
 
     /// Diff line number column.
-    fn render_diff_num(
-        &self,
-        num: String,
-        c: &EditorColors,
-    ) -> gpui::Div {
+    fn render_diff_num(&self, num: String, c: &EditorColors) -> gpui::Div {
         div()
             .w(px(30.0))
             .flex_shrink_0()
@@ -1107,11 +944,7 @@ impl EditorViewComponent {
     }
 
     /// Diff line prefix (+/-/space) column.
-    fn render_diff_prefix(
-        &self,
-        prefix: &str,
-        c: &EditorColors,
-    ) -> gpui::Div {
+    fn render_diff_prefix(&self, prefix: &str, c: &EditorColors) -> gpui::Div {
         div()
             .w(px(12.0))
             .flex_shrink_0()
@@ -1121,16 +954,8 @@ impl EditorViewComponent {
     }
 
     /// Diff line content column.
-    fn render_diff_content(
-        &self,
-        ct: SharedString,
-        c: &EditorColors,
-    ) -> gpui::Div {
-        div()
-            .flex_1()
-            .text_xs()
-            .text_color(c.text_primary)
-            .child(ct)
+    fn render_diff_content(&self, ct: SharedString, c: &EditorColors) -> gpui::Div {
+        div().flex_1().text_xs().text_color(c.text_primary).child(ct)
     }
 
     /// Conflict banner when a 409 conflict is active.
@@ -1141,11 +966,8 @@ impl EditorViewComponent {
             None => return div(),
         };
 
-        let msg = SharedString::from(
-            conflict.message.clone(),
-        );
-        let banner_bg =
-            Color::rgba(245, 158, 11, 30).to_gpui();
+        let msg = SharedString::from(conflict.message.clone());
+        let banner_bg = Color::rgba(245, 158, 11, 30).to_gpui();
 
         div()
             .flex()
@@ -1158,35 +980,18 @@ impl EditorViewComponent {
             .bg(banner_bg)
             .border_b_1()
             .border_color(c.warning)
-            .child(
-                self.render_conflict_msg(msg, &c),
-            )
-            .child(
-                self.render_conflict_accept(&c),
-            )
-            .child(
-                self.render_conflict_dismiss(&c),
-            )
+            .child(self.render_conflict_msg(msg, &c))
+            .child(self.render_conflict_accept(&c))
+            .child(self.render_conflict_dismiss(&c))
     }
 
     /// Conflict message text.
-    fn render_conflict_msg(
-        &self,
-        msg: SharedString,
-        c: &EditorColors,
-    ) -> gpui::Div {
-        div()
-            .flex_1()
-            .text_xs()
-            .text_color(c.warning)
-            .child(msg)
+    fn render_conflict_msg(&self, msg: SharedString, c: &EditorColors) -> gpui::Div {
+        div().flex_1().text_xs().text_color(c.warning).child(msg)
     }
 
     /// Accept server version button.
-    fn render_conflict_accept(
-        &self,
-        c: &EditorColors,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_conflict_accept(&self, c: &EditorColors) -> gpui::Stateful<gpui::Div> {
         div()
             .id("conflict-accept-server")
             .px_2()
@@ -1202,10 +1007,7 @@ impl EditorViewComponent {
     }
 
     /// Dismiss conflict button.
-    fn render_conflict_dismiss(
-        &self,
-        c: &EditorColors,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_conflict_dismiss(&self, c: &EditorColors) -> gpui::Stateful<gpui::Div> {
         div()
             .id("conflict-dismiss")
             .px_2()
@@ -1223,75 +1025,27 @@ impl EditorViewComponent {
     /// Precompute all colors from the theme.
     fn make_colors(&self) -> EditorColors {
         EditorColors {
-            background: self
-                .theme
-                .colors
-                .background
-                .to_gpui(),
-            surface: self
-                .theme
-                .colors
-                .surface
-                .to_gpui(),
-            border: self
-                .theme
-                .colors
-                .border
-                .to_gpui(),
-            accent: self
-                .theme
-                .colors
-                .accent
-                .to_gpui(),
-            success: self
-                .theme
-                .colors
-                .success
-                .to_gpui(),
-            error: self
-                .theme
-                .colors
-                .error
-                .to_gpui(),
-            text_primary: self
-                .theme
-                .colors
-                .text_primary
-                .to_gpui(),
-            text_secondary: self
-                .theme
-                .colors
-                .text_secondary
-                .to_gpui(),
-            text_muted: self
-                .theme
-                .colors
-                .text_muted
-                .to_gpui(),
-            warning: self
-                .theme
-                .colors
-                .warning
-                .to_gpui(),
+            background: self.theme.colors.background.to_gpui(),
+            surface: self.theme.colors.surface.to_gpui(),
+            border: self.theme.colors.border.to_gpui(),
+            accent: self.theme.colors.accent.to_gpui(),
+            success: self.theme.colors.success.to_gpui(),
+            error: self.theme.colors.error.to_gpui(),
+            text_primary: self.theme.colors.text_primary.to_gpui(),
+            text_secondary: self.theme.colors.text_secondary.to_gpui(),
+            text_muted: self.theme.colors.text_muted.to_gpui(),
+            warning: self.theme.colors.warning.to_gpui(),
         }
     }
 }
 
 impl Render for EditorViewComponent {
-    fn render(
-        &mut self,
-        _window: &mut Window,
-        _cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         let c = self.make_colors();
 
         let content = match self.state.mode {
-            EditorMode::Edit => {
-                self.render_edit_mode()
-            }
-            EditorMode::Diff => {
-                self.render_diff_mode()
-            }
+            EditorMode::Edit => self.render_edit_mode(),
+            EditorMode::Diff => self.render_diff_mode(),
         };
 
         div()
@@ -1300,15 +1054,7 @@ impl Render for EditorViewComponent {
             .size_full()
             .bg(c.background)
             .child(self.render_title_bar())
-            .when(
-                self.state.has_conflict(),
-                |el| {
-                    el.child(
-                        self
-                            .render_conflict_banner(),
-                    )
-                },
-            )
+            .when(self.state.has_conflict(), |el| el.child(self.render_conflict_banner()))
             .child(content)
             .child(self.render_status_bar())
     }
@@ -1318,7 +1064,8 @@ impl Render for EditorViewComponent {
 mod tests {
     use super::*;
 
-    const SAMPLE_YAML: &str = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\nspec:\n  replicas: 3\n";
+    const SAMPLE_YAML: &str =
+        "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\nspec:\n  replicas: 3\n";
 
     fn make_editor() -> EditorViewState {
         EditorViewState::new(
@@ -1419,13 +1166,8 @@ mod tests {
 
     #[test]
     fn test_validate_invalid_yaml() {
-        let mut editor = EditorViewState::new(
-            "key: [invalid\n  yaml: here",
-            "ConfigMap",
-            "test",
-            None,
-            "1",
-        );
+        let mut editor =
+            EditorViewState::new("key: [invalid\n  yaml: here", "ConfigMap", "test", None, "1");
         assert!(!editor.validate());
         assert!(!editor.is_valid());
         assert!(editor.validation_error.is_some());
@@ -1612,25 +1354,15 @@ mod tests {
 
     #[test]
     fn test_cluster_scoped_resource() {
-        let editor = EditorViewState::new(
-            "apiVersion: v1\nkind: Node\n",
-            "Node",
-            "node-1",
-            None,
-            "1",
-        );
+        let editor =
+            EditorViewState::new("apiVersion: v1\nkind: Node\n", "Node", "node-1", None, "1");
         assert!(editor.resource_namespace.is_none());
     }
 
     #[test]
     fn test_conflict_message_cluster_scoped() {
-        let mut editor = EditorViewState::new(
-            "apiVersion: v1\nkind: Node\n",
-            "Node",
-            "node-1",
-            None,
-            "1",
-        );
+        let mut editor =
+            EditorViewState::new("apiVersion: v1\nkind: Node\n", "Node", "node-1", None, "1");
         editor.insert(0, "x");
         editor.begin_apply();
         editor.apply_conflict("server yaml".to_string());

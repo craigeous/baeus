@@ -3,14 +3,14 @@
 // search highlighting, and download button.
 
 use baeus_core::logs::{
-    format_logs_for_download, LogBuffer, LogDownloadFormat, LogLine, LogStreamState,
+    LogBuffer, LogDownloadFormat, LogLine, LogStreamState, format_logs_for_download,
 };
 use gpui::{
-    deferred, div, px, prelude::*, Context, ElementId, Entity, Rgba, SharedString, Subscription,
-    Window,
+    Context, ElementId, Entity, Rgba, SharedString, Subscription, Window, deferred, div,
+    prelude::*, px,
 };
-use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::Sizable;
+use gpui_component::input::{Input, InputEvent, InputState};
 
 use crate::theme::Theme;
 
@@ -23,8 +23,7 @@ fn strip_ansi_escapes(s: &str) -> String {
 
     static ANSI_RE: LazyLock<Regex> = LazyLock::new(|| {
         // Match: ESC[ ... final byte, ESC] ... BEL, ESC followed by single char
-        Regex::new(r"\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b[A-Za-z]|\x1b\([A-Za-z]")
-            .unwrap()
+        Regex::new(r"\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b[A-Za-z]|\x1b\([A-Za-z]").unwrap()
     });
 
     ANSI_RE.replace_all(s, "").into_owned()
@@ -71,12 +70,7 @@ pub struct LogViewerSettings {
 
 impl Default for LogViewerSettings {
     fn default() -> Self {
-        Self {
-            show_timestamps: true,
-            wrap_lines: false,
-            auto_scroll: true,
-            font_size: 12,
-        }
+        Self { show_timestamps: true, wrap_lines: false, auto_scroll: true, font_size: 12 }
     }
 }
 
@@ -92,10 +86,7 @@ pub struct ContainerFilter {
 impl ContainerFilter {
     pub fn new(containers: Vec<String>) -> Self {
         let visible = containers.clone();
-        Self {
-            all_containers: containers,
-            visible,
-        }
+        Self { all_containers: containers, visible }
     }
 
     /// Toggle visibility of a container.
@@ -230,11 +221,7 @@ impl LogViewerState {
         self.search_query = query.clone();
         self.buffer.set_search(query);
         self.search_match_count = self.buffer.search_results().len();
-        self.current_search_index = if self.search_match_count > 0 {
-            Some(0)
-        } else {
-            None
-        };
+        self.current_search_index = if self.search_match_count > 0 { Some(0) } else { None };
     }
 
     /// Navigate to the next search match.
@@ -242,11 +229,8 @@ impl LogViewerState {
         if self.search_match_count == 0 {
             return;
         }
-        self.current_search_index = Some(
-            self.current_search_index
-                .map(|i| (i + 1) % self.search_match_count)
-                .unwrap_or(0),
-        );
+        self.current_search_index =
+            Some(self.current_search_index.map(|i| (i + 1) % self.search_match_count).unwrap_or(0));
     }
 
     /// Navigate to the previous search match.
@@ -256,13 +240,7 @@ impl LogViewerState {
         }
         self.current_search_index = Some(
             self.current_search_index
-                .map(|i| {
-                    if i == 0 {
-                        self.search_match_count - 1
-                    } else {
-                        i - 1
-                    }
-                })
+                .map(|i| if i == 0 { self.search_match_count - 1 } else { i - 1 })
                 .unwrap_or(self.search_match_count - 1),
         );
     }
@@ -289,10 +267,9 @@ impl LogViewerState {
             LogSearchMode::Highlight => self.buffer.lines().iter().collect(),
         };
         match &self.container_filter {
-            Some(filter) => lines
-                .into_iter()
-                .filter(|line| filter.is_visible(&line.container_name))
-                .collect(),
+            Some(filter) => {
+                lines.into_iter().filter(|line| filter.is_visible(&line.container_name)).collect()
+            }
             None => lines,
         }
     }
@@ -362,11 +339,7 @@ impl LogViewerState {
     /// Also transitions the download state through Preparing -> Ready.
     pub fn prepare_download(&mut self) -> String {
         self.download_state = LogDownloadState::Preparing;
-        let visible: Vec<LogLine> = self
-            .visible_lines()
-            .into_iter()
-            .cloned()
-            .collect();
+        let visible: Vec<LogLine> = self.visible_lines().into_iter().cloned().collect();
         let formatted = format_logs_for_download(&visible, self.download_format);
         self.download_state = LogDownloadState::Ready(formatted.clone());
         formatted
@@ -422,17 +395,11 @@ impl LogViewerView {
     }
 
     /// Ensure the search input entity exists, creating it lazily.
-    fn ensure_search_input(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    fn ensure_search_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.search_input.is_some() {
             return;
         }
-        let input = cx.new(|cx| {
-            InputState::new(window, cx).placeholder("Search logs...")
-        });
+        let input = cx.new(|cx| InputState::new(window, cx).placeholder("Search logs..."));
         let sub = cx.subscribe(&input, |this: &mut Self, entity, event: &InputEvent, cx| {
             if matches!(event, InputEvent::Change) {
                 let val = entity.read(cx).value().to_string();
@@ -470,10 +437,7 @@ impl LogViewerView {
     // --- Helper: determine log level color ---
 
     /// Returns the theme color for a log line based on content.
-    pub fn level_color_for_line(
-        &self,
-        line: &LogLine,
-    ) -> crate::theme::Color {
+    pub fn level_color_for_line(&self, line: &LogLine) -> crate::theme::Color {
         let lower = line.content.to_lowercase();
         if lower.contains("error") {
             self.theme.colors.error
@@ -487,11 +451,8 @@ impl LogViewerView {
     }
 
     /// Returns the palette color for a source_color_index.
-    pub fn container_color(
-        index: usize,
-    ) -> crate::theme::Color {
-        let (r, g, b) =
-            CONTAINER_PALETTE[index % CONTAINER_PALETTE.len()];
+    pub fn container_color(index: usize) -> crate::theme::Color {
+        let (r, g, b) = CONTAINER_PALETTE[index % CONTAINER_PALETTE.len()];
         crate::theme::Color::rgb(r, g, b)
     }
 
@@ -507,32 +468,23 @@ impl LogViewerView {
     }
 
     /// Theme color for the current stream state.
-    pub fn stream_state_color(
-        &self,
-    ) -> crate::theme::Color {
+    pub fn stream_state_color(&self) -> crate::theme::Color {
         match self.state.stream_state {
             LogStreamState::Idle => self.theme.colors.text_muted,
             LogStreamState::Streaming => self.theme.colors.success,
             LogStreamState::Paused => self.theme.colors.warning,
-            LogStreamState::Stopped => {
-                self.theme.colors.text_secondary
-            }
+            LogStreamState::Stopped => self.theme.colors.text_secondary,
             LogStreamState::Error => self.theme.colors.error,
         }
     }
 
     /// Returns true if a log line matches the active search.
-    pub fn line_matches_search(
-        &self,
-        line: &LogLine,
-    ) -> bool {
+    pub fn line_matches_search(&self, line: &LogLine) -> bool {
         if let Some(ref query) = self.state.search_query {
             if query.is_empty() {
                 return true;
             }
-            line.content
-                .to_lowercase()
-                .contains(&query.to_lowercase())
+            line.content.to_lowercase().contains(&query.to_lowercase())
         } else {
             false
         }
@@ -554,21 +506,12 @@ impl LogViewerView {
             .flex_row()
             .items_center()
             .gap(px(6.0))
-            .child(
-                div()
-                    .w(px(8.0))
-                    .h(px(8.0))
-                    .rounded(px(4.0))
-                    .bg(c),
-            )
+            .child(div().w(px(8.0)).h(px(8.0)).rounded(px(4.0)).bg(c))
             .child(div().text_xs().text_color(c).child(lbl))
     }
 
     /// Download format button.
-    fn render_download_button(
-        &self,
-        colors: &LogViewerColors,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_download_button(&self, colors: &LogViewerColors) -> gpui::Stateful<gpui::Div> {
         let txt = match self.state.download_format {
             LogDownloadFormat::PlainText => "Download TXT",
             LogDownloadFormat::Json => "Download JSON",
@@ -604,8 +547,12 @@ impl LogViewerView {
         let arrow = if self.container_dropdown_open { "\u{25B2}" } else { "\u{25BC}" };
 
         self.render_dropdown_widget(
-            "container-selector", summary, arrow,
-            self.container_dropdown_open, colors, cx,
+            "container-selector",
+            summary,
+            arrow,
+            self.container_dropdown_open,
+            colors,
+            cx,
             |this, _ev, _win, cx| {
                 this.container_dropdown_open = !this.container_dropdown_open;
                 this.pod_dropdown_open = false;
@@ -617,16 +564,30 @@ impl LogViewerView {
                 let all_c = if all_active { colors.accent } else { colors.text_secondary };
                 let mut els: Vec<gpui::AnyElement> = Vec::new();
                 els.push(
-                    div().id("container-all").px_2().py_1().cursor_pointer().text_xs()
+                    div()
+                        .id("container-all")
+                        .px_2()
+                        .py_1()
+                        .cursor_pointer()
+                        .text_xs()
                         .text_color(all_c)
                         .hover(|s| s.bg(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.05 }))
-                        .child(SharedString::from(if all_active { "\u{2611} All" } else { "\u{2610} All" }))
+                        .child(SharedString::from(if all_active {
+                            "\u{2611} All"
+                        } else {
+                            "\u{2610} All"
+                        }))
                         .on_click(cx.listener(|this, _ev, _win, cx| {
                             if let Some(ref mut f) = this.state.container_filter {
-                                if f.visible_count() == f.total_count() { f.hide_all(); } else { f.show_all(); }
+                                if f.visible_count() == f.total_count() {
+                                    f.hide_all();
+                                } else {
+                                    f.show_all();
+                                }
                             }
                             cx.notify();
-                        })).into_any_element(),
+                        }))
+                        .into_any_element(),
                 );
                 for (i, name) in f.all_containers.iter().enumerate() {
                     let iv = f.is_visible(name);
@@ -639,9 +600,12 @@ impl LogViewerView {
                         this.render_container_item(&format!("c-{i}"), pc, lb, tc)
                             .hover(|s| s.bg(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.05 }))
                             .on_click(cx.listener(move |this, _ev, _win, cx| {
-                                if let Some(ref mut f) = this.state.container_filter { f.toggle(&cn); }
+                                if let Some(ref mut f) = this.state.container_filter {
+                                    f.toggle(&cn);
+                                }
                                 cx.notify();
-                            })).into_any_element(),
+                            }))
+                            .into_any_element(),
                     );
                 }
                 Some(els)
@@ -664,8 +628,12 @@ impl LogViewerView {
         let summary = SharedString::from(format!("Pod: {}", self.state.pod_name));
         let arrow = if self.pod_dropdown_open { "\u{25B2}" } else { "\u{25BC}" };
         self.render_dropdown_widget(
-            "pod-selector", summary, arrow,
-            self.pod_dropdown_open, colors, cx,
+            "pod-selector",
+            summary,
+            arrow,
+            self.pod_dropdown_open,
+            colors,
+            cx,
             |this, _ev, _win, cx| {
                 this.pod_dropdown_open = !this.pod_dropdown_open;
                 this.container_dropdown_open = false;
@@ -680,8 +648,13 @@ impl LogViewerView {
                     let label = SharedString::from(format!("{prefix}{pn}"));
                     let pn_clone = pn.clone();
                     els.push(
-                        div().id(ElementId::Name(SharedString::from(format!("pod-{i}"))))
-                            .px_2().py_1().cursor_pointer().text_xs().text_color(tc)
+                        div()
+                            .id(ElementId::Name(SharedString::from(format!("pod-{i}"))))
+                            .px_2()
+                            .py_1()
+                            .cursor_pointer()
+                            .text_xs()
+                            .text_color(tc)
                             .hover(|s| s.bg(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.05 }))
                             .child(label)
                             .on_click(cx.listener(move |this, _ev, _win, cx| {
@@ -690,13 +663,13 @@ impl LogViewerView {
                                     this.state.clear();
                                     this.state.switch_to_pod = Some(pn_clone.clone());
                                     this.state.needs_refetch = true;
-                                    this.state.set_stream_state(
-                                        baeus_core::logs::LogStreamState::Idle,
-                                    );
+                                    this.state
+                                        .set_stream_state(baeus_core::logs::LogStreamState::Idle);
                                 }
                                 this.pod_dropdown_open = false;
                                 cx.notify();
-                            })).into_any_element(),
+                            }))
+                            .into_any_element(),
                     );
                 }
                 Some(els)
@@ -715,19 +688,34 @@ impl LogViewerView {
         colors: &LogViewerColors,
         cx: &mut Context<Self>,
         on_toggle: impl Fn(&mut Self, &gpui::ClickEvent, &mut Window, &mut Context<Self>) + 'static,
-        build_items: impl FnOnce(&Self, &LogViewerColors, &mut Context<Self>) -> Option<Vec<gpui::AnyElement>>,
+        build_items: impl FnOnce(
+            &Self,
+            &LogViewerColors,
+            &mut Context<Self>,
+        ) -> Option<Vec<gpui::AnyElement>>,
     ) -> gpui::Div {
         let toggle_id = ElementId::Name(SharedString::from(format!("{id_prefix}-toggle")));
         let arrow_s = SharedString::from(arrow.to_string());
 
         let mut wrapper = div().relative();
         wrapper = wrapper.child(
-            div().id(toggle_id)
-                .px_2().py_1().rounded(px(4.0))
-                .bg(colors.surface).border_1().border_color(colors.border)
-                .cursor_pointer().text_xs().text_color(colors.text_primary)
+            div()
+                .id(toggle_id)
+                .px_2()
+                .py_1()
+                .rounded(px(4.0))
+                .bg(colors.surface)
+                .border_1()
+                .border_color(colors.border)
+                .cursor_pointer()
+                .text_xs()
+                .text_color(colors.text_primary)
                 .child(
-                    div().flex().flex_row().items_center().gap(px(4.0))
+                    div()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(4.0))
                         .child(summary)
                         .child(div().text_xs().text_color(colors.text_muted).child(arrow_s)),
                 )
@@ -736,13 +724,26 @@ impl LogViewerView {
         if is_open {
             if let Some(els) = build_items(self, colors, cx) {
                 let panel_id = ElementId::Name(SharedString::from(format!("{id_prefix}-panel")));
-                let mut panel = div().id(panel_id)
-                    .absolute().top(px(28.0)).left_0()
-                    .flex().flex_col()
-                    .w(px(280.0)).max_h(px(300.0)).overflow_y_scroll()
-                    .bg(colors.surface).border_1().border_color(colors.border)
-                    .rounded(px(4.0)).shadow_lg().py_1().occlude();
-                for el in els { panel = panel.child(el); }
+                let mut panel = div()
+                    .id(panel_id)
+                    .absolute()
+                    .top(px(28.0))
+                    .left_0()
+                    .flex()
+                    .flex_col()
+                    .w(px(280.0))
+                    .max_h(px(300.0))
+                    .overflow_y_scroll()
+                    .bg(colors.surface)
+                    .border_1()
+                    .border_color(colors.border)
+                    .rounded(px(4.0))
+                    .shadow_lg()
+                    .py_1()
+                    .occlude();
+                for el in els {
+                    panel = panel.child(el);
+                }
                 wrapper = wrapper.child(deferred(panel));
             }
         }
@@ -766,19 +767,8 @@ impl LogViewerView {
             .px_2()
             .py_1()
             .cursor_pointer()
-            .child(
-                div()
-                    .w(px(6.0))
-                    .h(px(6.0))
-                    .rounded(px(3.0))
-                    .bg(dot_color),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(text_color)
-                    .child(label),
-            )
+            .child(div().w(px(6.0)).h(px(6.0)).rounded(px(3.0)).bg(dot_color))
+            .child(div().text_xs().text_color(text_color).child(label))
     }
 
     /// Metadata label: non-interactive key:value display.
@@ -811,11 +801,7 @@ impl LogViewerView {
         colors: &LogViewerColors,
     ) -> gpui::Stateful<gpui::Div> {
         let check_str = if checked { "\u{2611}" } else { "\u{2610}" };
-        let tc = if checked {
-            colors.accent
-        } else {
-            colors.text_muted
-        };
+        let tc = if checked { colors.accent } else { colors.text_muted };
         div()
             .id(ElementId::Name(SharedString::from(id.to_string())))
             .flex()
@@ -823,13 +809,12 @@ impl LogViewerView {
             .items_center()
             .gap(px(4.0))
             .cursor_pointer()
+            .child(div().text_xs().text_color(tc).child(SharedString::from(check_str)))
             .child(
-                div().text_xs().text_color(tc).child(SharedString::from(check_str)),
-            )
-            .child(
-                div().text_xs().text_color(colors.text_secondary).child(
-                    SharedString::from(label.to_string()),
-                ),
+                div()
+                    .text_xs()
+                    .text_color(colors.text_secondary)
+                    .child(SharedString::from(label.to_string())),
             )
     }
 
@@ -869,30 +854,15 @@ impl LogViewerView {
 
         // Container prefix
         if self.state.container_filter.is_some() {
-            let pc = Self::container_color(
-                line.source_color_index,
-            )
-            .to_gpui();
-            let cl = SharedString::from(format!(
-                "[{}] ",
-                line.container_name,
-            ));
-            row = row.child(
-                div()
-                    .text_xs()
-                    .text_color(pc)
-                    .flex_shrink_0()
-                    .mr_1()
-                    .child(cl),
-            );
+            let pc = Self::container_color(line.source_color_index).to_gpui();
+            let cl = SharedString::from(format!("[{}] ", line.container_name,));
+            row = row.child(div().text_xs().text_color(pc).flex_shrink_0().mr_1().child(cl));
         }
 
         // Timestamp
         if self.state.settings.show_timestamps {
-            let ts = line
-                .timestamp
-                .map(|t| t.format("%H:%M:%S%.3f").to_string())
-                .unwrap_or_default();
+            let ts =
+                line.timestamp.map(|t| t.format("%H:%M:%S%.3f").to_string()).unwrap_or_default();
             row = row.child(
                 div()
                     .text_xs()
@@ -915,10 +885,7 @@ impl LogViewerView {
     }
 
     /// Scrollable monospace log body.
-    fn render_log_body(
-        &self,
-        colors: &LogViewerColors,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_log_body(&self, colors: &LogViewerColors) -> gpui::Stateful<gpui::Div> {
         let visible = self.state.visible_lines();
         let wrap = self.state.settings.wrap_lines;
         let mut body = div()
@@ -958,26 +925,16 @@ impl LogViewerView {
     }
 
     /// Download status indicator.
-    fn render_download_status(
-        &self,
-        colors: &LogViewerColors,
-    ) -> gpui::Div {
+    fn render_download_status(&self, colors: &LogViewerColors) -> gpui::Div {
         match &self.state.download_state {
             LogDownloadState::Idle => div(),
-            LogDownloadState::Preparing => div()
-                .text_xs()
-                .text_color(colors.text_muted)
-                .child("Preparing..."),
-            LogDownloadState::Ready(_) => div()
-                .text_xs()
-                .text_color(colors.success)
-                .child("Ready"),
+            LogDownloadState::Preparing => {
+                div().text_xs().text_color(colors.text_muted).child("Preparing...")
+            }
+            LogDownloadState::Ready(_) => div().text_xs().text_color(colors.success).child("Ready"),
             LogDownloadState::Error(msg) => {
                 let em = SharedString::from(msg.clone());
-                div()
-                    .text_xs()
-                    .text_color(colors.error)
-                    .child(em)
+                div().text_xs().text_color(colors.error).child(em)
             }
         }
     }
@@ -1025,11 +982,8 @@ impl LogViewerView {
 
         // Real search input
         if let Some(ref input_entity) = self.search_input {
-            row = row.child(
-                div()
-                    .w(px(200.0))
-                    .child(Input::new(input_entity).appearance(true).small()),
-            );
+            row = row
+                .child(div().w(px(200.0)).child(Input::new(input_entity).appearance(true).small()));
         }
 
         // Match count + nav buttons
@@ -1069,12 +1023,7 @@ impl LogViewerView {
                     })),
             );
         } else if self.state.search_query.is_some() {
-            row = row.child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child("0 matches"),
-            );
+            row = row.child(div().text_xs().text_color(colors.text_muted).child("0 matches"));
         }
 
         row
@@ -1087,9 +1036,10 @@ impl LogViewerView {
         cx: &mut Context<Self>,
     ) -> gpui::Div {
         let lines = self.state.buffer.lines();
-        let first_ts = lines.first().and_then(|l| l.timestamp).map(|t| {
-            t.format("%-m/%-d/%Y, %-I:%M:%S %p").to_string()
-        });
+        let first_ts = lines
+            .first()
+            .and_then(|l| l.timestamp)
+            .map(|t| t.format("%-m/%-d/%Y, %-I:%M:%S %p").to_string());
 
         let mut row = div()
             .flex()
@@ -1189,34 +1139,30 @@ impl LogViewerView {
         );
 
         // Download button
-        row = row.child(
-            self.render_download_button(colors)
-                .on_click(cx.listener(|this, _event, _window, cx| {
-                    let content = this.state.prepare_download();
-                    let ext = match this.state.download_format {
-                        LogDownloadFormat::PlainText => "txt",
-                        LogDownloadFormat::Json => "json",
-                        LogDownloadFormat::Csv => "csv",
-                    };
-                    let pod = if this.state.pod_name.is_empty() {
-                        "logs"
-                    } else {
-                        &this.state.pod_name
-                    };
-                    let filename = format!("{pod}-logs.{ext}");
-                    let dir = std::env::temp_dir().join("baeus-logs");
-                    let _ = std::fs::create_dir_all(&dir);
-                    let path = dir.join(&filename);
-                    if std::fs::write(&path, &content).is_ok() {
-                        let _ = std::process::Command::new("open").arg(&path).spawn();
-                        this.state.download_state = LogDownloadState::Idle;
-                    } else {
-                        this.state.download_state =
-                            LogDownloadState::Error("Failed to write file".to_string());
-                    }
-                    cx.notify();
-                })),
-        );
+        row = row.child(self.render_download_button(colors).on_click(cx.listener(
+            |this, _event, _window, cx| {
+                let content = this.state.prepare_download();
+                let ext = match this.state.download_format {
+                    LogDownloadFormat::PlainText => "txt",
+                    LogDownloadFormat::Json => "json",
+                    LogDownloadFormat::Csv => "csv",
+                };
+                let pod =
+                    if this.state.pod_name.is_empty() { "logs" } else { &this.state.pod_name };
+                let filename = format!("{pod}-logs.{ext}");
+                let dir = std::env::temp_dir().join("baeus-logs");
+                let _ = std::fs::create_dir_all(&dir);
+                let path = dir.join(&filename);
+                if std::fs::write(&path, &content).is_ok() {
+                    let _ = std::process::Command::new("open").arg(&path).spawn();
+                    this.state.download_state = LogDownloadState::Idle;
+                } else {
+                    this.state.download_state =
+                        LogDownloadState::Error("Failed to write file".to_string());
+                }
+                cx.notify();
+            },
+        )));
 
         // Download status
         row = row.child(self.render_download_status(colors));
@@ -1242,11 +1188,7 @@ struct LogViewerColors {
 }
 
 impl Render for LogViewerView {
-    fn render(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // Ensure search input exists
         self.ensure_search_input(window, cx);
 
@@ -1257,26 +1199,10 @@ impl Render for LogViewerView {
             accent: self.theme.colors.accent.to_gpui(),
             success: self.theme.colors.success.to_gpui(),
             error: self.theme.colors.error.to_gpui(),
-            text_primary: self
-                .theme
-                .colors
-                .text_primary
-                .to_gpui(),
-            text_secondary: self
-                .theme
-                .colors
-                .text_secondary
-                .to_gpui(),
-            text_muted: self
-                .theme
-                .colors
-                .text_muted
-                .to_gpui(),
-            selection: self
-                .theme
-                .colors
-                .selection
-                .to_gpui(),
+            text_primary: self.theme.colors.text_primary.to_gpui(),
+            text_secondary: self.theme.colors.text_secondary.to_gpui(),
+            text_muted: self.theme.colors.text_muted.to_gpui(),
+            selection: self.theme.colors.selection.to_gpui(),
             highlight_accent: crate::theme::Color::rgba(
                 self.theme.colors.accent.r,
                 self.theme.colors.accent.g,

@@ -54,18 +54,9 @@ fn test_multiple_tab_labels_correct() {
     });
     let t3 = state.add_tab(DockTabKind::PortForwardManager);
 
-    assert_eq!(
-        state.tabs.iter().find(|t| t.id == t1).unwrap().label,
-        "Terminal: dev/web-1/app"
-    );
-    assert_eq!(
-        state.tabs.iter().find(|t| t.id == t2).unwrap().label,
-        "Logs: dev/worker-2/sidecar"
-    );
-    assert_eq!(
-        state.tabs.iter().find(|t| t.id == t3).unwrap().label,
-        "Port Forwards"
-    );
+    assert_eq!(state.tabs.iter().find(|t| t.id == t1).unwrap().label, "Terminal: dev/web-1/app");
+    assert_eq!(state.tabs.iter().find(|t| t.id == t2).unwrap().label, "Logs: dev/worker-2/sidecar");
+    assert_eq!(state.tabs.iter().find(|t| t.id == t3).unwrap().label, "Port Forwards");
 }
 
 // ===================================================================
@@ -502,11 +493,7 @@ fn test_tab_kind_stored_correctly() {
 
     let tab = state.tabs.iter().find(|t| t.id == id).unwrap();
     match &tab.kind {
-        DockTabKind::Terminal {
-            pod,
-            container,
-            cluster,
-        } => {
+        DockTabKind::Terminal { pod, container, cluster } => {
             assert_eq!(pod, "my-pod");
             assert_eq!(container, "my-container");
             assert_eq!(cluster, "my-cluster");

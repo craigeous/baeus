@@ -32,10 +32,7 @@ pub struct LayoutState {
 
 impl LayoutState {
     pub fn empty() -> Self {
-        Self {
-            nodes: Vec::new(),
-            edges: Vec::new(),
-        }
+        Self { nodes: Vec::new(), edges: Vec::new() }
     }
 
     pub fn node_by_id(&self, id: &str) -> Option<&GraphNode> {
@@ -121,10 +118,7 @@ pub fn compute_layout(relationships: &[ResourceRelationship]) -> LayoutState {
     // Build edges
     let mut edges = Vec::new();
     for rel in relationships {
-        edges.push(GraphEdge {
-            source_id: rel.source.key(),
-            target_id: rel.target.key(),
-        });
+        edges.push(GraphEdge { source_id: rel.source.key(), target_id: rel.target.key() });
     }
 
     LayoutState { nodes, edges }
@@ -193,10 +187,7 @@ pub fn compute_layout_lr(relationships: &[ResourceRelationship]) -> LayoutState 
 
     let mut edges = Vec::new();
     for rel in relationships {
-        edges.push(GraphEdge {
-            source_id: rel.source.key(),
-            target_id: rel.target.key(),
-        });
+        edges.push(GraphEdge { source_id: rel.source.key(), target_id: rel.target.key() });
     }
 
     LayoutState { nodes, edges }
@@ -214,12 +205,7 @@ fn assign_layers(
     // Find root nodes (no incoming edges)
     let roots: Vec<String> = node_set
         .keys()
-        .filter(|key| {
-            reverse_adjacency
-                .get(key.as_str())
-                .map(|v| v.is_empty())
-                .unwrap_or(true)
-        })
+        .filter(|key| reverse_adjacency.get(key.as_str()).map(|v| v.is_empty()).unwrap_or(true))
         .cloned()
         .collect();
 
@@ -316,9 +302,7 @@ fn order_layers_by_barycenter(
 
         // Sort by barycenter, breaking ties with key for determinism
         barycenters.sort_by(|a, b| {
-            a.1.partial_cmp(&b.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.0.cmp(&b.0))
+            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal).then_with(|| a.0.cmp(&b.0))
         });
 
         layer_groups[layer_idx] = barycenters.into_iter().map(|(key, _)| key).collect();
@@ -393,7 +377,7 @@ impl ResourceMapState {
 // ---------------------------------------------------------------------------
 
 use crate::theme::Theme;
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 
 /// Precomputed colors for rendering the resource map.
 #[allow(dead_code)]
@@ -435,7 +419,7 @@ impl ResourceMapComponent {
             "ConfigMap" => Rgba { r: 0.0, g: 0.7, b: 0.65, a: 1.0 }, // teal
             "Node" => Rgba { r: 0.85, g: 0.65, b: 0.13, a: 1.0 },    // amber
             "PersistentVolumeClaim" => Rgba { r: 0.4, g: 0.35, b: 0.8, a: 1.0 }, // indigo
-            "PersistentVolume" => Rgba { r: 0.55, g: 0.35, b: 0.8, a: 1.0 },     // violet
+            "PersistentVolume" => Rgba { r: 0.55, g: 0.35, b: 0.8, a: 1.0 }, // violet
             "StatefulSet" => self.theme.colors.info.to_gpui(),
             "DaemonSet" => self.theme.colors.info.to_gpui(),
             "PodDisruptionBudget" => self.theme.colors.warning.to_gpui(),
@@ -449,13 +433,8 @@ impl ResourceMapComponent {
             return self.render_empty_state(colors);
         }
 
-        let mut canvas = div()
-            .flex()
-            .flex_col()
-            .size_full()
-            .bg(colors.background)
-            .overflow_hidden()
-            .relative();
+        let mut canvas =
+            div().flex().flex_col().size_full().bg(colors.background).overflow_hidden().relative();
 
         // Render all edges first (so they appear behind nodes)
         for edge in &self.state.layout.edges {
@@ -608,12 +587,7 @@ impl ResourceMapComponent {
             .items_center()
             .justify_center()
             .bg(colors.background)
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("No resources to display"),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child("No resources to display"))
     }
 }
 

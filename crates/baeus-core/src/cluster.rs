@@ -106,9 +106,7 @@ impl ClusterConnection {
 
     /// Check if the auth token has expired.
     pub fn is_token_expired(&self) -> bool {
-        self.token_expiry
-            .map(|expiry| Utc::now() >= expiry)
-            .unwrap_or(false)
+        self.token_expiry.map(|expiry| Utc::now() >= expiry).unwrap_or(false)
     }
 
     /// Set the token expiry time.
@@ -147,10 +145,7 @@ pub struct ClusterManager {
 
 impl ClusterManager {
     pub fn new() -> Self {
-        Self {
-            connections: HashMap::new(),
-            active_cluster_id: None,
-        }
+        Self { connections: HashMap::new(), active_cluster_id: None }
     }
 
     /// Add a connection to the manager. Returns its id.
@@ -188,10 +183,7 @@ impl ClusterManager {
 
     /// Return only connections with `ConnectionStatus::Connected`.
     pub fn connected_clusters(&self) -> Vec<&ClusterConnection> {
-        self.connections
-            .values()
-            .filter(|c| c.is_connected())
-            .collect()
+        self.connections.values().filter(|c| c.is_connected()).collect()
     }
 
     /// Set the active cluster. Returns `true` if the id was found and set,
@@ -207,9 +199,7 @@ impl ClusterManager {
 
     /// Returns a reference to the currently active cluster connection, if any.
     pub fn active_cluster(&self) -> Option<&ClusterConnection> {
-        self.active_cluster_id
-            .as_ref()
-            .and_then(|id| self.connections.get(id))
+        self.active_cluster_id.as_ref().and_then(|id| self.connections.get(id))
     }
 
     /// Returns the number of managed connections.
@@ -241,10 +231,7 @@ impl ClusterManager {
 
     /// Returns connections that have expired tokens and need re-authentication.
     pub fn connections_needing_reauth(&self) -> Vec<&ClusterConnection> {
-        self.connections
-            .values()
-            .filter(|c| c.is_token_expired())
-            .collect()
+        self.connections.values().filter(|c| c.is_token_expired()).collect()
     }
 }
 
@@ -348,26 +335,11 @@ mod tests {
 
     #[test]
     fn test_auth_method_variants() {
-        assert_eq!(
-            serde_json::to_string(&AuthMethod::Certificate).unwrap(),
-            "\"Certificate\""
-        );
-        assert_eq!(
-            serde_json::to_string(&AuthMethod::Token).unwrap(),
-            "\"Token\""
-        );
-        assert_eq!(
-            serde_json::to_string(&AuthMethod::OIDC).unwrap(),
-            "\"OIDC\""
-        );
-        assert_eq!(
-            serde_json::to_string(&AuthMethod::ExecPlugin).unwrap(),
-            "\"ExecPlugin\""
-        );
-        assert_eq!(
-            serde_json::to_string(&AuthMethod::AwsEks).unwrap(),
-            "\"AwsEks\""
-        );
+        assert_eq!(serde_json::to_string(&AuthMethod::Certificate).unwrap(), "\"Certificate\"");
+        assert_eq!(serde_json::to_string(&AuthMethod::Token).unwrap(), "\"Token\"");
+        assert_eq!(serde_json::to_string(&AuthMethod::OIDC).unwrap(), "\"OIDC\"");
+        assert_eq!(serde_json::to_string(&AuthMethod::ExecPlugin).unwrap(), "\"ExecPlugin\"");
+        assert_eq!(serde_json::to_string(&AuthMethod::AwsEks).unwrap(), "\"AwsEks\"");
     }
 
     #[test]
@@ -528,10 +500,7 @@ mod tests {
             let conn = mgr.get_connection_mut(&id).unwrap();
             conn.set_connecting();
         }
-        assert_eq!(
-            mgr.get_connection(&id).unwrap().status,
-            ConnectionStatus::Connecting,
-        );
+        assert_eq!(mgr.get_connection(&id).unwrap().status, ConnectionStatus::Connecting,);
 
         {
             let conn = mgr.get_connection_mut(&id).unwrap();
@@ -883,9 +852,7 @@ mod tests {
         assert_eq!(mgr.connected_clusters().len(), 2);
 
         // Disconnect prod
-        mgr.get_connection_mut(&prod_id)
-            .unwrap()
-            .set_disconnected();
+        mgr.get_connection_mut(&prod_id).unwrap().set_disconnected();
         assert_eq!(mgr.connected_clusters().len(), 1);
 
         // Remove dev (active) => active cleared

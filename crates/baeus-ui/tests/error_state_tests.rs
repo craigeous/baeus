@@ -217,10 +217,7 @@ fn test_resource_table_empty_rows_selected_row_is_none() {
 #[test]
 fn test_resource_table_empty_after_set_rows_empty_vec() {
     let mut state = ResourceTableState::new(sample_columns(), 20);
-    state.set_rows(vec![
-        sample_row("1", "pod-a", "Running"),
-        sample_row("2", "pod-b", "Pending"),
-    ]);
+    state.set_rows(vec![sample_row("1", "pod-a", "Running"), sample_row("2", "pod-b", "Pending")]);
     assert_eq!(state.total_filtered_count(), 2);
 
     // Clear all rows
@@ -232,10 +229,7 @@ fn test_resource_table_empty_after_set_rows_empty_vec() {
 #[test]
 fn test_resource_table_scroll_offset_resets_on_empty() {
     let mut state = ResourceTableState::new(sample_columns(), 20);
-    state.set_rows(vec![
-        sample_row("1", "pod-a", "Running"),
-        sample_row("2", "pod-b", "Pending"),
-    ]);
+    state.set_rows(vec![sample_row("1", "pod-a", "Running"), sample_row("2", "pod-b", "Pending")]);
     state.scroll_to(1);
     assert_eq!(state.scroll_offset, 1);
 

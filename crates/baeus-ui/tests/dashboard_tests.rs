@@ -190,11 +190,8 @@ fn test_warning_event_count() {
 #[test]
 fn test_dashboard_with_namespaces_and_events() {
     let mut state = DashboardState::new("test", 2, sample_pod_summary());
-    state.namespaces = vec![
-        "default".to_string(),
-        "kube-system".to_string(),
-        "monitoring".to_string(),
-    ];
+    state.namespaces =
+        vec!["default".to_string(), "kube-system".to_string(), "monitoring".to_string()];
     state.recent_events = sample_events();
 
     assert_eq!(state.namespaces.len(), 3);
@@ -321,9 +318,7 @@ fn render_scenario_dashboard() -> DashboardState {
     let mut state = DashboardState::new("production-east", 5, pod_summary);
     state.cluster_id = Some(Uuid::new_v4());
     state.nodes = vec![
-        NodeHealth::new("node-1", true)
-            .with_role("control-plane")
-            .with_role("etcd"),
+        NodeHealth::new("node-1", true).with_role("control-plane").with_role("etcd"),
         NodeHealth::new("node-2", true).with_role("control-plane"),
         NodeHealth::new("node-3", true).with_role("worker"),
         NodeHealth::new("node-4", true).with_role("worker"),
@@ -533,8 +528,7 @@ fn test_render_node_health_conditions_ok_flag() {
 
 #[test]
 fn test_render_dashboard_all_nodes_healthy() {
-    let mut state =
-        DashboardState::new("healthy-cluster", 3, PodSummary::new(10, 0, 0, 0));
+    let mut state = DashboardState::new("healthy-cluster", 3, PodSummary::new(10, 0, 0, 0));
     state.nodes = vec![
         NodeHealth::new("node-1", true),
         NodeHealth::new("node-2", true),
@@ -548,12 +542,8 @@ fn test_render_dashboard_all_nodes_healthy() {
 
 #[test]
 fn test_render_dashboard_all_nodes_unhealthy() {
-    let mut state =
-        DashboardState::new("broken-cluster", 2, PodSummary::new(0, 0, 5, 0));
-    state.nodes = vec![
-        NodeHealth::new("node-1", false),
-        NodeHealth::new("node-2", false),
-    ];
+    let mut state = DashboardState::new("broken-cluster", 2, PodSummary::new(0, 0, 5, 0));
+    state.nodes = vec![NodeHealth::new("node-1", false), NodeHealth::new("node-2", false)];
 
     assert_eq!(state.healthy_node_count(), 0);
     assert_eq!(state.unhealthy_node_count(), 2);

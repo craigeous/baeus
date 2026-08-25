@@ -1,5 +1,5 @@
 use baeus_core::EventType;
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 use serde::{Deserialize, Serialize};
 
 use crate::theme::Theme;
@@ -171,10 +171,7 @@ impl EventsViewState {
     }
 
     pub fn normal_count(&self) -> usize {
-        self.events
-            .iter()
-            .filter(|e| !e.is_warning())
-            .count()
+        self.events.iter().filter(|e| !e.is_warning()).count()
     }
 
     pub fn total_count(&self) -> usize {
@@ -221,10 +218,7 @@ impl EventsViewComponent {
     }
 
     /// Returns the theme color for a given event severity.
-    pub fn severity_color(
-        &self,
-        event_type: &EventType,
-    ) -> crate::theme::Color {
+    pub fn severity_color(&self, event_type: &EventType) -> crate::theme::Color {
         match event_type {
             EventType::Normal => self.theme.colors.info,
             EventType::Warning => self.theme.colors.warning,
@@ -232,25 +226,16 @@ impl EventsViewComponent {
     }
 
     /// Human-readable severity label with count for filter pill.
-    pub fn severity_filter_label(
-        &self,
-        filter: EventSeverityFilter,
-    ) -> String {
+    pub fn severity_filter_label(&self, filter: EventSeverityFilter) -> String {
         match filter {
             EventSeverityFilter::All => {
                 format!("All ({})", self.state.total_count())
             }
             EventSeverityFilter::Normal => {
-                format!(
-                    "Normal ({})",
-                    self.state.normal_count()
-                )
+                format!("Normal ({})", self.state.normal_count())
             }
             EventSeverityFilter::Warning => {
-                format!(
-                    "Warning ({})",
-                    self.state.warning_count()
-                )
+                format!("Warning ({})", self.state.warning_count())
             }
         }
     }
@@ -263,16 +248,8 @@ impl EventsViewComponent {
             surface: self.theme.colors.surface.to_gpui(),
             border: self.theme.colors.border.to_gpui(),
             accent: self.theme.colors.accent.to_gpui(),
-            text_primary: self
-                .theme
-                .colors
-                .text_primary
-                .to_gpui(),
-            text_secondary: self
-                .theme
-                .colors
-                .text_secondary
-                .to_gpui(),
+            text_primary: self.theme.colors.text_primary.to_gpui(),
+            text_secondary: self.theme.colors.text_secondary.to_gpui(),
             text_muted: self.theme.colors.text_muted.to_gpui(),
             info: self.theme.colors.info.to_gpui(),
             warning: self.theme.colors.warning.to_gpui(),
@@ -284,10 +261,7 @@ impl EventsViewComponent {
 
     /// Toolbar with severity filter pills, namespace filter,
     /// resource kind filter, and search input.
-    fn render_toolbar(
-        &self,
-        colors: &EventsColors,
-    ) -> gpui::Div {
+    fn render_toolbar(&self, colors: &EventsColors) -> gpui::Div {
         let pills = self.render_severity_pills(colors);
         let ns = self.render_namespace_filter(colors);
         let kind = self.render_kind_filter(colors);
@@ -310,33 +284,15 @@ impl EventsViewComponent {
     }
 
     /// Severity filter pills (All / Normal / Warning with counts).
-    fn render_severity_pills(
-        &self,
-        colors: &EventsColors,
-    ) -> gpui::Div {
-        let filters = [
-            EventSeverityFilter::All,
-            EventSeverityFilter::Normal,
-            EventSeverityFilter::Warning,
-        ];
-        let mut row = div()
-            .flex()
-            .flex_row()
-            .gap(px(4.0));
+    fn render_severity_pills(&self, colors: &EventsColors) -> gpui::Div {
+        let filters =
+            [EventSeverityFilter::All, EventSeverityFilter::Normal, EventSeverityFilter::Warning];
+        let mut row = div().flex().flex_row().gap(px(4.0));
 
         for filter in &filters {
-            let active =
-                *filter == self.state.severity_filter;
-            let tc = if active {
-                colors.accent
-            } else {
-                colors.text_muted
-            };
-            let bg = if active {
-                colors.surface
-            } else {
-                colors.background
-            };
+            let active = *filter == self.state.severity_filter;
+            let tc = if active { colors.accent } else { colors.text_muted };
+            let bg = if active { colors.surface } else { colors.background };
             let label = self.severity_filter_label(*filter);
             let id = format!("severity-{}", filter.label());
 
@@ -357,10 +313,7 @@ impl EventsViewComponent {
     }
 
     /// Namespace filter display.
-    fn render_namespace_filter(
-        &self,
-        colors: &EventsColors,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_namespace_filter(&self, colors: &EventsColors) -> gpui::Stateful<gpui::Div> {
         let label = match &self.state.namespace_filter {
             Some(ns) => format!("ns: {ns}"),
             None => "All namespaces".to_string(),
@@ -380,10 +333,7 @@ impl EventsViewComponent {
     }
 
     /// Resource kind filter display.
-    fn render_kind_filter(
-        &self,
-        colors: &EventsColors,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_kind_filter(&self, colors: &EventsColors) -> gpui::Stateful<gpui::Div> {
         let label = match &self.state.resource_kind_filter {
             Some(kind) => format!("kind: {kind}"),
             None => "All kinds".to_string(),
@@ -403,10 +353,7 @@ impl EventsViewComponent {
     }
 
     /// Search input.
-    fn render_search_input(
-        &self,
-        colors: &EventsColors,
-    ) -> gpui::Stateful<gpui::Div> {
+    fn render_search_input(&self, colors: &EventsColors) -> gpui::Stateful<gpui::Div> {
         let ph = if self.state.search_query.is_empty() {
             "Search events...".to_string()
         } else {
@@ -432,23 +379,13 @@ impl EventsViewComponent {
     }
 
     /// Scrollable event list from filtered_events().
-    fn render_event_list(
-        &self,
-        colors: &EventsColors,
-    ) -> gpui::Div {
+    fn render_event_list(&self, colors: &EventsColors) -> gpui::Div {
         let filtered = self.state.filtered_events();
-        let mut body = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .w_full()
-            .overflow_hidden()
-            .bg(colors.background);
+        let mut body =
+            div().flex().flex_col().flex_1().w_full().overflow_hidden().bg(colors.background);
 
         for (i, event) in filtered.iter().enumerate() {
-            body = body.child(
-                self.render_event_row(event, i, colors),
-            );
+            body = body.child(self.render_event_row(event, i, colors));
         }
 
         body
@@ -462,26 +399,15 @@ impl EventsViewComponent {
         index: usize,
         colors: &EventsColors,
     ) -> gpui::Stateful<gpui::Div> {
-        let sev_color =
-            self.severity_color(&event.event_type).to_gpui();
+        let sev_color = self.severity_color(&event.event_type).to_gpui();
         let ids = format!("event-{index}");
 
         let dot = self.render_severity_dot(sev_color);
-        let age_el = self.render_event_age(
-            &event.age, colors,
-        );
-        let reason_el = self.render_event_reason(
-            &event.reason, colors,
-        );
-        let msg_el = self.render_event_message(
-            &event.message, colors,
-        );
-        let res_el = self.render_event_resource(
-            &event.resource_display(), colors,
-        );
-        let count_el = self.render_event_count(
-            event.count, colors,
-        );
+        let age_el = self.render_event_age(&event.age, colors);
+        let reason_el = self.render_event_reason(&event.reason, colors);
+        let msg_el = self.render_event_message(&event.message, colors);
+        let res_el = self.render_event_resource(&event.resource_display(), colors);
+        let count_el = self.render_event_count(event.count, colors);
 
         div()
             .id(ElementId::Name(SharedString::from(ids)))
@@ -503,24 +429,12 @@ impl EventsViewComponent {
     }
 
     /// Colored severity indicator dot.
-    fn render_severity_dot(
-        &self,
-        color: Rgba,
-    ) -> gpui::Div {
-        div()
-            .w(px(8.0))
-            .h(px(8.0))
-            .rounded(px(4.0))
-            .flex_shrink_0()
-            .bg(color)
+    fn render_severity_dot(&self, color: Rgba) -> gpui::Div {
+        div().w(px(8.0)).h(px(8.0)).rounded(px(4.0)).flex_shrink_0().bg(color)
     }
 
     /// Event age label.
-    fn render_event_age(
-        &self,
-        age: &str,
-        colors: &EventsColors,
-    ) -> gpui::Div {
+    fn render_event_age(&self, age: &str, colors: &EventsColors) -> gpui::Div {
         div()
             .w(px(48.0))
             .flex_shrink_0()
@@ -530,11 +444,7 @@ impl EventsViewComponent {
     }
 
     /// Event reason label.
-    fn render_event_reason(
-        &self,
-        reason: &str,
-        colors: &EventsColors,
-    ) -> gpui::Div {
+    fn render_event_reason(&self, reason: &str, colors: &EventsColors) -> gpui::Div {
         div()
             .w(px(100.0))
             .flex_shrink_0()
@@ -544,11 +454,7 @@ impl EventsViewComponent {
     }
 
     /// Event message (flexible width).
-    fn render_event_message(
-        &self,
-        message: &str,
-        colors: &EventsColors,
-    ) -> gpui::Div {
+    fn render_event_message(&self, message: &str, colors: &EventsColors) -> gpui::Div {
         div()
             .flex_1()
             .text_xs()
@@ -557,11 +463,7 @@ impl EventsViewComponent {
     }
 
     /// Resource kind/name display.
-    fn render_event_resource(
-        &self,
-        resource: &str,
-        colors: &EventsColors,
-    ) -> gpui::Div {
+    fn render_event_resource(&self, resource: &str, colors: &EventsColors) -> gpui::Div {
         div()
             .w(px(120.0))
             .flex_shrink_0()
@@ -571,11 +473,7 @@ impl EventsViewComponent {
     }
 
     /// Event count badge.
-    fn render_event_count(
-        &self,
-        count: u32,
-        colors: &EventsColors,
-    ) -> gpui::Div {
+    fn render_event_count(&self, count: u32, colors: &EventsColors) -> gpui::Div {
         if count <= 1 {
             return div();
         }
@@ -590,65 +488,27 @@ impl EventsViewComponent {
     }
 
     /// Empty state when no events match.
-    fn render_empty_state(
-        &self,
-        colors: &EventsColors,
-    ) -> gpui::Div {
-        div()
-            .flex()
-            .items_center()
-            .justify_center()
-            .flex_1()
-            .py(px(32.0))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child(SharedString::from("No events")),
-            )
+    fn render_empty_state(&self, colors: &EventsColors) -> gpui::Div {
+        div().flex().items_center().justify_center().flex_1().py(px(32.0)).child(
+            div().text_sm().text_color(colors.text_muted).child(SharedString::from("No events")),
+        )
     }
 
     /// Loading indicator.
-    fn render_loading(
-        &self,
-        colors: &EventsColors,
-    ) -> gpui::Div {
-        div()
-            .flex()
-            .items_center()
-            .justify_center()
-            .flex_1()
-            .py(px(32.0))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child(SharedString::from(
-                        "Loading events...",
-                    )),
-            )
+    fn render_loading(&self, colors: &EventsColors) -> gpui::Div {
+        div().flex().items_center().justify_center().flex_1().py(px(32.0)).child(
+            div()
+                .text_sm()
+                .text_color(colors.text_muted)
+                .child(SharedString::from("Loading events...")),
+        )
     }
 
     /// Error state display.
-    fn render_error(
-        &self,
-        message: &str,
-        colors: &EventsColors,
-    ) -> gpui::Div {
-        div()
-            .flex()
-            .items_center()
-            .justify_center()
-            .flex_1()
-            .py(px(32.0))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.error)
-                    .child(SharedString::from(
-                        message.to_string(),
-                    )),
-            )
+    fn render_error(&self, message: &str, colors: &EventsColors) -> gpui::Div {
+        div().flex().items_center().justify_center().flex_1().py(px(32.0)).child(
+            div().text_sm().text_color(colors.error).child(SharedString::from(message.to_string())),
+        )
     }
 }
 
@@ -657,18 +517,10 @@ impl EventsViewComponent {
 // ---------------------------------------------------------------------------
 
 impl Render for EventsViewComponent {
-    fn render(
-        &mut self,
-        _window: &mut Window,
-        _cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         let colors = self.colors();
 
-        let mut base = div()
-            .flex()
-            .flex_col()
-            .size_full()
-            .bg(colors.background);
+        let mut base = div().flex().flex_col().size_full().bg(colors.background);
 
         base = base.child(self.render_toolbar(&colors));
 
@@ -676,14 +528,11 @@ impl Render for EventsViewComponent {
             base = base.child(self.render_loading(&colors));
         } else if let Some(ref err) = self.state.error {
             let msg = err.clone();
-            base =
-                base.child(self.render_error(&msg, &colors));
+            base = base.child(self.render_error(&msg, &colors));
         } else if self.state.filtered_events().is_empty() {
-            base = base
-                .child(self.render_empty_state(&colors));
+            base = base.child(self.render_empty_state(&colors));
         } else {
-            base = base
-                .child(self.render_event_list(&colors));
+            base = base.child(self.render_event_list(&colors));
         }
 
         base
@@ -767,10 +616,8 @@ mod tests {
         let event = sample_event("e1", EventType::Normal, "Started");
         assert_eq!(event.resource_display(), "Pod/nginx");
 
-        let no_name = EventRow {
-            resource_name: None,
-            ..sample_event("e2", EventType::Normal, "x")
-        };
+        let no_name =
+            EventRow { resource_name: None, ..sample_event("e2", EventType::Normal, "x") };
         assert_eq!(no_name.resource_display(), "Pod");
 
         let no_kind = EventRow {

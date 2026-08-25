@@ -31,10 +31,7 @@ fn sample_manifest(id: &str, name: &str) -> PluginManifest {
 }
 
 fn sample_plugin(id: &str, name: &str) -> Plugin {
-    Plugin::new(
-        sample_manifest(id, name),
-        format!("/plugins/{id}.dylib"),
-    )
+    Plugin::new(sample_manifest(id, name), format!("/plugins/{id}.dylib"))
 }
 
 fn sample_plugin_with_permissions(
@@ -107,18 +104,12 @@ fn test_installed_state_is_accent_color() {
 
 #[test]
 fn test_state_label_enabled() {
-    assert_eq!(
-        PluginManagerViewComponent::state_label(&PluginState::Enabled),
-        "Enabled"
-    );
+    assert_eq!(PluginManagerViewComponent::state_label(&PluginState::Enabled), "Enabled");
 }
 
 #[test]
 fn test_state_label_disabled() {
-    assert_eq!(
-        PluginManagerViewComponent::state_label(&PluginState::Disabled),
-        "Disabled"
-    );
+    assert_eq!(PluginManagerViewComponent::state_label(&PluginState::Disabled), "Disabled");
 }
 
 #[test]
@@ -131,10 +122,7 @@ fn test_state_label_error() {
 
 #[test]
 fn test_state_label_installed() {
-    assert_eq!(
-        PluginManagerViewComponent::state_label(&PluginState::Installed),
-        "Installed"
-    );
+    assert_eq!(PluginManagerViewComponent::state_label(&PluginState::Installed), "Installed");
 }
 
 // ========================================================================
@@ -327,9 +315,7 @@ fn test_plugin_read_resources_permission() {
     );
     state.set_plugins(vec![plugin]);
     let comp = PluginManagerViewComponent::new(state, Theme::dark());
-    assert!(comp.state.plugins[0]
-        .manifest
-        .has_permission(&PluginPermission::ReadResources));
+    assert!(comp.state.plugins[0].manifest.has_permission(&PluginPermission::ReadResources));
 }
 
 #[test]
@@ -342,9 +328,7 @@ fn test_plugin_write_resources_permission() {
     );
     state.set_plugins(vec![plugin]);
     let comp = PluginManagerViewComponent::new(state, Theme::dark());
-    assert!(comp.state.plugins[0]
-        .manifest
-        .has_permission(&PluginPermission::WriteResources));
+    assert!(comp.state.plugins[0].manifest.has_permission(&PluginPermission::WriteResources));
 }
 
 #[test]
@@ -357,9 +341,7 @@ fn test_plugin_network_access_permission() {
     );
     state.set_plugins(vec![plugin]);
     let comp = PluginManagerViewComponent::new(state, Theme::dark());
-    assert!(comp.state.plugins[0]
-        .manifest
-        .requests_network_access());
+    assert!(comp.state.plugins[0].manifest.requests_network_access());
 }
 
 #[test]
@@ -372,9 +354,7 @@ fn test_plugin_register_views_permission() {
     );
     state.set_plugins(vec![plugin]);
     let comp = PluginManagerViewComponent::new(state, Theme::dark());
-    assert!(comp.state.plugins[0]
-        .manifest
-        .has_permission(&PluginPermission::RegisterViews));
+    assert!(comp.state.plugins[0].manifest.has_permission(&PluginPermission::RegisterViews));
 }
 
 #[test]
@@ -387,9 +367,7 @@ fn test_plugin_register_actions_permission() {
     );
     state.set_plugins(vec![plugin]);
     let comp = PluginManagerViewComponent::new(state, Theme::dark());
-    assert!(comp.state.plugins[0]
-        .manifest
-        .has_permission(&PluginPermission::RegisterActions));
+    assert!(comp.state.plugins[0].manifest.has_permission(&PluginPermission::RegisterActions));
 }
 
 #[test]
@@ -402,9 +380,7 @@ fn test_plugin_register_sidebar_permission() {
     );
     state.set_plugins(vec![plugin]);
     let comp = PluginManagerViewComponent::new(state, Theme::dark());
-    assert!(comp.state.plugins[0]
-        .manifest
-        .has_permission(&PluginPermission::RegisterSidebar));
+    assert!(comp.state.plugins[0].manifest.has_permission(&PluginPermission::RegisterSidebar));
 }
 
 #[test]
@@ -438,10 +414,7 @@ fn test_selected_plugin() {
     state.select_plugin("io.example.metrics");
     let comp = PluginManagerViewComponent::new(state, Theme::dark());
     assert!(comp.state.selected().is_some());
-    assert_eq!(
-        comp.state.selected().unwrap().manifest.name,
-        "Metrics Dashboard"
-    );
+    assert_eq!(comp.state.selected().unwrap().manifest.name, "Metrics Dashboard");
 }
 
 #[test]

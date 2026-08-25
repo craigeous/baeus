@@ -61,11 +61,7 @@ pub struct HelmRepository {
 
 impl HelmRepository {
     pub fn new(name: String, url: String) -> Self {
-        Self {
-            name,
-            url,
-            enabled: true,
-        }
+        Self { name, url, enabled: true }
     }
 }
 
@@ -76,26 +72,14 @@ mod tests {
 
     #[test]
     fn test_helm_release_status_from_string() {
-        assert_eq!(
-            HelmReleaseStatus::from_str_status("deployed"),
-            HelmReleaseStatus::Deployed
-        );
-        assert_eq!(
-            HelmReleaseStatus::from_str_status("failed"),
-            HelmReleaseStatus::Failed
-        );
+        assert_eq!(HelmReleaseStatus::from_str_status("deployed"), HelmReleaseStatus::Deployed);
+        assert_eq!(HelmReleaseStatus::from_str_status("failed"), HelmReleaseStatus::Failed);
         assert_eq!(
             HelmReleaseStatus::from_str_status("pending-install"),
             HelmReleaseStatus::PendingInstall
         );
-        assert_eq!(
-            HelmReleaseStatus::from_str_status("DEPLOYED"),
-            HelmReleaseStatus::Deployed
-        );
-        assert_eq!(
-            HelmReleaseStatus::from_str_status("unknown-state"),
-            HelmReleaseStatus::Unknown
-        );
+        assert_eq!(HelmReleaseStatus::from_str_status("DEPLOYED"), HelmReleaseStatus::Deployed);
+        assert_eq!(HelmReleaseStatus::from_str_status("unknown-state"), HelmReleaseStatus::Unknown);
     }
 
     #[test]

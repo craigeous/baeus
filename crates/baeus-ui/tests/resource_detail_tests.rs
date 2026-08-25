@@ -104,8 +104,7 @@ fn test_tabs_base_order() {
 
 #[test]
 fn test_new_deployment() {
-    let state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     assert_eq!(state.kind, "Deployment");
     assert_eq!(state.name, "nginx");
     assert_eq!(state.namespace.as_deref(), Some("default"));
@@ -123,8 +122,7 @@ fn test_new_deployment() {
 
 #[test]
 fn test_new_pod() {
-    let state =
-        ResourceDetailState::new("Pod", "nginx-abc-123", Some("default".to_string()));
+    let state = ResourceDetailState::new("Pod", "nginx-abc-123", Some("default".to_string()));
     assert_eq!(state.kind, "Pod");
     assert_eq!(state.available_tabs.len(), 9);
     assert!(state.available_tabs.contains(&DetailTab::Logs));
@@ -143,8 +141,7 @@ fn test_new_cluster_scoped_resource() {
 
 #[test]
 fn test_switch_tab() {
-    let mut state =
-        ResourceDetailState::new("Pod", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Pod", "nginx", Some("default".to_string()));
     assert_eq!(state.active_tab, DetailTab::Overview);
 
     state.switch_tab(DetailTab::Logs);
@@ -159,8 +156,7 @@ fn test_switch_tab() {
 
 #[test]
 fn test_set_loading() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     assert!(!state.loading);
 
     state.set_loading(true);
@@ -172,8 +168,7 @@ fn test_set_loading() {
 
 #[test]
 fn test_set_error_and_clear() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     assert!(state.error.is_none());
 
     state.set_error("not found".to_string());
@@ -185,8 +180,7 @@ fn test_set_error_and_clear() {
 
 #[test]
 fn test_set_spec() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     assert!(state.spec_json.is_none());
 
     let spec = r#"{"replicas": 3, "selector": {"matchLabels": {"app": "nginx"}}}"#;
@@ -196,8 +190,7 @@ fn test_set_spec() {
 
 #[test]
 fn test_set_status() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     assert!(state.status_json.is_none());
 
     let status = r#"{"availableReplicas": 3, "readyReplicas": 3}"#;
@@ -207,8 +200,7 @@ fn test_set_status() {
 
 #[test]
 fn test_set_conditions() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     assert!(state.conditions.is_empty());
 
     let conditions = vec![
@@ -235,8 +227,7 @@ fn test_set_conditions() {
 
 #[test]
 fn test_set_events() {
-    let mut state =
-        ResourceDetailState::new("Pod", "nginx-abc", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Pod", "nginx-abc", Some("default".to_string()));
     assert!(state.events.is_empty());
 
     let events = vec![
@@ -263,8 +254,7 @@ fn test_set_events() {
 
 #[test]
 fn test_add_related() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     assert!(state.related_resources.is_empty());
 
     state.add_related(RelatedResource {
@@ -288,20 +278,14 @@ fn test_add_related() {
 
 #[test]
 fn test_is_pod() {
-    assert!(
-        ResourceDetailState::new("Pod", "nginx", Some("default".to_string())).is_pod()
-    );
-    assert!(
-        !ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()))
-            .is_pod()
-    );
+    assert!(ResourceDetailState::new("Pod", "nginx", Some("default".to_string())).is_pod());
+    assert!(!ResourceDetailState::new("Deployment", "nginx", Some("default".to_string())).is_pod());
     assert!(!ResourceDetailState::new("Node", "node-1", None).is_pod());
 }
 
 #[test]
 fn test_has_conditions() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     assert!(!state.has_conditions());
 
     state.set_conditions(vec![ConditionDisplay {
@@ -316,8 +300,7 @@ fn test_has_conditions() {
 
 #[test]
 fn test_warning_event_count() {
-    let mut state =
-        ResourceDetailState::new("Pod", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Pod", "nginx", Some("default".to_string()));
     assert_eq!(state.warning_event_count(), 0);
 
     state.set_events(vec![
@@ -348,8 +331,7 @@ fn test_warning_event_count() {
 
 #[test]
 fn test_warning_event_count_no_warnings() {
-    let mut state =
-        ResourceDetailState::new("Pod", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Pod", "nginx", Some("default".to_string()));
     state.set_events(vec![EventDisplay {
         type_name: "Normal".to_string(),
         reason: "Pulled".to_string(),
@@ -454,8 +436,7 @@ fn test_condition_display_optional_fields() {
 
 #[test]
 fn test_error_then_recovery() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
 
     state.set_error("timeout".to_string());
     assert!(state.error.is_some());
@@ -693,7 +674,10 @@ fn test_set_resource_yaml() {
     assert!(state.resource_yaml.is_none());
     assert!(state.resource_version.is_none());
 
-    state.set_resource_yaml("apiVersion: apps/v1\nkind: Deployment\n".to_string(), "12345".to_string());
+    state.set_resource_yaml(
+        "apiVersion: apps/v1\nkind: Deployment\n".to_string(),
+        "12345".to_string(),
+    );
     assert_eq!(state.resource_yaml.as_deref(), Some("apiVersion: apps/v1\nkind: Deployment\n"));
     assert_eq!(state.resource_version.as_deref(), Some("12345"));
 }
@@ -793,10 +777,7 @@ fn test_on_yaml_apply_failure() {
     state.yaml_editor_mut().unwrap().begin_apply();
 
     state.on_yaml_apply_failure("forbidden".to_string());
-    assert_eq!(
-        state.yaml_editor_ref().unwrap().apply_error.as_deref(),
-        Some("forbidden")
-    );
+    assert_eq!(state.yaml_editor_ref().unwrap().apply_error.as_deref(), Some("forbidden"));
 }
 
 #[test]
@@ -816,9 +797,8 @@ fn test_yaml_editor_full_workflow() {
 
     // 3. User edits YAML
     let editor = state.yaml_editor_mut().unwrap();
-    editor.buffer = TextBuffer::from_str(
-        "apiVersion: apps/v1\nkind: Deployment\nspec:\n  replicas: 5\n",
-    );
+    editor.buffer =
+        TextBuffer::from_str("apiVersion: apps/v1\nkind: Deployment\nspec:\n  replicas: 5\n");
     editor.is_dirty = true;
     editor.validate();
     assert!(editor.can_apply());
@@ -860,7 +840,7 @@ fn test_exec_full_workflow() {
 
 #[test]
 fn test_service_type_all_variants() {
-    let types = vec![
+    let types = [
         ServiceType::ClusterIP,
         ServiceType::NodePort,
         ServiceType::LoadBalancer,
@@ -943,10 +923,7 @@ fn test_ingress_detail_clone() {
     let detail = IngressDetail {
         rules: vec![],
         default_backend: Some("fallback:80".to_string()),
-        tls: vec![TlsConfig {
-            hosts: vec!["a.com".to_string()],
-            secret_name: None,
-        }],
+        tls: vec![TlsConfig { hosts: vec!["a.com".to_string()], secret_name: None }],
     };
     let cloned = detail.clone();
     assert_eq!(cloned.default_backend.as_deref(), Some("fallback:80"));
@@ -959,7 +936,7 @@ fn test_ingress_detail_clone() {
 
 #[test]
 fn test_pvc_status_all_variants() {
-    let statuses = vec![PvcStatus::Bound, PvcStatus::Pending, PvcStatus::Lost];
+    let statuses = [PvcStatus::Bound, PvcStatus::Pending, PvcStatus::Lost];
     assert_ne!(statuses[0], statuses[1]);
     assert_ne!(statuses[1], statuses[2]);
     assert_ne!(statuses[0], statuses[2]);
@@ -967,11 +944,8 @@ fn test_pvc_status_all_variants() {
 
 #[test]
 fn test_pvc_access_mode_all_variants() {
-    let modes = vec![
-        PvcAccessMode::ReadWriteOnce,
-        PvcAccessMode::ReadOnlyMany,
-        PvcAccessMode::ReadWriteMany,
-    ];
+    let modes =
+        [PvcAccessMode::ReadWriteOnce, PvcAccessMode::ReadOnlyMany, PvcAccessMode::ReadWriteMany];
     assert_ne!(modes[0], modes[1]);
     assert_ne!(modes[1], modes[2]);
     assert_ne!(modes[0], modes[2]);
@@ -1064,20 +1038,14 @@ fn test_view_tab_labels_service() {
 fn test_view_with_dark_theme() {
     let state = ResourceDetailState::new("Pod", "nginx", Some("default".to_string()));
     let view = ResourceDetailView::new(state, Theme::dark());
-    assert_eq!(
-        view.theme.colors.background,
-        Color::rgb(0x1e, 0x21, 0x24)
-    );
+    assert_eq!(view.theme.colors.background, Color::rgb(0x1e, 0x21, 0x24));
 }
 
 #[test]
 fn test_view_with_light_theme() {
     let state = ResourceDetailState::new("Pod", "nginx", Some("default".to_string()));
     let view = ResourceDetailView::new(state, Theme::light());
-    assert_eq!(
-        view.theme.colors.background,
-        Color::rgb(255, 255, 255)
-    );
+    assert_eq!(view.theme.colors.background, Color::rgb(255, 255, 255));
 }
 
 #[test]

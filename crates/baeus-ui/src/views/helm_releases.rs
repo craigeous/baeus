@@ -1,6 +1,6 @@
 use baeus_helm::{HelmRelease, HelmReleaseStatus};
 use gpui::prelude::FluentBuilder as _;
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 
 use crate::theme::Theme;
 
@@ -88,25 +88,19 @@ impl HelmReleasesViewState {
 
     /// Returns a reference to the currently selected release, if any.
     pub fn selected(&self) -> Option<&HelmRelease> {
-        self.selected_release.as_ref().and_then(|name| {
-            self.releases.iter().find(|r| r.name == *name)
-        })
+        self.selected_release
+            .as_ref()
+            .and_then(|name| self.releases.iter().find(|r| r.name == *name))
     }
 
     /// Count of releases that are in a healthy (Deployed) state.
     pub fn healthy_count(&self) -> usize {
-        self.filtered_releases()
-            .iter()
-            .filter(|r| r.status.is_healthy())
-            .count()
+        self.filtered_releases().iter().filter(|r| r.status.is_healthy()).count()
     }
 
     /// Count of releases that are in a non-healthy state.
     pub fn unhealthy_count(&self) -> usize {
-        self.filtered_releases()
-            .iter()
-            .filter(|r| !r.status.is_healthy())
-            .count()
+        self.filtered_releases().iter().filter(|r| !r.status.is_healthy()).count()
     }
 
     /// Returns the distinct namespaces present in the releases list.
@@ -121,21 +115,18 @@ impl HelmReleasesViewState {
 
     /// Sort releases by name (ascending, case-insensitive).
     pub fn sort_by_name(&mut self) {
-        self.releases
-            .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        self.releases.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     }
 
     /// Sort releases by status label (ascending alphabetical on the debug
     /// representation of the status enum).
     pub fn sort_by_status(&mut self) {
-        self.releases
-            .sort_by(|a, b| format!("{:?}", a.status).cmp(&format!("{:?}", b.status)));
+        self.releases.sort_by(|a, b| format!("{:?}", a.status).cmp(&format!("{:?}", b.status)));
     }
 
     /// Sort releases by last deployed timestamp (newest first).
     pub fn sort_by_last_deployed(&mut self) {
-        self.releases
-            .sort_by(|a, b| b.last_deployed.cmp(&a.last_deployed));
+        self.releases.sort_by(|a, b| b.last_deployed.cmp(&a.last_deployed));
     }
 
     /// Returns the total number of releases (unfiltered).
@@ -201,83 +192,48 @@ pub struct HelmReleasesViewComponent {
 }
 
 impl HelmReleasesViewComponent {
-    pub fn new(
-        state: HelmReleasesViewState,
-        theme: Theme,
-    ) -> Self {
+    pub fn new(state: HelmReleasesViewState, theme: Theme) -> Self {
         Self { state, theme }
     }
 
     /// Returns the theme color for a given release status.
-    pub fn status_color(
-        &self,
-        status: &HelmReleaseStatus,
-    ) -> crate::theme::Color {
+    pub fn status_color(&self, status: &HelmReleaseStatus) -> crate::theme::Color {
         match status {
-            HelmReleaseStatus::Deployed => {
-                self.theme.colors.success
-            }
-            HelmReleaseStatus::Failed => {
-                self.theme.colors.error
-            }
+            HelmReleaseStatus::Deployed => self.theme.colors.success,
+            HelmReleaseStatus::Failed => self.theme.colors.error,
             HelmReleaseStatus::PendingInstall
             | HelmReleaseStatus::PendingUpgrade
-            | HelmReleaseStatus::PendingRollback => {
-                self.theme.colors.warning
-            }
-            HelmReleaseStatus::Uninstalling
-            | HelmReleaseStatus::Superseded => {
+            | HelmReleaseStatus::PendingRollback => self.theme.colors.warning,
+            HelmReleaseStatus::Uninstalling | HelmReleaseStatus::Superseded => {
                 self.theme.colors.text_muted
             }
-            HelmReleaseStatus::Unknown => {
-                self.theme.colors.text_secondary
-            }
+            HelmReleaseStatus::Unknown => self.theme.colors.text_secondary,
         }
     }
 
     /// Returns a display label for a release status.
-    pub fn status_label(
-        status: &HelmReleaseStatus,
-    ) -> &'static str {
+    pub fn status_label(status: &HelmReleaseStatus) -> &'static str {
         match status {
             HelmReleaseStatus::Deployed => "Deployed",
             HelmReleaseStatus::Failed => "Failed",
-            HelmReleaseStatus::PendingInstall => {
-                "Pending Install"
-            }
-            HelmReleaseStatus::PendingUpgrade => {
-                "Pending Upgrade"
-            }
-            HelmReleaseStatus::PendingRollback => {
-                "Pending Rollback"
-            }
-            HelmReleaseStatus::Uninstalling => {
-                "Uninstalling"
-            }
+            HelmReleaseStatus::PendingInstall => "Pending Install",
+            HelmReleaseStatus::PendingUpgrade => "Pending Upgrade",
+            HelmReleaseStatus::PendingRollback => "Pending Rollback",
+            HelmReleaseStatus::Uninstalling => "Uninstalling",
             HelmReleaseStatus::Superseded => "Superseded",
             HelmReleaseStatus::Unknown => "Unknown",
         }
     }
 
     /// Toolbar: namespace filter dropdown + health summary badges.
-    fn render_toolbar(
-        &self,
-        colors: &ReleasesViewColors,
-    ) -> gpui::Div {
+    fn render_toolbar(&self, colors: &ReleasesViewColors) -> gpui::Div {
         let healthy = self.state.healthy_count();
         let unhealthy = self.state.unhealthy_count();
-        let healthy_lbl = SharedString::from(
-            format!("Healthy: {healthy}"),
-        );
-        let unhealthy_lbl = SharedString::from(
-            format!("Unhealthy: {unhealthy}"),
-        );
+        let healthy_lbl = SharedString::from(format!("Healthy: {healthy}"));
+        let unhealthy_lbl = SharedString::from(format!("Unhealthy: {unhealthy}"));
 
-        let filter_lbl = match &self.state.namespace_filter
-        {
-            Some(ns) => SharedString::from(
-                format!("Namespace: {ns}"),
-            ),
+        let filter_lbl = match &self.state.namespace_filter {
+            Some(ns) => SharedString::from(format!("Namespace: {ns}")),
             None => SharedString::from("All Namespaces"),
         };
 
@@ -306,16 +262,8 @@ impl HelmReleasesViewComponent {
                     .child(filter_lbl),
             )
             .child(div().flex_1())
-            .child(self.render_health_badge(
-                healthy_lbl,
-                colors.success,
-                colors,
-            ))
-            .child(self.render_health_badge(
-                unhealthy_lbl,
-                colors.error,
-                colors,
-            ))
+            .child(self.render_health_badge(healthy_lbl, colors.success, colors))
+            .child(self.render_health_badge(unhealthy_lbl, colors.error, colors))
     }
 
     /// Small health summary badge.
@@ -334,26 +282,12 @@ impl HelmReleasesViewComponent {
             .py_1()
             .rounded(px(4.0))
             .bg(colors.surface)
-            .child(
-                div()
-                    .w(px(8.0))
-                    .h(px(8.0))
-                    .rounded(px(4.0))
-                    .bg(dot_color),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_primary)
-                    .child(label),
-            )
+            .child(div().w(px(8.0)).h(px(8.0)).rounded(px(4.0)).bg(dot_color))
+            .child(div().text_xs().text_color(colors.text_primary).child(label))
     }
 
     /// Release table: header row + data rows.
-    fn render_release_table(
-        &self,
-        colors: &ReleasesViewColors,
-    ) -> gpui::Div {
+    fn render_release_table(&self, colors: &ReleasesViewColors) -> gpui::Div {
         let filtered = self.state.filtered_releases();
         let sel = self.state.selected_release.as_deref();
 
@@ -361,34 +295,20 @@ impl HelmReleasesViewComponent {
             return self.render_empty_state(colors);
         }
 
-        let mut table = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .w_full()
-            .overflow_hidden();
+        let mut table = div().flex().flex_col().flex_1().w_full().overflow_hidden();
 
-        table =
-            table.child(self.render_header_row(colors));
+        table = table.child(self.render_header_row(colors));
 
         for release in &filtered {
-            let is_sel =
-                sel == Some(release.name.as_str());
-            table = table.child(
-                self.render_release_row(
-                    release, is_sel, colors,
-                ),
-            );
+            let is_sel = sel == Some(release.name.as_str());
+            table = table.child(self.render_release_row(release, is_sel, colors));
         }
 
         table
     }
 
     /// Header row for the release table.
-    fn render_header_row(
-        &self,
-        colors: &ReleasesViewColors,
-    ) -> gpui::Div {
+    fn render_header_row(&self, colors: &ReleasesViewColors) -> gpui::Div {
         div()
             .flex()
             .flex_row()
@@ -399,31 +319,16 @@ impl HelmReleasesViewComponent {
             .border_color(colors.border)
             .bg(colors.surface)
             .child(self.render_hdr_cell("Name", colors))
-            .child(
-                self.render_hdr_cell("Namespace", colors),
-            )
+            .child(self.render_hdr_cell("Namespace", colors))
             .child(self.render_hdr_cell("Chart", colors))
-            .child(
-                self.render_hdr_cell("Version", colors),
-            )
-            .child(
-                self.render_hdr_cell("Status", colors),
-            )
-            .child(self.render_hdr_cell(
-                "Last Deployed",
-                colors,
-            ))
-            .child(
-                self.render_hdr_cell("Actions", colors),
-            )
+            .child(self.render_hdr_cell("Version", colors))
+            .child(self.render_hdr_cell("Status", colors))
+            .child(self.render_hdr_cell("Last Deployed", colors))
+            .child(self.render_hdr_cell("Actions", colors))
     }
 
     /// Single header cell.
-    fn render_hdr_cell(
-        &self,
-        label: &str,
-        colors: &ReleasesViewColors,
-    ) -> gpui::Div {
+    fn render_hdr_cell(&self, label: &str, colors: &ReleasesViewColors) -> gpui::Div {
         div()
             .flex_1()
             .text_xs()
@@ -438,22 +343,12 @@ impl HelmReleasesViewComponent {
         selected: bool,
         colors: &ReleasesViewColors,
     ) -> gpui::Stateful<gpui::Div> {
-        let sc =
-            self.status_color(&release.status).to_gpui();
-        let sl = SharedString::from(
-            Self::status_label(&release.status),
-        );
-        let deployed = release
-            .last_deployed
-            .format("%Y-%m-%d %H:%M")
-            .to_string();
+        let sc = self.status_color(&release.status).to_gpui();
+        let sl = SharedString::from(Self::status_label(&release.status));
+        let deployed = release.last_deployed.format("%Y-%m-%d %H:%M").to_string();
 
         let rid = format!("release-{}", release.name);
-        let bg = if selected {
-            colors.selection
-        } else {
-            colors.background
-        };
+        let bg = if selected { colors.selection } else { colors.background };
 
         div()
             .id(ElementId::Name(SharedString::from(rid)))
@@ -467,49 +362,19 @@ impl HelmReleasesViewComponent {
             .bg(bg)
             .border_b_1()
             .border_color(colors.border)
-            .when(selected, |el| {
-                el.border_l_2()
-                    .border_color(colors.accent)
-            })
-            .child(self.render_cell(
-                &release.name,
-                colors.text_primary,
-            ))
-            .child(self.render_cell(
-                &release.namespace,
-                colors.text_secondary,
-            ))
-            .child(self.render_cell(
-                &release.chart_name,
-                colors.text_secondary,
-            ))
-            .child(self.render_cell(
-                &release.chart_version,
-                colors.text_secondary,
-            ))
-            .child(
-                self.render_status_badge(sl, sc, colors),
-            )
-            .child(self.render_cell(
-                &deployed,
-                colors.text_muted,
-            ))
-            .child(self.render_action_buttons(
-                release, colors,
-            ))
+            .when(selected, |el| el.border_l_2().border_color(colors.accent))
+            .child(self.render_cell(&release.name, colors.text_primary))
+            .child(self.render_cell(&release.namespace, colors.text_secondary))
+            .child(self.render_cell(&release.chart_name, colors.text_secondary))
+            .child(self.render_cell(&release.chart_version, colors.text_secondary))
+            .child(self.render_status_badge(sl, sc, colors))
+            .child(self.render_cell(&deployed, colors.text_muted))
+            .child(self.render_action_buttons(release, colors))
     }
 
     /// Single text cell in a release row.
-    fn render_cell(
-        &self,
-        text: &str,
-        color: Rgba,
-    ) -> gpui::Div {
-        div()
-            .flex_1()
-            .text_sm()
-            .text_color(color)
-            .child(SharedString::from(text.to_string()))
+    fn render_cell(&self, text: &str, color: Rgba) -> gpui::Div {
+        div().flex_1().text_sm().text_color(color).child(SharedString::from(text.to_string()))
     }
 
     /// Status badge: colored dot + label.
@@ -525,19 +390,8 @@ impl HelmReleasesViewComponent {
             .flex_row()
             .items_center()
             .gap(px(4.0))
-            .child(
-                div()
-                    .w(px(8.0))
-                    .h(px(8.0))
-                    .rounded(px(4.0))
-                    .bg(color),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(color)
-                    .child(label),
-            )
+            .child(div().w(px(8.0)).h(px(8.0)).rounded(px(4.0)).bg(color))
+            .child(div().text_xs().text_color(color).child(label))
     }
 
     /// Action buttons (upgrade, rollback, uninstall).
@@ -552,21 +406,9 @@ impl HelmReleasesViewComponent {
             .flex()
             .flex_row()
             .gap(px(4.0))
-            .child(self.render_action_btn(
-                &format!("upgrade-{n}"),
-                "Upgrade",
-                colors,
-            ))
-            .child(self.render_action_btn(
-                &format!("rollback-{n}"),
-                "Rollback",
-                colors,
-            ))
-            .child(self.render_action_btn(
-                &format!("uninstall-{n}"),
-                "Uninstall",
-                colors,
-            ))
+            .child(self.render_action_btn(&format!("upgrade-{n}"), "Upgrade", colors))
+            .child(self.render_action_btn(&format!("rollback-{n}"), "Rollback", colors))
+            .child(self.render_action_btn(&format!("uninstall-{n}"), "Uninstall", colors))
     }
 
     /// Single small action button.
@@ -577,9 +419,7 @@ impl HelmReleasesViewComponent {
         colors: &ReleasesViewColors,
     ) -> gpui::Stateful<gpui::Div> {
         div()
-            .id(ElementId::Name(SharedString::from(
-                id.to_string(),
-            )))
+            .id(ElementId::Name(SharedString::from(id.to_string())))
             .px_2()
             .py_1()
             .rounded(px(3.0))
@@ -593,153 +433,62 @@ impl HelmReleasesViewComponent {
     }
 
     /// Empty state when no releases present.
-    fn render_empty_state(
-        &self,
-        colors: &ReleasesViewColors,
-    ) -> gpui::Div {
+    fn render_empty_state(&self, colors: &ReleasesViewColors) -> gpui::Div {
         div()
             .flex()
             .flex_col()
             .flex_1()
             .items_center()
             .justify_center()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("No Helm releases found"),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child("No Helm releases found"))
     }
 
     /// Loading indicator.
-    fn render_loading(
-        &self,
-        colors: &ReleasesViewColors,
-    ) -> gpui::Div {
+    fn render_loading(&self, colors: &ReleasesViewColors) -> gpui::Div {
         div()
             .flex()
             .flex_col()
             .flex_1()
             .items_center()
             .justify_center()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("Loading releases..."),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child("Loading releases..."))
     }
 
     /// Error message display.
-    fn render_error(
-        &self,
-        colors: &ReleasesViewColors,
-    ) -> gpui::Div {
-        let msg = self
-            .state
-            .error
-            .as_deref()
-            .unwrap_or("Unknown error");
-        div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .items_center()
-            .justify_center()
-            .px_4()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.error)
-                    .child(SharedString::from(
-                        msg.to_string(),
-                    )),
-            )
+    fn render_error(&self, colors: &ReleasesViewColors) -> gpui::Div {
+        let msg = self.state.error.as_deref().unwrap_or("Unknown error");
+        div().flex().flex_col().flex_1().items_center().justify_center().px_4().child(
+            div().text_sm().text_color(colors.error).child(SharedString::from(msg.to_string())),
+        )
     }
 }
 
 impl Render for HelmReleasesViewComponent {
-    fn render(
-        &mut self,
-        _window: &mut Window,
-        _cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         let colors = ReleasesViewColors {
-            background: self
-                .theme
-                .colors
-                .background
-                .to_gpui(),
-            surface: self
-                .theme
-                .colors
-                .surface
-                .to_gpui(),
-            border: self
-                .theme
-                .colors
-                .border
-                .to_gpui(),
-            accent: self
-                .theme
-                .colors
-                .accent
-                .to_gpui(),
-            success: self
-                .theme
-                .colors
-                .success
-                .to_gpui(),
-            warning: self
-                .theme
-                .colors
-                .warning
-                .to_gpui(),
-            error: self
-                .theme
-                .colors
-                .error
-                .to_gpui(),
-            text_primary: self
-                .theme
-                .colors
-                .text_primary
-                .to_gpui(),
-            text_secondary: self
-                .theme
-                .colors
-                .text_secondary
-                .to_gpui(),
-            text_muted: self
-                .theme
-                .colors
-                .text_muted
-                .to_gpui(),
-            selection: self
-                .theme
-                .colors
-                .selection
-                .to_gpui(),
+            background: self.theme.colors.background.to_gpui(),
+            surface: self.theme.colors.surface.to_gpui(),
+            border: self.theme.colors.border.to_gpui(),
+            accent: self.theme.colors.accent.to_gpui(),
+            success: self.theme.colors.success.to_gpui(),
+            warning: self.theme.colors.warning.to_gpui(),
+            error: self.theme.colors.error.to_gpui(),
+            text_primary: self.theme.colors.text_primary.to_gpui(),
+            text_secondary: self.theme.colors.text_secondary.to_gpui(),
+            text_muted: self.theme.colors.text_muted.to_gpui(),
+            selection: self.theme.colors.selection.to_gpui(),
         };
 
-        let mut root = div()
-            .flex()
-            .flex_col()
-            .size_full()
-            .bg(colors.background);
+        let mut root = div().flex().flex_col().size_full().bg(colors.background);
 
         root = root.child(self.render_toolbar(&colors));
 
         if self.state.loading {
-            root =
-                root.child(self.render_loading(&colors));
+            root = root.child(self.render_loading(&colors));
         } else if self.state.error.is_some() {
-            root =
-                root.child(self.render_error(&colors));
+            root = root.child(self.render_error(&colors));
         } else {
-            root = root.child(
-                self.render_release_table(&colors),
-            );
+            root = root.child(self.render_release_table(&colors));
         }
 
         root

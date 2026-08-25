@@ -42,12 +42,7 @@ fn sample_releases() -> Vec<HelmRelease> {
         make_release("redis", "default", HelmReleaseStatus::Deployed, 20),
         make_release("prometheus", "monitoring", HelmReleaseStatus::Deployed, 30),
         make_release("broken-app", "staging", HelmReleaseStatus::Failed, 5),
-        make_release(
-            "upgrading-app",
-            "staging",
-            HelmReleaseStatus::PendingUpgrade,
-            2,
-        ),
+        make_release("upgrading-app", "staging", HelmReleaseStatus::PendingUpgrade, 2),
     ]
 }
 
@@ -59,9 +54,7 @@ fn sample_chart(name: &str, version: &str) -> ChartEntry {
         description: Some(format!("{name} chart")),
         home: None,
         sources: vec![],
-        urls: vec![format!(
-            "https://charts.example.com/{name}-{version}.tgz"
-        )],
+        urls: vec![format!("https://charts.example.com/{name}-{version}.tgz")],
     }
 }
 
@@ -94,10 +87,7 @@ fn loading_lifecycle_error() {
 
     state.set_error("timeout connecting to cluster".to_string());
     assert!(!state.loading);
-    assert_eq!(
-        state.error.as_deref(),
-        Some("timeout connecting to cluster")
-    );
+    assert_eq!(state.error.as_deref(), Some("timeout connecting to cluster"));
 }
 
 #[test]
@@ -189,10 +179,7 @@ fn sort_by_name_ascending() {
     state.sort_by_name();
 
     let names: Vec<&str> = state.releases.iter().map(|r| r.name.as_str()).collect();
-    assert_eq!(
-        names,
-        vec!["broken-app", "nginx", "prometheus", "redis", "upgrading-app"]
-    );
+    assert_eq!(names, vec!["broken-app", "nginx", "prometheus", "redis", "upgrading-app"]);
 }
 
 #[test]
@@ -218,8 +205,7 @@ fn sort_by_status() {
 
     // Debug representations sort alphabetically:
     // Deployed, Deployed, Deployed, Failed, PendingUpgrade
-    let statuses: Vec<&HelmReleaseStatus> =
-        state.releases.iter().map(|r| &r.status).collect();
+    let statuses: Vec<&HelmReleaseStatus> = state.releases.iter().map(|r| &r.status).collect();
     assert_eq!(statuses[0..3], [&HelmReleaseStatus::Deployed; 3]);
     assert_eq!(statuses[3], &HelmReleaseStatus::Failed);
     assert_eq!(statuses[4], &HelmReleaseStatus::PendingUpgrade);
@@ -442,18 +428,9 @@ fn status_unknown_is_not_healthy() {
 
 #[test]
 fn from_str_status_all_variants() {
-    assert_eq!(
-        HelmReleaseStatus::from_str_status("deployed"),
-        HelmReleaseStatus::Deployed
-    );
-    assert_eq!(
-        HelmReleaseStatus::from_str_status("failed"),
-        HelmReleaseStatus::Failed
-    );
-    assert_eq!(
-        HelmReleaseStatus::from_str_status("uninstalling"),
-        HelmReleaseStatus::Uninstalling
-    );
+    assert_eq!(HelmReleaseStatus::from_str_status("deployed"), HelmReleaseStatus::Deployed);
+    assert_eq!(HelmReleaseStatus::from_str_status("failed"), HelmReleaseStatus::Failed);
+    assert_eq!(HelmReleaseStatus::from_str_status("uninstalling"), HelmReleaseStatus::Uninstalling);
     assert_eq!(
         HelmReleaseStatus::from_str_status("pending-install"),
         HelmReleaseStatus::PendingInstall
@@ -466,26 +443,14 @@ fn from_str_status_all_variants() {
         HelmReleaseStatus::from_str_status("pending-rollback"),
         HelmReleaseStatus::PendingRollback
     );
-    assert_eq!(
-        HelmReleaseStatus::from_str_status("superseded"),
-        HelmReleaseStatus::Superseded
-    );
-    assert_eq!(
-        HelmReleaseStatus::from_str_status("anything-else"),
-        HelmReleaseStatus::Unknown
-    );
+    assert_eq!(HelmReleaseStatus::from_str_status("superseded"), HelmReleaseStatus::Superseded);
+    assert_eq!(HelmReleaseStatus::from_str_status("anything-else"), HelmReleaseStatus::Unknown);
 }
 
 #[test]
 fn from_str_status_case_insensitive() {
-    assert_eq!(
-        HelmReleaseStatus::from_str_status("DEPLOYED"),
-        HelmReleaseStatus::Deployed
-    );
-    assert_eq!(
-        HelmReleaseStatus::from_str_status("Failed"),
-        HelmReleaseStatus::Failed
-    );
+    assert_eq!(HelmReleaseStatus::from_str_status("DEPLOYED"), HelmReleaseStatus::Deployed);
+    assert_eq!(HelmReleaseStatus::from_str_status("Failed"), HelmReleaseStatus::Failed);
     assert_eq!(
         HelmReleaseStatus::from_str_status("Pending-Upgrade"),
         HelmReleaseStatus::PendingUpgrade

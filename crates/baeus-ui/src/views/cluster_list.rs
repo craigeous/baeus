@@ -96,11 +96,7 @@ pub struct ClusterListState {
 
 impl ClusterListState {
     pub fn new(items: Vec<ClusterListItem>) -> Self {
-        Self {
-            items,
-            selected_index: None,
-            filter_text: String::new(),
-        }
+        Self { items, selected_index: None, filter_text: String::new() }
     }
 
     /// Returns items filtered by the current `filter_text`.
@@ -169,9 +165,7 @@ impl ClusterListState {
     /// Sort items: favorites first, then alphabetically by display_name.
     pub fn sort_favorites_first(&mut self) {
         self.items.sort_by(|a, b| {
-            b.favorite
-                .cmp(&a.favorite)
-                .then_with(|| a.display_name.cmp(&b.display_name))
+            b.favorite.cmp(&a.favorite).then_with(|| a.display_name.cmp(&b.display_name))
         });
     }
 
@@ -231,13 +225,7 @@ impl Render for ClusterListView {
             .size_full()
             .bg(bg)
             .overflow_hidden()
-            .child(
-                div()
-                    .border_b_1()
-                    .border_color(border)
-                    .flex_shrink_0()
-                    .child(header),
-            )
+            .child(div().border_b_1().border_color(border).flex_shrink_0().child(header))
             .child(card_list)
     }
 }
@@ -261,12 +249,7 @@ impl ClusterListView {
             .justify_between()
             .px_4()
             .py_3()
-            .child(
-                div()
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(text)
-                    .child("Clusters"),
-            )
+            .child(div().font_weight(FontWeight::BOLD).text_color(text).child("Clusters"))
             .child(
                 div()
                     .text_sm()
@@ -284,22 +267,12 @@ impl ClusterListView {
             .filtered_items()
             .iter()
             .filter_map(|item| {
-                let idx = self
-                    .state
-                    .items
-                    .iter()
-                    .position(|i| i.context_name == item.context_name);
+                let idx = self.state.items.iter().position(|i| i.context_name == item.context_name);
                 idx.map(|i| (i, (*item).clone()))
             })
             .collect();
 
-        let mut list = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .p_4()
-            .gap_3()
-            .overflow_hidden();
+        let mut list = div().flex().flex_col().flex_1().p_4().gap_3().overflow_hidden();
 
         if filtered.is_empty() {
             list = list.child(
@@ -338,9 +311,8 @@ impl ClusterListView {
         let selected_index = self.state.selected_index;
         let is_selected = selected_index == Some(original_idx);
 
-        let card_id = ElementId::Name(
-            SharedString::from(format!("cluster-card-{}", item.context_name)),
-        );
+        let card_id =
+            ElementId::Name(SharedString::from(format!("cluster-card-{}", item.context_name)));
 
         let mut card = div()
             .id(card_id)
@@ -374,13 +346,7 @@ impl ClusterListView {
 
         // Optional error message
         if let Some(err) = &item.error_message {
-            card = card.child(
-                div()
-                    .text_xs()
-                    .text_color(error_color)
-                    .mt_1()
-                    .child(err.clone()),
-            );
+            card = card.child(div().text_xs().text_color(error_color).mt_1().child(err.clone()));
         }
 
         card
@@ -398,9 +364,8 @@ impl ClusterListView {
         let accent = self.theme.colors.accent.to_gpui();
         let favorite = item.favorite;
         let fav_star = if favorite { "★" } else { "☆" };
-        let fav_btn_id = ElementId::Name(
-            SharedString::from(format!("cluster-fav-{}", item.context_name)),
-        );
+        let fav_btn_id =
+            ElementId::Name(SharedString::from(format!("cluster-fav-{}", item.context_name)));
 
         div()
             .flex()
@@ -430,11 +395,7 @@ impl ClusterListView {
     fn render_url_row(&self, item: &ClusterListItem) -> Div {
         let text_muted = self.theme.colors.text_muted.to_gpui();
 
-        div()
-            .text_xs()
-            .text_color(text_muted)
-            .mt_1()
-            .child(item.api_server_url.clone())
+        div().text_xs().text_color(text_muted).mt_1().child(item.api_server_url.clone())
     }
 
     /// Render the status badge (dot + label) and connect/disconnect button.
@@ -463,19 +424,8 @@ impl ClusterListView {
                     .flex_row()
                     .items_center()
                     .gap_2()
-                    .child(
-                        div()
-                            .w(px(8.0))
-                            .h(px(8.0))
-                            .rounded_full()
-                            .bg(badge_color),
-                    )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(badge_color)
-                            .child(badge_label),
-                    ),
+                    .child(div().w(px(8.0)).h(px(8.0)).rounded_full().bg(badge_color))
+                    .child(div().text_xs().text_color(badge_color).child(badge_label)),
             )
             .child(action_btn)
     }
@@ -493,9 +443,8 @@ impl ClusterListView {
         let action_label = item.action_label();
         let action_enabled = item.is_action_enabled();
 
-        let action_btn_id = ElementId::Name(
-            SharedString::from(format!("cluster-action-{}", item.context_name)),
-        );
+        let action_btn_id =
+            ElementId::Name(SharedString::from(format!("cluster-action-{}", item.context_name)));
 
         let mut btn = div()
             .id(action_btn_id)
@@ -507,14 +456,11 @@ impl ClusterListView {
             .cursor_pointer();
 
         if action_enabled {
-            btn = btn
-                .bg(accent)
-                .text_color(gpui::rgb(0xFFFFFF))
-                .on_click(cx.listener(move |this, _event, _window, _cx| {
+            btn = btn.bg(accent).text_color(gpui::rgb(0xFFFFFF)).on_click(cx.listener(
+                move |this, _event, _window, _cx| {
                     let current = this.state.items[original_idx].connection_state;
                     match current {
-                        ClusterConnectionState::Disconnected
-                        | ClusterConnectionState::Error => {
+                        ClusterConnectionState::Disconnected | ClusterConnectionState::Error => {
                             this.state.set_connection_state(
                                 &this.state.items[original_idx].context_name.clone(),
                                 ClusterConnectionState::Connecting,
@@ -528,7 +474,8 @@ impl ClusterListView {
                         }
                         _ => {}
                     }
-                }));
+                },
+            ));
         } else {
             btn = btn.bg(surface_hover).text_color(text_muted);
         }

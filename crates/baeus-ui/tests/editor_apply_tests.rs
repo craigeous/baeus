@@ -10,13 +10,7 @@ const SAMPLE_YAML: &str =
     "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\nspec:\n  replicas: 3\n";
 
 fn make_editor() -> EditorViewState {
-    EditorViewState::new(
-        SAMPLE_YAML,
-        "Deployment",
-        "nginx",
-        Some("default".to_string()),
-        "12345",
-    )
+    EditorViewState::new(SAMPLE_YAML, "Deployment", "nginx", Some("default".to_string()), "12345")
 }
 
 fn make_dirty_editor() -> EditorViewState {
@@ -364,10 +358,7 @@ fn test_workflow_state_failed() {
     editor.apply_failure("err".to_string());
     // After failure, editor is still dirty+valid so it shows Ready
     // unless there's an apply_error, which takes priority
-    assert_eq!(
-        editor.apply_workflow_state(),
-        ApplyWorkflowState::Failed("err".to_string())
-    );
+    assert_eq!(editor.apply_workflow_state(), ApplyWorkflowState::Failed("err".to_string()));
 }
 
 #[test]
@@ -391,8 +382,7 @@ fn test_workflow_state_idle_after_success() {
 
 #[test]
 fn test_resource_detail_on_yaml_apply_success() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     state.set_resource_yaml(SAMPLE_YAML.to_string(), "1".to_string());
     state.open_yaml_editor();
 
@@ -411,8 +401,7 @@ fn test_resource_detail_on_yaml_apply_success() {
 
 #[test]
 fn test_resource_detail_on_yaml_apply_failure() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     state.set_resource_yaml(SAMPLE_YAML.to_string(), "1".to_string());
     state.open_yaml_editor();
 
@@ -430,8 +419,7 @@ fn test_resource_detail_on_yaml_apply_failure() {
 
 #[test]
 fn test_resource_detail_on_yaml_apply_conflict() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     state.set_resource_yaml(SAMPLE_YAML.to_string(), "1".to_string());
     state.open_yaml_editor();
 
@@ -450,17 +438,15 @@ fn test_resource_detail_on_yaml_apply_conflict() {
 
 #[test]
 fn test_resource_detail_full_apply_success_workflow() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     state.set_resource_yaml(SAMPLE_YAML.to_string(), "100".to_string());
     state.open_yaml_editor();
 
     // Edit
     {
         let editor = state.yaml_editor_mut().unwrap();
-        editor.buffer = TextBuffer::from_str(
-            "apiVersion: apps/v1\nkind: Deployment\nspec:\n  replicas: 5\n",
-        );
+        editor.buffer =
+            TextBuffer::from_str("apiVersion: apps/v1\nkind: Deployment\nspec:\n  replicas: 5\n");
         editor.is_dirty = true;
         editor.validate();
         assert!(editor.can_apply());
@@ -477,8 +463,7 @@ fn test_resource_detail_full_apply_success_workflow() {
 
 #[test]
 fn test_resource_detail_conflict_then_accept() {
-    let mut state =
-        ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
+    let mut state = ResourceDetailState::new("Deployment", "nginx", Some("default".to_string()));
     state.set_resource_yaml(SAMPLE_YAML.to_string(), "100".to_string());
     state.open_yaml_editor();
 

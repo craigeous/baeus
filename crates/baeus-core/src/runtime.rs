@@ -17,10 +17,7 @@ mod tests {
 
     #[test]
     fn test_tokio_handle_clone() {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         let handle = TokioHandle(rt.handle().clone());
         let _cloned = handle.clone();
         // Just verify Clone works without panicking

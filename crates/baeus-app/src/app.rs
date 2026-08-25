@@ -64,9 +64,7 @@ const ZOOM_DEFAULT: f32 = 1.0;
 impl MenuBarState {
     /// Creates a new `MenuBarState` with the default zoom level of 1.0.
     pub fn new() -> Self {
-        Self {
-            zoom_level: ZOOM_DEFAULT,
-        }
+        Self { zoom_level: ZOOM_DEFAULT }
     }
 
     /// Increments the zoom level by 0.1, clamped to a maximum of 3.0.

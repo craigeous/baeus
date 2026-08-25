@@ -242,9 +242,7 @@ impl PluginContext {
             })
             .cloned();
 
-        resource.ok_or_else(|| {
-            PluginError::ResourceNotFound(format!("{}/{}", kind, name))
-        })
+        resource.ok_or_else(|| PluginError::ResourceNotFound(format!("{}/{}", kind, name)))
     }
 
     /// Start watching resources of a given kind (returns a watch token).
@@ -263,10 +261,7 @@ impl PluginContext {
             ));
         }
 
-        Ok(WatchHandle {
-            id: Uuid::new_v4(),
-            active: true,
-        })
+        Ok(WatchHandle { id: Uuid::new_v4(), active: true })
     }
 
     /// Delete or modify a resource (placeholder for future implementation).
@@ -287,9 +282,7 @@ impl PluginContext {
             ));
         }
         // Actual implementation would delegate to kube client.
-        Err(PluginError::InternalError(
-            "write_resource not yet implemented".to_string(),
-        ))
+        Err(PluginError::InternalError("write_resource not yet implemented".to_string()))
     }
 
     /// Returns all registered views.
@@ -351,10 +344,7 @@ mod tests {
     }
 
     fn test_context_read_only() -> PluginContext {
-        PluginContext::new(
-            "io.example.readonly".to_string(),
-            vec![PluginPermission::ReadResources],
-        )
+        PluginContext::new("io.example.readonly".to_string(), vec![PluginPermission::ReadResources])
     }
 
     fn test_context_no_permissions() -> PluginContext {
@@ -459,13 +449,8 @@ mod tests {
     #[test]
     fn test_register_view_duplicate_id() {
         let mut ctx = test_context_with_all_permissions();
-        ctx.register_view(
-            "dup-view".to_string(),
-            "First".to_string(),
-            None,
-            ViewLocation::MainTab,
-        )
-        .unwrap();
+        ctx.register_view("dup-view".to_string(), "First".to_string(), None, ViewLocation::MainTab)
+            .unwrap();
 
         let result = ctx.register_view(
             "dup-view".to_string(),
@@ -485,13 +470,8 @@ mod tests {
     #[test]
     fn test_register_multiple_views() {
         let mut ctx = test_context_with_all_permissions();
-        ctx.register_view(
-            "view-1".to_string(),
-            "View 1".to_string(),
-            None,
-            ViewLocation::MainTab,
-        )
-        .unwrap();
+        ctx.register_view("view-1".to_string(), "View 1".to_string(), None, ViewLocation::MainTab)
+            .unwrap();
         ctx.register_view(
             "view-2".to_string(),
             "View 2".to_string(),
@@ -637,14 +617,10 @@ mod tests {
         let cluster_id = Uuid::new_v4();
         ctx.add_test_resources(cluster_id, sample_resources());
 
-        let pods = ctx
-            .list_resources(cluster_id, "Pod", "v1", Some("default"))
-            .unwrap();
+        let pods = ctx.list_resources(cluster_id, "Pod", "v1", Some("default")).unwrap();
         assert_eq!(pods.len(), 2); // nginx, redis
 
-        let pods = ctx
-            .list_resources(cluster_id, "Pod", "v1", Some("production"))
-            .unwrap();
+        let pods = ctx.list_resources(cluster_id, "Pod", "v1", Some("production")).unwrap();
         assert_eq!(pods.len(), 1); // worker
     }
 
@@ -654,9 +630,7 @@ mod tests {
         let cluster_id = Uuid::new_v4();
         ctx.add_test_resources(cluster_id, sample_resources());
 
-        let services = ctx
-            .list_resources(cluster_id, "Service", "v1", None)
-            .unwrap();
+        let services = ctx.list_resources(cluster_id, "Service", "v1", None).unwrap();
         assert_eq!(services.len(), 1);
         assert_eq!(services[0].name, "nginx-svc");
     }
@@ -677,9 +651,7 @@ mod tests {
     #[test]
     fn test_list_resources_unknown_cluster() {
         let ctx = test_context_with_all_permissions();
-        let result = ctx
-            .list_resources(Uuid::new_v4(), "Pod", "v1", None)
-            .unwrap();
+        let result = ctx.list_resources(Uuid::new_v4(), "Pod", "v1", None).unwrap();
         assert!(result.is_empty());
     }
 
@@ -691,9 +663,7 @@ mod tests {
         let cluster_id = Uuid::new_v4();
         ctx.add_test_resources(cluster_id, sample_resources());
 
-        let pod = ctx
-            .get_resource(cluster_id, "Pod", "v1", Some("default"), "nginx")
-            .unwrap();
+        let pod = ctx.get_resource(cluster_id, "Pod", "v1", Some("default"), "nginx").unwrap();
         assert_eq!(pod.name, "nginx");
         assert_eq!(pod.uid, "pod-1");
     }
@@ -730,9 +700,7 @@ mod tests {
     #[test]
     fn test_watch_resources_success() {
         let ctx = test_context_with_all_permissions();
-        let handle = ctx
-            .watch_resources(Uuid::new_v4(), "Pod", "v1", None)
-            .unwrap();
+        let handle = ctx.watch_resources(Uuid::new_v4(), "Pod", "v1", None).unwrap();
         assert!(handle.active);
     }
 
@@ -746,9 +714,7 @@ mod tests {
     #[test]
     fn test_watch_handle_cancel() {
         let ctx = test_context_with_all_permissions();
-        let mut handle = ctx
-            .watch_resources(Uuid::new_v4(), "Pod", "v1", None)
-            .unwrap();
+        let mut handle = ctx.watch_resources(Uuid::new_v4(), "Pod", "v1", None).unwrap();
         assert!(handle.active);
         handle.cancel();
         assert!(!handle.active);

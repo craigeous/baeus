@@ -1,4 +1,4 @@
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -76,9 +76,7 @@ pub struct PortForwardState {
 impl PortForwardState {
     /// Creates a new empty port forward state.
     pub fn new() -> Self {
-        Self {
-            forwards: Vec::new(),
-        }
+        Self { forwards: Vec::new() }
     }
 
     /// Adds a port forward entry.
@@ -110,10 +108,7 @@ impl PortForwardState {
 
     /// Returns all active port forwards.
     pub fn active_forwards(&self) -> Vec<&PortForwardEntry> {
-        self.forwards
-            .iter()
-            .filter(|e| e.status == PortForwardStatus::Active)
-            .collect()
+        self.forwards.iter().filter(|e| e.status == PortForwardStatus::Active).collect()
     }
 
     /// Returns a reference to a port forward entry by id.
@@ -133,9 +128,7 @@ impl PortForwardState {
 
     /// Returns true if the given local port is already in use by an active forward.
     pub fn is_local_port_in_use(&self, port: u16) -> bool {
-        self.forwards
-            .iter()
-            .any(|e| e.local_port == port && e.status == PortForwardStatus::Active)
+        self.forwards.iter().any(|e| e.local_port == port && e.status == PortForwardStatus::Active)
     }
 }
 
@@ -144,15 +137,8 @@ impl PortForwardState {
 // ---------------------------------------------------------------------------
 
 /// The columns displayed in the port forward table.
-pub const PORT_FORWARD_COLUMNS: &[&str] = &[
-    "Name",
-    "Namespace",
-    "Kind",
-    "Pod Port",
-    "Local Port",
-    "Protocol",
-    "Status",
-];
+pub const PORT_FORWARD_COLUMNS: &[&str] =
+    &["Name", "Namespace", "Kind", "Pod Port", "Local Port", "Protocol", "Status"];
 
 // ---------------------------------------------------------------------------
 // GPUI Render
@@ -187,12 +173,7 @@ pub struct PortForwardView {
 
 impl PortForwardView {
     pub fn new(state: PortForwardState, theme: Theme) -> Self {
-        Self {
-            state,
-            theme,
-            last_opened_url: None,
-            last_stopped_id: None,
-        }
+        Self { state, theme, last_opened_url: None, last_stopped_id: None }
     }
 
     /// Simulates opening the endpoint URL for a port forward.
@@ -252,12 +233,7 @@ impl PortForwardView {
                             .text_color(colors.text_primary)
                             .child(title),
                     )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(colors.text_muted)
-                            .child(count_text),
-                    ),
+                    .child(div().text_xs().text_color(colors.text_muted).child(count_text)),
             )
     }
 
@@ -323,14 +299,8 @@ impl PortForwardView {
             .child(self.render_cell(&entry.name, colors.text_primary))
             .child(self.render_cell(&entry.namespace, colors.text_secondary))
             .child(self.render_cell(&entry.kind, colors.text_secondary))
-            .child(self.render_cell(
-                &entry.pod_port.to_string(),
-                colors.text_secondary,
-            ))
-            .child(self.render_cell(
-                &entry.local_port.to_string(),
-                colors.text_secondary,
-            ))
+            .child(self.render_cell(&entry.pod_port.to_string(), colors.text_secondary))
+            .child(self.render_cell(&entry.local_port.to_string(), colors.text_secondary))
             .child(self.render_cell(&entry.protocol, colors.text_secondary))
             .child(
                 div()
@@ -349,11 +319,7 @@ impl PortForwardView {
 
     /// Render a single text cell in a row.
     fn render_cell(&self, text: &str, color: Rgba) -> gpui::Div {
-        div()
-            .flex_1()
-            .text_xs()
-            .text_color(color)
-            .child(SharedString::from(text.to_string()))
+        div().flex_1().text_xs().text_color(color).child(SharedString::from(text.to_string()))
     }
 
     /// Render action buttons for a port forward entry.
@@ -366,10 +332,8 @@ impl PortForwardView {
         let mut actions = div().flex_1().flex().flex_row().gap(px(4.0));
 
         if entry.is_active() {
-            let open_id =
-                ElementId::Name(SharedString::from(format!("pf-open-{idx}")));
-            let stop_id =
-                ElementId::Name(SharedString::from(format!("pf-stop-{idx}")));
+            let open_id = ElementId::Name(SharedString::from(format!("pf-open-{idx}")));
+            let stop_id = ElementId::Name(SharedString::from(format!("pf-stop-{idx}")));
 
             actions = actions
                 .child(
@@ -406,19 +370,10 @@ impl PortForwardView {
         let mut body = div().flex().flex_col().flex_1().w_full().overflow_hidden();
 
         if self.state.forwards.is_empty() {
-            body = body.child(
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .py(px(32.0))
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(colors.text_muted)
-                            .child("No port forwards"),
-                    ),
-            );
+            body =
+                body.child(div().flex().items_center().justify_center().py(px(32.0)).child(
+                    div().text_sm().text_color(colors.text_muted).child("No port forwards"),
+                ));
         } else {
             for (idx, entry) in self.state.forwards.iter().enumerate() {
                 body = body.child(self.render_forward_row(entry, idx, colors));
@@ -448,7 +403,13 @@ impl Render for PortForwardView {
 mod tests {
     use super::*;
 
-    fn make_entry(name: &str, ns: &str, kind: &str, pod_port: u16, local_port: u16) -> PortForwardEntry {
+    fn make_entry(
+        name: &str,
+        ns: &str,
+        kind: &str,
+        pod_port: u16,
+        local_port: u16,
+    ) -> PortForwardEntry {
         PortForwardEntry {
             id: Uuid::new_v4(),
             name: name.to_string(),

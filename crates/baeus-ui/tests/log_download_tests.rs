@@ -1,7 +1,7 @@
 // T053: Log download/export integration tests.
 // Tests format_logs_for_download, LogDownloadState, and LogViewerState::prepare_download().
 
-use baeus_core::logs::{format_logs_for_download, LogDownloadFormat, LogLine};
+use baeus_core::logs::{LogDownloadFormat, LogLine, format_logs_for_download};
 use baeus_ui::components::log_viewer::{LogDownloadState, LogViewerState};
 use chrono::Utc;
 
@@ -87,10 +87,8 @@ fn test_format_json_empty() {
 
 #[test]
 fn test_format_json_multiple_lines() {
-    let lines = vec![
-        make_log_line("first", "app", "pod-1"),
-        make_log_line("second", "sidecar", "pod-2"),
-    ];
+    let lines =
+        vec![make_log_line("first", "app", "pod-1"), make_log_line("second", "sidecar", "pod-2")];
     let result = format_logs_for_download(&lines, LogDownloadFormat::Json);
     let parsed: Vec<LogLine> = serde_json::from_str(&result).expect("Valid JSON");
     assert_eq!(parsed.len(), 2);
@@ -139,10 +137,8 @@ fn test_format_csv_escapes_quotes_in_content() {
 
 #[test]
 fn test_format_csv_multiple_lines() {
-    let lines = vec![
-        make_log_line("first", "app", "pod-1"),
-        make_log_line("second", "sidecar", "pod-2"),
-    ];
+    let lines =
+        vec![make_log_line("first", "app", "pod-1"), make_log_line("second", "sidecar", "pod-2")];
     let result = format_logs_for_download(&lines, LogDownloadFormat::Csv);
     let csv_lines: Vec<&str> = result.lines().collect();
     assert_eq!(csv_lines.len(), 3); // header + 2 data rows
@@ -163,10 +159,7 @@ fn test_download_state_variants_equality() {
     assert_eq!(LogDownloadState::Idle, LogDownloadState::Idle);
     assert_eq!(LogDownloadState::Preparing, LogDownloadState::Preparing);
     assert_ne!(LogDownloadState::Idle, LogDownloadState::Preparing);
-    assert_ne!(
-        LogDownloadState::Ready("a".to_string()),
-        LogDownloadState::Ready("b".to_string())
-    );
+    assert_ne!(LogDownloadState::Ready("a".to_string()), LogDownloadState::Ready("b".to_string()));
     assert_eq!(
         LogDownloadState::Error("err".to_string()),
         LogDownloadState::Error("err".to_string())

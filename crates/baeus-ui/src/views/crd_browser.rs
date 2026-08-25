@@ -1,6 +1,6 @@
 use baeus_core::crd::{CrdSchema, CrdScope};
 use gpui::prelude::FluentBuilder as _;
-use gpui::{div, px, prelude::*, ElementId, FontWeight, Rgba, SharedString};
+use gpui::{ElementId, FontWeight, Rgba, SharedString, div, prelude::*, px};
 use std::collections::HashMap;
 
 use crate::theme::Theme;
@@ -83,9 +83,7 @@ impl CrdBrowserState {
 
     /// Returns a reference to the currently selected CRD, if any.
     pub fn selected(&self) -> Option<&CrdSchema> {
-        self.selected_crd
-            .as_ref()
-            .and_then(|name| self.crds.iter().find(|c| c.name == *name))
+        self.selected_crd.as_ref().and_then(|name| self.crds.iter().find(|c| c.name == *name))
     }
 
     /// Returns the distinct API groups present in the CRDs list, sorted.
@@ -108,18 +106,12 @@ impl CrdBrowserState {
 
     /// Count of namespaced CRDs in the filtered set.
     pub fn namespaced_count(&self) -> usize {
-        self.filtered_crds()
-            .iter()
-            .filter(|c| c.scope == CrdScope::Namespaced)
-            .count()
+        self.filtered_crds().iter().filter(|c| c.scope == CrdScope::Namespaced).count()
     }
 
     /// Count of cluster-scoped CRDs in the filtered set.
     pub fn cluster_scoped_count(&self) -> usize {
-        self.filtered_crds()
-            .iter()
-            .filter(|c| c.scope == CrdScope::Cluster)
-            .count()
+        self.filtered_crds().iter().filter(|c| c.scope == CrdScope::Cluster).count()
     }
 }
 
@@ -215,19 +207,8 @@ impl CrdBrowserViewComponent {
             .py_1()
             .rounded(px(4.0))
             .bg(colors.surface)
-            .child(
-                div()
-                    .w(px(8.0))
-                    .h(px(8.0))
-                    .rounded(px(4.0))
-                    .bg(dot_color),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_primary)
-                    .child(label),
-            )
+            .child(div().w(px(8.0)).h(px(8.0)).rounded(px(4.0)).bg(dot_color))
+            .child(div().text_xs().text_color(colors.text_primary).child(label))
     }
 
     /// CRD list: left panel with CRD entries grouped by API group.
@@ -239,12 +220,7 @@ impl CrdBrowserViewComponent {
             return self.render_empty_state(colors);
         }
 
-        let mut list = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .w_full()
-            .overflow_hidden();
+        let mut list = div().flex().flex_col().flex_1().w_full().overflow_hidden();
 
         // Get groups in sorted order
         let mut groups: Vec<&str> = grouped.keys().map(|s| s.as_str()).collect();
@@ -274,29 +250,17 @@ impl CrdBrowserViewComponent {
         let count = crds.len();
         let header_lbl = SharedString::from(format!("{group} ({count})"));
 
-        let mut group_div = div()
-            .flex()
-            .flex_col()
-            .w_full()
-            .border_b_1()
-            .border_color(colors.border);
+        let mut group_div =
+            div().flex().flex_col().w_full().border_b_1().border_color(colors.border);
 
         group_div = group_div.child(
-            div()
-                .flex()
-                .flex_row()
-                .items_center()
-                .w_full()
-                .px_3()
-                .py_2()
-                .bg(colors.surface)
-                .child(
-                    div()
-                        .text_sm()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(colors.text_primary)
-                        .child(header_lbl),
-                ),
+            div().flex().flex_row().items_center().w_full().px_3().py_2().bg(colors.surface).child(
+                div()
+                    .text_sm()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(colors.text_primary)
+                    .child(header_lbl),
+            ),
         );
 
         // Add CRD entries
@@ -313,18 +277,9 @@ impl CrdBrowserViewComponent {
         crd: &CrdSchema,
         colors: &CrdBrowserColors,
     ) -> gpui::Stateful<gpui::Div> {
-        let selected = self
-            .state
-            .selected_crd
-            .as_ref()
-            .map(|s| s == &crd.name)
-            .unwrap_or(false);
+        let selected = self.state.selected_crd.as_ref().map(|s| s == &crd.name).unwrap_or(false);
 
-        let bg = if selected {
-            colors.selection
-        } else {
-            colors.background
-        };
+        let bg = if selected { colors.selection } else { colors.background };
 
         let versions_str = crd.versions.join(", ");
         let scope_str = match crd.scope {
@@ -369,12 +324,7 @@ impl CrdBrowserViewComponent {
     }
 
     /// Scope badge: colored label.
-    fn render_scope_badge(
-        &self,
-        label: &str,
-        color: Rgba,
-        colors: &CrdBrowserColors,
-    ) -> gpui::Div {
+    fn render_scope_badge(&self, label: &str, color: Rgba, colors: &CrdBrowserColors) -> gpui::Div {
         div()
             .flex()
             .flex_row()
@@ -386,12 +336,7 @@ impl CrdBrowserViewComponent {
             .bg(colors.surface)
             .border_1()
             .border_color(color)
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(color)
-                    .child(SharedString::from(label.to_string())),
-            )
+            .child(div().text_xs().text_color(color).child(SharedString::from(label.to_string())))
     }
 
     /// Detail panel: right panel showing selected CRD details.
@@ -400,8 +345,7 @@ impl CrdBrowserViewComponent {
             let name_lbl = SharedString::from(format!("Name: {}", crd.name));
             let group_lbl = SharedString::from(format!("Group: {}", crd.group));
             let kind_lbl = SharedString::from(format!("Kind: {}", crd.kind));
-            let versions_lbl =
-                SharedString::from(format!("Versions: {}", crd.versions.join(", ")));
+            let versions_lbl = SharedString::from(format!("Versions: {}", crd.versions.join(", ")));
             let scope_lbl = SharedString::from(format!(
                 "Scope: {}",
                 match crd.scope {
@@ -441,27 +385,15 @@ impl CrdBrowserViewComponent {
 
             detail
         } else {
-            div()
-                .flex()
-                .flex_col()
-                .flex_1()
-                .items_center()
-                .justify_center()
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(colors.text_muted)
-                        .child("Select a CRD to view details"),
-                )
+            div().flex().flex_col().flex_1().items_center().justify_center().child(
+                div().text_sm().text_color(colors.text_muted).child("Select a CRD to view details"),
+            )
         }
     }
 
     /// Single detail row.
     fn render_detail_row(&self, label: SharedString, colors: &CrdBrowserColors) -> gpui::Div {
-        div()
-            .text_sm()
-            .text_color(colors.text_secondary)
-            .child(label)
+        div().text_sm().text_color(colors.text_secondary).child(label)
     }
 
     /// Empty state when no CRDs present.
@@ -472,12 +404,7 @@ impl CrdBrowserViewComponent {
             .flex_1()
             .items_center()
             .justify_center()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("No CRDs found"),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child("No CRDs found"))
     }
 
     /// Loading indicator.
@@ -488,39 +415,24 @@ impl CrdBrowserViewComponent {
             .flex_1()
             .items_center()
             .justify_center()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("Loading CRDs..."),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child("Loading CRDs..."))
     }
 
     /// Error message display.
     fn render_error(&self, colors: &CrdBrowserColors) -> gpui::Div {
-        let msg = self
-            .state
-            .error
-            .as_deref()
-            .unwrap_or("Unknown error");
-        div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .items_center()
-            .justify_center()
-            .px_4()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.error)
-                    .child(SharedString::from(msg.to_string())),
-            )
+        let msg = self.state.error.as_deref().unwrap_or("Unknown error");
+        div().flex().flex_col().flex_1().items_center().justify_center().px_4().child(
+            div().text_sm().text_color(colors.error).child(SharedString::from(msg.to_string())),
+        )
     }
 }
 
 impl Render for CrdBrowserViewComponent {
-    fn render(&mut self, _window: &mut gpui::Window, _cx: &mut gpui::Context<Self>) -> impl IntoElement {
+    fn render(
+        &mut self,
+        _window: &mut gpui::Window,
+        _cx: &mut gpui::Context<Self>,
+    ) -> impl IntoElement {
         let colors = CrdBrowserColors {
             background: self.theme.colors.background.to_gpui(),
             surface: self.theme.colors.surface.to_gpui(),
@@ -535,11 +447,7 @@ impl Render for CrdBrowserViewComponent {
             selection: self.theme.colors.selection.to_gpui(),
         };
 
-        let mut root = div()
-            .flex()
-            .flex_col()
-            .size_full()
-            .bg(colors.background);
+        let mut root = div().flex().flex_col().size_full().bg(colors.background);
 
         root = root.child(self.render_toolbar(&colors));
 
@@ -596,18 +504,8 @@ mod tests {
         vec![
             sample_crd("certificates", "cert-manager.io", "Certificate", CrdScope::Namespaced),
             sample_crd("issuers", "cert-manager.io", "Issuer", CrdScope::Namespaced),
-            sample_crd(
-                "clusterissuers",
-                "cert-manager.io",
-                "ClusterIssuer",
-                CrdScope::Cluster,
-            ),
-            sample_crd(
-                "virtualmachines",
-                "kubevirt.io",
-                "VirtualMachine",
-                CrdScope::Namespaced,
-            ),
+            sample_crd("clusterissuers", "cert-manager.io", "ClusterIssuer", CrdScope::Cluster),
+            sample_crd("virtualmachines", "kubevirt.io", "VirtualMachine", CrdScope::Namespaced),
             sample_crd(
                 "ingressroutes",
                 "traefik.containo.us",
@@ -650,12 +548,7 @@ mod tests {
         state.set_crds(sample_crds());
         assert_eq!(state.crds.len(), 5);
 
-        state.set_crds(vec![sample_crd(
-            "single",
-            "test.io",
-            "Single",
-            CrdScope::Namespaced,
-        )]);
+        state.set_crds(vec![sample_crd("single", "test.io", "Single", CrdScope::Namespaced)]);
         assert_eq!(state.crds.len(), 1);
     }
 
@@ -750,10 +643,7 @@ mod tests {
         state.set_crds(sample_crds());
 
         state.select_crd("certificates.cert-manager.io");
-        assert_eq!(
-            state.selected_crd.as_deref(),
-            Some("certificates.cert-manager.io")
-        );
+        assert_eq!(state.selected_crd.as_deref(), Some("certificates.cert-manager.io"));
 
         let selected = state.selected().unwrap();
         assert_eq!(selected.kind, "Certificate");

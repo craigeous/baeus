@@ -16,10 +16,7 @@ fn pod_actions_count() {
 fn pod_actions_labels() {
     let actions = actions_for_kind("Pod");
     let labels: Vec<&str> = actions.iter().map(|a| a.label.as_str()).collect();
-    assert_eq!(
-        labels,
-        vec!["Shell", "Attach", "Evict", "Logs", "Edit", "Delete"]
-    );
+    assert_eq!(labels, vec!["Shell", "Attach", "Evict", "Logs", "Edit", "Delete"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -36,10 +33,7 @@ fn deployment_actions_count() {
 fn deployment_actions_labels() {
     let actions = actions_for_kind("Deployment");
     let labels: Vec<&str> = actions.iter().map(|a| a.label.as_str()).collect();
-    assert_eq!(
-        labels,
-        vec!["Scale", "Restart", "Logs", "Edit", "Delete"]
-    );
+    assert_eq!(labels, vec!["Scale", "Restart", "Logs", "Edit", "Delete"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -56,10 +50,7 @@ fn statefulset_actions_count() {
 fn statefulset_actions_labels() {
     let actions = actions_for_kind("StatefulSet");
     let labels: Vec<&str> = actions.iter().map(|a| a.label.as_str()).collect();
-    assert_eq!(
-        labels,
-        vec!["Scale", "Restart", "Logs", "Edit", "Delete"]
-    );
+    assert_eq!(labels, vec!["Scale", "Restart", "Logs", "Edit", "Delete"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -127,10 +118,7 @@ fn node_actions_count() {
 fn node_actions_labels() {
     let actions = actions_for_kind("Node");
     let labels: Vec<&str> = actions.iter().map(|a| a.label.as_str()).collect();
-    assert_eq!(
-        labels,
-        vec!["Shell", "Cordon", "Drain", "Edit", "Delete"]
-    );
+    assert_eq!(labels, vec!["Shell", "Cordon", "Drain", "Edit", "Delete"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -140,11 +128,7 @@ fn node_actions_labels() {
 #[test]
 fn unknown_kind_returns_default_actions() {
     let actions = actions_for_kind("UnknownKind");
-    assert_eq!(
-        actions.len(),
-        2,
-        "Unknown kind should have 2 default actions"
-    );
+    assert_eq!(actions.len(), 2, "Unknown kind should have 2 default actions");
     let labels: Vec<&str> = actions.iter().map(|a| a.label.as_str()).collect();
     assert_eq!(labels, vec!["Edit", "Delete"]);
 }
@@ -176,9 +160,9 @@ fn all_action_sets_end_with_delete() {
 
     for kind in kinds {
         let actions = actions_for_kind(kind);
-        let last = actions.last().expect(&format!(
-            "Kind '{kind}' should have at least one action"
-        ));
+        let last = actions
+            .last()
+            .unwrap_or_else(|| panic!("Kind '{kind}' should have at least one action"));
         assert_eq!(
             last.label, "Delete",
             "Kind '{kind}': last action should be 'Delete', got '{}'",
@@ -207,10 +191,7 @@ fn all_action_sets_include_edit() {
     for kind in kinds {
         let actions = actions_for_kind(kind);
         let has_edit = actions.iter().any(|a| a.label == "Edit");
-        assert!(
-            has_edit,
-            "Kind '{kind}': action set should include 'Edit'"
-        );
+        assert!(has_edit, "Kind '{kind}': action set should include 'Edit'");
     }
 }
 

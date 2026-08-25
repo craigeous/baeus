@@ -7,11 +7,11 @@
 //! - Quick actions
 //! - RBAC integration
 
+use baeus_core::rbac::{PermissionCheck, PermissionResult, RbacCache, RbacVerb};
 use baeus_ui::views::resource_list::{
-    columns_for_kind, ResourceListState, actions_for_kind, api_group_for_kind,
-    kind_to_plural, resource_for_action, verb_for_action, QuickAction,
+    QuickAction, ResourceListState, actions_for_kind, api_group_for_kind, columns_for_kind,
+    kind_to_plural, resource_for_action, verb_for_action,
 };
-use baeus_core::rbac::{RbacCache, RbacVerb, PermissionCheck, PermissionResult};
 
 // ---------------------------------------------------------------------------
 // T071: Network resource column definitions
@@ -313,11 +313,21 @@ fn test_filtered_actions_ingress_all_allowed() {
 
     // Grant permissions for ingress in networking.k8s.io group
     rbac_cache.record(
-        PermissionCheck::new(RbacVerb::Update, "ingresses", "networking.k8s.io", Some("default".to_string())),
+        PermissionCheck::new(
+            RbacVerb::Update,
+            "ingresses",
+            "networking.k8s.io",
+            Some("default".to_string()),
+        ),
         PermissionResult::allowed(),
     );
     rbac_cache.record(
-        PermissionCheck::new(RbacVerb::Delete, "ingresses", "networking.k8s.io", Some("default".to_string())),
+        PermissionCheck::new(
+            RbacVerb::Delete,
+            "ingresses",
+            "networking.k8s.io",
+            Some("default".to_string()),
+        ),
         PermissionResult::allowed(),
     );
 
@@ -332,11 +342,21 @@ fn test_filtered_actions_network_policy_update_denied() {
 
     // Deny update but allow delete
     rbac_cache.record(
-        PermissionCheck::new(RbacVerb::Update, "networkpolicies", "networking.k8s.io", Some("default".to_string())),
+        PermissionCheck::new(
+            RbacVerb::Update,
+            "networkpolicies",
+            "networking.k8s.io",
+            Some("default".to_string()),
+        ),
         PermissionResult::denied_no_reason(),
     );
     rbac_cache.record(
-        PermissionCheck::new(RbacVerb::Delete, "networkpolicies", "networking.k8s.io", Some("default".to_string())),
+        PermissionCheck::new(
+            RbacVerb::Delete,
+            "networkpolicies",
+            "networking.k8s.io",
+            Some("default".to_string()),
+        ),
         PermissionResult::allowed(),
     );
 

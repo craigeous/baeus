@@ -3,7 +3,7 @@
 //! Shows events related to the currently viewed resource, filtered from
 //! the cluster's event list by involvedObject kind/name.
 
-use gpui::{div, prelude::*, px, FontWeight, Rgba, SharedString};
+use gpui::{FontWeight, Rgba, SharedString, div, prelude::*, px};
 
 use crate::components::json_extract;
 use crate::layout::app_shell::AppShell;
@@ -26,13 +26,8 @@ impl AppShell {
         border: Rgba,
         _accent: Rgba,
     ) -> gpui::Stateful<gpui::Div> {
-        let mut body = div()
-            .id("events-tab-body")
-            .flex()
-            .flex_col()
-            .flex_1()
-            .overflow_y_scroll()
-            .bg(bg);
+        let mut body =
+            div().id("events-tab-body").flex().flex_col().flex_1().overflow_y_scroll().bg(bg);
 
         let events = self.find_related_events(kind, name, namespace);
 
@@ -55,9 +50,7 @@ impl AppShell {
         // Event rows
         let warning_color = self.theme.colors.warning.to_gpui();
         for event in &events {
-            body = body.child(render_event_row(
-                event, text, text_secondary, border, warning_color,
-            ));
+            body = body.child(render_event_row(event, text, text_secondary, border, warning_color));
         }
 
         body
@@ -77,17 +70,12 @@ impl AppShell {
                 continue;
             }
             for item in data {
-                let involved_kind = item
-                    .pointer("/involvedObject/kind")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                let involved_name = item
-                    .pointer("/involvedObject/name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                let involved_ns = item
-                    .pointer("/involvedObject/namespace")
-                    .and_then(|v| v.as_str());
+                let involved_kind =
+                    item.pointer("/involvedObject/kind").and_then(|v| v.as_str()).unwrap_or("");
+                let involved_name =
+                    item.pointer("/involvedObject/name").and_then(|v| v.as_str()).unwrap_or("");
+                let involved_ns =
+                    item.pointer("/involvedObject/namespace").and_then(|v| v.as_str());
 
                 if involved_kind == kind && involved_name == name {
                     if let Some(ns) = namespace {
@@ -111,7 +99,8 @@ impl AppShell {
                         .pointer("/involvedObject/kind")
                         .and_then(|v| v.as_str())
                         .map(|k| {
-                            let n = item.pointer("/involvedObject/name")
+                            let n = item
+                                .pointer("/involvedObject/name")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("");
                             format!("{k}/{n}")
@@ -134,10 +123,7 @@ impl AppShell {
                             .and_then(|v| v.as_str())
                             .unwrap_or("—")
                             .to_string(),
-                        count: item
-                            .get("count")
-                            .and_then(|v| v.as_i64())
-                            .unwrap_or(1),
+                        count: item.get("count").and_then(|v| v.as_i64()).unwrap_or(1),
                         first_seen: item
                             .get("firstTimestamp")
                             .or_else(|| item.get("eventTime"))
@@ -173,24 +159,78 @@ fn render_events_header_row(text_secondary: Rgba, border: Rgba) -> gpui::Div {
         .py_1()
         .border_b_1()
         .border_color(border)
-        .child(div().w(px(70.0)).text_xs().font_weight(FontWeight::BOLD)
-            .text_color(text_secondary).child("Type"))
-        .child(div().w(px(80.0)).text_xs().font_weight(FontWeight::BOLD)
-            .text_color(text_secondary).child("Namespace"))
-        .child(div().w(px(100.0)).text_xs().font_weight(FontWeight::BOLD)
-            .text_color(text_secondary).child("Reason"))
-        .child(div().flex_1().text_xs().font_weight(FontWeight::BOLD)
-            .text_color(text_secondary).child("Message"))
-        .child(div().w(px(120.0)).text_xs().font_weight(FontWeight::BOLD)
-            .text_color(text_secondary).child("Object"))
-        .child(div().w(px(90.0)).text_xs().font_weight(FontWeight::BOLD)
-            .text_color(text_secondary).child("Source"))
-        .child(div().w(px(40.0)).text_xs().font_weight(FontWeight::BOLD)
-            .text_color(text_secondary).child("Count"))
-        .child(div().w(px(70.0)).text_xs().font_weight(FontWeight::BOLD)
-            .text_color(text_secondary).child("First Seen"))
-        .child(div().w(px(70.0)).text_xs().font_weight(FontWeight::BOLD)
-            .text_color(text_secondary).child("Last Seen"))
+        .child(
+            div()
+                .w(px(70.0))
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .child("Type"),
+        )
+        .child(
+            div()
+                .w(px(80.0))
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .child("Namespace"),
+        )
+        .child(
+            div()
+                .w(px(100.0))
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .child("Reason"),
+        )
+        .child(
+            div()
+                .flex_1()
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .child("Message"),
+        )
+        .child(
+            div()
+                .w(px(120.0))
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .child("Object"),
+        )
+        .child(
+            div()
+                .w(px(90.0))
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .child("Source"),
+        )
+        .child(
+            div()
+                .w(px(40.0))
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .child("Count"),
+        )
+        .child(
+            div()
+                .w(px(70.0))
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .child("First Seen"),
+        )
+        .child(
+            div()
+                .w(px(70.0))
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .child("Last Seen"),
+        )
 }
 
 /// Render a single event row.
@@ -201,48 +241,90 @@ fn render_event_row(
     border: Rgba,
     warning_color: Rgba,
 ) -> gpui::Div {
-    let type_color = if event.event_type == "Warning" {
-        warning_color
-    } else {
-        text_secondary
-    };
+    let type_color = if event.event_type == "Warning" { warning_color } else { text_secondary };
 
-    let mut row = div()
-        .flex()
-        .flex_row()
-        .w_full()
-        .px_4()
-        .py_1()
-        .border_b_1()
-        .border_color(border);
+    let mut row = div().flex().flex_row().w_full().px_4().py_1().border_b_1().border_color(border);
 
     // Subtle amber tint for warning rows
     if event.event_type == "Warning" {
         row = row.bg(Rgba { r: warning_color.r, g: warning_color.g, b: warning_color.b, a: 0.08 });
     }
 
-    row.child(div().w(px(70.0)).text_xs().text_color(type_color)
-            .child(SharedString::from(event.event_type.clone())))
-        .child(div().w(px(80.0)).text_xs().text_color(text_secondary)
-            .overflow_hidden().whitespace_nowrap().text_ellipsis()
-            .child(SharedString::from(event.namespace.clone())))
-        .child(div().w(px(100.0)).text_xs().text_color(text)
-            .child(SharedString::from(event.reason.clone())))
-        .child(div().flex_1().text_xs().text_color(text_secondary)
-            .overflow_hidden().whitespace_nowrap().text_ellipsis()
-            .child(SharedString::from(event.message.clone())))
-        .child(div().w(px(120.0)).text_xs().text_color(text_secondary)
-            .overflow_hidden().whitespace_nowrap().text_ellipsis()
-            .child(SharedString::from(event.involved_object.clone())))
-        .child(div().w(px(90.0)).text_xs().text_color(text_secondary)
-            .overflow_hidden().whitespace_nowrap().text_ellipsis()
-            .child(SharedString::from(event.source.clone())))
-        .child(div().w(px(40.0)).text_xs().text_color(text_secondary)
-            .child(SharedString::from(event.count.to_string())))
-        .child(div().w(px(70.0)).text_xs().text_color(text_secondary)
-            .child(SharedString::from(event.first_seen.clone())))
-        .child(div().w(px(70.0)).text_xs().text_color(text_secondary)
-            .child(SharedString::from(event.last_seen.clone())))
+    row.child(
+        div()
+            .w(px(70.0))
+            .text_xs()
+            .text_color(type_color)
+            .child(SharedString::from(event.event_type.clone())),
+    )
+    .child(
+        div()
+            .w(px(80.0))
+            .text_xs()
+            .text_color(text_secondary)
+            .overflow_hidden()
+            .whitespace_nowrap()
+            .text_ellipsis()
+            .child(SharedString::from(event.namespace.clone())),
+    )
+    .child(
+        div()
+            .w(px(100.0))
+            .text_xs()
+            .text_color(text)
+            .child(SharedString::from(event.reason.clone())),
+    )
+    .child(
+        div()
+            .flex_1()
+            .text_xs()
+            .text_color(text_secondary)
+            .overflow_hidden()
+            .whitespace_nowrap()
+            .text_ellipsis()
+            .child(SharedString::from(event.message.clone())),
+    )
+    .child(
+        div()
+            .w(px(120.0))
+            .text_xs()
+            .text_color(text_secondary)
+            .overflow_hidden()
+            .whitespace_nowrap()
+            .text_ellipsis()
+            .child(SharedString::from(event.involved_object.clone())),
+    )
+    .child(
+        div()
+            .w(px(90.0))
+            .text_xs()
+            .text_color(text_secondary)
+            .overflow_hidden()
+            .whitespace_nowrap()
+            .text_ellipsis()
+            .child(SharedString::from(event.source.clone())),
+    )
+    .child(
+        div()
+            .w(px(40.0))
+            .text_xs()
+            .text_color(text_secondary)
+            .child(SharedString::from(event.count.to_string())),
+    )
+    .child(
+        div()
+            .w(px(70.0))
+            .text_xs()
+            .text_color(text_secondary)
+            .child(SharedString::from(event.first_seen.clone())),
+    )
+    .child(
+        div()
+            .w(px(70.0))
+            .text_xs()
+            .text_color(text_secondary)
+            .child(SharedString::from(event.last_seen.clone())),
+    )
 }
 
 /// A related event extracted from the cluster's event list.

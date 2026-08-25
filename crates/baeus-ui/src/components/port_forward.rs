@@ -1,4 +1,4 @@
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 use serde::{Deserialize, Serialize};
 
 use crate::theme::Theme;
@@ -120,18 +120,12 @@ impl PortForwardPanelState {
 
     /// Returns the number of active port-forward entries.
     pub fn active_count(&self) -> usize {
-        self.entries
-            .iter()
-            .filter(|e| e.state == PortForwardDisplayState::Active)
-            .count()
+        self.entries.iter().filter(|e| e.state == PortForwardDisplayState::Active).count()
     }
 
     /// Returns entries matching a specific pod name.
     pub fn entries_for_pod(&self, pod_name: &str) -> Vec<&PortForwardEntry> {
-        self.entries
-            .iter()
-            .filter(|e| e.pod_name == pod_name)
-            .collect()
+        self.entries.iter().filter(|e| e.pod_name == pod_name).collect()
     }
 
     /// Returns true if the given local port is already in use by an active entry.
@@ -236,12 +230,7 @@ impl PortForwardPanelComponent {
                             .text_color(colors.text_primary)
                             .child("Port Forwards"),
                     )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(colors.text_muted)
-                            .child(count_text),
-                    ),
+                    .child(div().text_xs().text_color(colors.text_muted).child(count_text)),
             )
             .child(
                 div()
@@ -332,31 +321,13 @@ impl PortForwardPanelComponent {
             .flex()
             .flex_col()
             .gap(px(2.0))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_primary)
-                    .child(port_text.clone()),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child(pod_text.clone()),
-            )
+            .child(div().text_sm().text_color(colors.text_primary).child(port_text.clone()))
+            .child(div().text_xs().text_color(colors.text_muted).child(pod_text.clone()))
     }
 
     /// Render the status indicator for an entry.
-    fn render_entry_status(
-        &self,
-        state_label: &SharedString,
-        state_color: Rgba,
-    ) -> gpui::Div {
-        div()
-            .px_2()
-            .text_xs()
-            .text_color(state_color)
-            .child(state_label.clone())
+    fn render_entry_status(&self, state_label: &SharedString, state_color: Rgba) -> gpui::Div {
+        div().px_2().text_xs().text_color(state_color).child(state_label.clone())
     }
 
     /// Render the error message for an entry.
@@ -365,19 +336,10 @@ impl PortForwardPanelComponent {
         entry: &PortForwardEntry,
         colors: &PortForwardColors,
     ) -> gpui::Div {
-        let msg = entry
-            .error_message
-            .as_deref()
-            .unwrap_or("Unknown error");
+        let msg = entry.error_message.as_deref().unwrap_or("Unknown error");
         let error_text = SharedString::from(msg.to_string());
 
-        div()
-            .w_full()
-            .px_3()
-            .py_1()
-            .text_xs()
-            .text_color(colors.error)
-            .child(error_text)
+        div().w_full().px_3().py_1().text_xs().text_color(colors.error).child(error_text)
     }
 
     /// Render the entries list.
@@ -444,12 +406,7 @@ impl PortForwardPanelComponent {
                     .flex()
                     .gap(px(8.0))
                     .child(local_input)
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(colors.text_muted)
-                            .child(":"),
-                    )
+                    .child(div().text_sm().text_color(colors.text_muted).child(":"))
                     .child(remote_input),
             )
             .child(
@@ -485,11 +442,7 @@ impl PortForwardPanelComponent {
     }
 
     /// Render a single input field in the create dialog.
-    fn render_dialog_input(
-        &self,
-        text: &SharedString,
-        colors: &PortForwardColors,
-    ) -> gpui::Div {
+    fn render_dialog_input(&self, text: &SharedString, colors: &PortForwardColors) -> gpui::Div {
         div()
             .flex_1()
             .px_2()

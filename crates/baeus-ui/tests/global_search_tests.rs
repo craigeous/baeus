@@ -154,10 +154,7 @@ fn test_global_search_select_next() {
 #[test]
 fn test_global_search_select_next_wraps() {
     let mut state = GlobalSearchState::new();
-    state.set_results(vec![
-        make_search_match("a", "Pod"),
-        make_search_match("b", "Pod"),
-    ]);
+    state.set_results(vec![make_search_match("a", "Pod"), make_search_match("b", "Pod")]);
     state.select_next(); // 0 -> 1
     state.select_next(); // 1 -> 0 (wrap)
     assert_eq!(state.selected_result_index, Some(0));
@@ -217,10 +214,7 @@ fn test_global_search_select_previous_empty_results() {
 #[test]
 fn test_global_search_select_previous_from_none() {
     let mut state = GlobalSearchState::new();
-    state.set_results(vec![
-        make_search_match("a", "Pod"),
-        make_search_match("b", "Pod"),
-    ]);
+    state.set_results(vec![make_search_match("a", "Pod"), make_search_match("b", "Pod")]);
     state.selected_result_index = None;
     state.select_previous();
     assert_eq!(state.selected_result_index, Some(1));

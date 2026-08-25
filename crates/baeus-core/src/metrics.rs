@@ -96,9 +96,7 @@ impl MetricsState {
     }
 
     pub fn find_pod_metrics(&self, name: &str, namespace: &str) -> Option<&PodMetrics> {
-        self.pod_metrics
-            .iter()
-            .find(|m| m.pod_name == name && m.namespace == namespace)
+        self.pod_metrics.iter().find(|m| m.pod_name == name && m.namespace == namespace)
     }
 
     pub fn find_node_metrics(&self, name: &str) -> Option<&NodeMetrics> {
@@ -135,10 +133,7 @@ impl MetricsState {
 
     /// Get pod metrics for a given namespace.
     pub fn pods_in_namespace(&self, namespace: &str) -> Vec<&PodMetrics> {
-        self.pod_metrics
-            .iter()
-            .filter(|m| m.namespace == namespace)
-            .collect()
+        self.pod_metrics.iter().filter(|m| m.namespace == namespace).collect()
     }
 
     /// Get the top N pods by CPU usage.
@@ -173,12 +168,7 @@ pub struct MetricsPollingConfig {
 
 impl Default for MetricsPollingConfig {
     fn default() -> Self {
-        Self {
-            interval_secs: 30,
-            poll_nodes: true,
-            poll_pods: true,
-            namespace_filter: None,
-        }
+        Self { interval_secs: 30, poll_nodes: true, poll_pods: true, namespace_filter: None }
     }
 }
 
@@ -318,10 +308,7 @@ mod tests {
     #[test]
     fn test_metrics_state_set_unavailable() {
         let mut state = MetricsState::default();
-        state.set_available(
-            vec![sample_node_metrics("node-1")],
-            vec![],
-        );
+        state.set_available(vec![sample_node_metrics("node-1")], vec![]);
         state.set_unavailable();
 
         assert_eq!(state.availability, MetricsAvailability::Unavailable);
@@ -333,10 +320,7 @@ mod tests {
         let mut state = MetricsState::default();
         state.set_available(
             vec![],
-            vec![
-                sample_pod_metrics("nginx", "default"),
-                sample_pod_metrics("redis", "cache"),
-            ],
+            vec![sample_pod_metrics("nginx", "default"), sample_pod_metrics("redis", "cache")],
         );
 
         assert!(state.find_pod_metrics("nginx", "default").is_some());

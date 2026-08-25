@@ -1,6 +1,6 @@
+use baeus_core::Namespace;
 use baeus_core::cluster::{AuthMethod, ClusterConnection, ConnectionStatus};
 use baeus_core::resource::Resource;
-use baeus_core::Namespace;
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -49,16 +49,11 @@ impl MockCluster {
     }
 
     pub fn list_resources(&self, kind: &str) -> Vec<&Resource> {
-        self.resources
-            .get(kind)
-            .map(|r| r.iter().collect())
-            .unwrap_or_default()
+        self.resources.get(kind).map(|r| r.iter().collect()).unwrap_or_default()
     }
 
     pub fn get_resource(&self, kind: &str, name: &str) -> Option<&Resource> {
-        self.resources
-            .get(kind)
-            .and_then(|resources| resources.iter().find(|r| r.name == name))
+        self.resources.get(kind).and_then(|resources| resources.iter().find(|r| r.name == name))
     }
 }
 
@@ -85,10 +80,7 @@ impl MockClusterManager {
     }
 
     pub fn connected_clusters(&self) -> Vec<&MockCluster> {
-        self.clusters
-            .iter()
-            .filter(|c| c.connection.is_connected())
-            .collect()
+        self.clusters.iter().filter(|c| c.connection.is_connected()).collect()
     }
 }
 

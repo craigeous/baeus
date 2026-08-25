@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use libloading::{Library, Symbol};
 
-use crate::{PluginError, PluginManifest, APP_VERSION};
+use crate::{APP_VERSION, PluginError, PluginManifest};
 
 /// Trait that every Baeus plugin must implement.
 ///
@@ -40,9 +40,7 @@ pub struct LoadedPlugin {
 
 impl std::fmt::Debug for LoadedPlugin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LoadedPlugin")
-            .field("plugin", &"<dyn BaeusPlugin>")
-            .finish()
+        f.debug_struct("LoadedPlugin").field("plugin", &"<dyn BaeusPlugin>").finish()
     }
 }
 
@@ -182,10 +180,7 @@ impl PluginLoader {
         let manifest = plugin.manifest();
         check_version_compatibility(&manifest.min_app_version, APP_VERSION)?;
 
-        Ok(LoadedPlugin {
-            plugin,
-            _library: library,
-        })
+        Ok(LoadedPlugin { plugin, _library: library })
     }
 
     /// Scan the plugin directory for shared library files.
@@ -262,15 +257,9 @@ fn parse_semver(version: &str) -> Result<(u32, u32, u32), String> {
         return Err(format!("expected 3 parts, got {}", parts.len()));
     }
 
-    let major = parts[0]
-        .parse::<u32>()
-        .map_err(|e| format!("invalid major version: {}", e))?;
-    let minor = parts[1]
-        .parse::<u32>()
-        .map_err(|e| format!("invalid minor version: {}", e))?;
-    let patch = parts[2]
-        .parse::<u32>()
-        .map_err(|e| format!("invalid patch version: {}", e))?;
+    let major = parts[0].parse::<u32>().map_err(|e| format!("invalid major version: {}", e))?;
+    let minor = parts[1].parse::<u32>().map_err(|e| format!("invalid minor version: {}", e))?;
+    let patch = parts[2].parse::<u32>().map_err(|e| format!("invalid patch version: {}", e))?;
 
     Ok((major, minor, patch))
 }

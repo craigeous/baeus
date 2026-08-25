@@ -5,8 +5,8 @@
 // manages tabs (open, reuse, close, activate).
 
 use baeus_ui::icons::ResourceCategory;
-use baeus_ui::layout::workspace::WorkspaceState;
 use baeus_ui::layout::NavigationTarget;
+use baeus_ui::layout::workspace::WorkspaceState;
 use std::collections::HashSet;
 
 // ===================================================================
@@ -16,9 +16,7 @@ use std::collections::HashSet;
 fn all_targets(cluster: &str) -> Vec<NavigationTarget> {
     vec![
         NavigationTarget::ClusterList,
-        NavigationTarget::Dashboard {
-            cluster_context: cluster.to_string(),
-        },
+        NavigationTarget::Dashboard { cluster_context: cluster.to_string() },
         NavigationTarget::ResourceList {
             cluster_context: cluster.to_string(),
             category: ResourceCategory::Workloads,
@@ -30,26 +28,16 @@ fn all_targets(cluster: &str) -> Vec<NavigationTarget> {
             name: "nginx".to_string(),
             namespace: Some("default".to_string()),
         },
-        NavigationTarget::HelmReleases {
-            cluster_context: cluster.to_string(),
-        },
-        NavigationTarget::HelmInstall {
-            cluster_context: cluster.to_string(),
-        },
+        NavigationTarget::HelmReleases { cluster_context: cluster.to_string() },
+        NavigationTarget::HelmInstall { cluster_context: cluster.to_string() },
         NavigationTarget::ResourceList {
             cluster_context: cluster.to_string(),
             category: ResourceCategory::Monitoring,
             kind: "Event".to_string(),
         },
-        NavigationTarget::CrdBrowser {
-            cluster_context: cluster.to_string(),
-        },
-        NavigationTarget::NamespaceMap {
-            cluster_context: cluster.to_string(),
-        },
-        NavigationTarget::PluginManager {
-            cluster_context: cluster.to_string(),
-        },
+        NavigationTarget::CrdBrowser { cluster_context: cluster.to_string() },
+        NavigationTarget::NamespaceMap { cluster_context: cluster.to_string() },
+        NavigationTarget::PluginManager { cluster_context: cluster.to_string() },
         NavigationTarget::Preferences,
     ]
 }
@@ -67,9 +55,7 @@ fn test_cluster_list_has_no_cluster_context() {
 
 #[test]
 fn test_dashboard_has_correct_cluster_context() {
-    let target = NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    };
+    let target = NavigationTarget::Dashboard { cluster_context: "prod".to_string() };
     assert_eq!(target.cluster_context(), Some("prod"));
 }
 
@@ -96,17 +82,13 @@ fn test_resource_detail_has_correct_cluster_context() {
 
 #[test]
 fn test_helm_releases_has_correct_cluster_context() {
-    let target = NavigationTarget::HelmReleases {
-        cluster_context: "prod".to_string(),
-    };
+    let target = NavigationTarget::HelmReleases { cluster_context: "prod".to_string() };
     assert_eq!(target.cluster_context(), Some("prod"));
 }
 
 #[test]
 fn test_helm_install_has_correct_cluster_context() {
-    let target = NavigationTarget::HelmInstall {
-        cluster_context: "prod".to_string(),
-    };
+    let target = NavigationTarget::HelmInstall { cluster_context: "prod".to_string() };
     assert_eq!(target.cluster_context(), Some("prod"));
 }
 
@@ -122,25 +104,19 @@ fn test_events_has_correct_cluster_context() {
 
 #[test]
 fn test_crd_browser_has_correct_cluster_context() {
-    let target = NavigationTarget::CrdBrowser {
-        cluster_context: "prod".to_string(),
-    };
+    let target = NavigationTarget::CrdBrowser { cluster_context: "prod".to_string() };
     assert_eq!(target.cluster_context(), Some("prod"));
 }
 
 #[test]
 fn test_namespace_map_has_correct_cluster_context() {
-    let target = NavigationTarget::NamespaceMap {
-        cluster_context: "prod".to_string(),
-    };
+    let target = NavigationTarget::NamespaceMap { cluster_context: "prod".to_string() };
     assert_eq!(target.cluster_context(), Some("prod"));
 }
 
 #[test]
 fn test_plugin_manager_has_correct_cluster_context() {
-    let target = NavigationTarget::PluginManager {
-        cluster_context: "prod".to_string(),
-    };
+    let target = NavigationTarget::PluginManager { cluster_context: "prod".to_string() };
     assert_eq!(target.cluster_context(), Some("prod"));
 }
 
@@ -178,9 +154,7 @@ fn test_open_tab_cluster_list_label() {
 #[test]
 fn test_open_tab_dashboard_label() {
     let mut ws = WorkspaceState::default();
-    ws.open_tab(NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    });
+    ws.open_tab(NavigationTarget::Dashboard { cluster_context: "prod".to_string() });
     assert_eq!(ws.active_tab().unwrap().label, "prod - Overview");
 }
 
@@ -210,18 +184,14 @@ fn test_open_tab_resource_detail_label() {
 #[test]
 fn test_open_tab_helm_releases_label() {
     let mut ws = WorkspaceState::default();
-    ws.open_tab(NavigationTarget::HelmReleases {
-        cluster_context: "prod".to_string(),
-    });
+    ws.open_tab(NavigationTarget::HelmReleases { cluster_context: "prod".to_string() });
     assert_eq!(ws.active_tab().unwrap().label, "prod - Helm Releases");
 }
 
 #[test]
 fn test_open_tab_helm_install_label() {
     let mut ws = WorkspaceState::default();
-    ws.open_tab(NavigationTarget::HelmInstall {
-        cluster_context: "prod".to_string(),
-    });
+    ws.open_tab(NavigationTarget::HelmInstall { cluster_context: "prod".to_string() });
     assert_eq!(ws.active_tab().unwrap().label, "prod - Install Chart");
 }
 
@@ -239,27 +209,21 @@ fn test_open_tab_events_label() {
 #[test]
 fn test_open_tab_crd_browser_label() {
     let mut ws = WorkspaceState::default();
-    ws.open_tab(NavigationTarget::CrdBrowser {
-        cluster_context: "prod".to_string(),
-    });
+    ws.open_tab(NavigationTarget::CrdBrowser { cluster_context: "prod".to_string() });
     assert_eq!(ws.active_tab().unwrap().label, "prod - Custom Resources");
 }
 
 #[test]
 fn test_open_tab_namespace_map_label() {
     let mut ws = WorkspaceState::default();
-    ws.open_tab(NavigationTarget::NamespaceMap {
-        cluster_context: "prod".to_string(),
-    });
+    ws.open_tab(NavigationTarget::NamespaceMap { cluster_context: "prod".to_string() });
     assert_eq!(ws.active_tab().unwrap().label, "prod - Resource Map");
 }
 
 #[test]
 fn test_open_tab_plugin_manager_label() {
     let mut ws = WorkspaceState::default();
-    ws.open_tab(NavigationTarget::PluginManager {
-        cluster_context: "prod".to_string(),
-    });
+    ws.open_tab(NavigationTarget::PluginManager { cluster_context: "prod".to_string() });
     assert_eq!(ws.active_tab().unwrap().label, "prod - Plugins");
 }
 
@@ -274,9 +238,7 @@ fn test_label_cluster_list() {
 
 #[test]
 fn test_label_dashboard_format() {
-    let target = NavigationTarget::Dashboard {
-        cluster_context: "alpha".to_string(),
-    };
+    let target = NavigationTarget::Dashboard { cluster_context: "alpha".to_string() };
     assert_eq!(target.label(), "alpha - Overview");
 }
 
@@ -314,17 +276,13 @@ fn test_label_resource_detail_no_namespace() {
 
 #[test]
 fn test_label_helm_releases_format() {
-    let target = NavigationTarget::HelmReleases {
-        cluster_context: "delta".to_string(),
-    };
+    let target = NavigationTarget::HelmReleases { cluster_context: "delta".to_string() };
     assert_eq!(target.label(), "delta - Helm Releases");
 }
 
 #[test]
 fn test_label_helm_install_format() {
-    let target = NavigationTarget::HelmInstall {
-        cluster_context: "delta".to_string(),
-    };
+    let target = NavigationTarget::HelmInstall { cluster_context: "delta".to_string() };
     assert_eq!(target.label(), "delta - Install Chart");
 }
 
@@ -340,25 +298,19 @@ fn test_label_events_format() {
 
 #[test]
 fn test_label_crd_browser_format() {
-    let target = NavigationTarget::CrdBrowser {
-        cluster_context: "zeta".to_string(),
-    };
+    let target = NavigationTarget::CrdBrowser { cluster_context: "zeta".to_string() };
     assert_eq!(target.label(), "zeta - Custom Resources");
 }
 
 #[test]
 fn test_label_namespace_map_format() {
-    let target = NavigationTarget::NamespaceMap {
-        cluster_context: "eta".to_string(),
-    };
+    let target = NavigationTarget::NamespaceMap { cluster_context: "eta".to_string() };
     assert_eq!(target.label(), "eta - Resource Map");
 }
 
 #[test]
 fn test_label_plugin_manager_format() {
-    let target = NavigationTarget::PluginManager {
-        cluster_context: "theta".to_string(),
-    };
+    let target = NavigationTarget::PluginManager { cluster_context: "theta".to_string() };
     assert_eq!(target.label(), "theta - Plugins");
 }
 
@@ -387,9 +339,7 @@ fn test_resource_list_pod_workloads_prod_tab_label() {
 #[test]
 fn test_dashboard_dev_tab_label() {
     let mut ws = WorkspaceState::default();
-    let target = NavigationTarget::Dashboard {
-        cluster_context: "dev".to_string(),
-    };
+    let target = NavigationTarget::Dashboard { cluster_context: "dev".to_string() };
     ws.open_tab(target);
 
     let active = ws.active_tab().expect("should have active tab");
@@ -459,9 +409,7 @@ fn test_active_tab_tracks_most_recently_opened() {
     assert_eq!(ws.active_tab_id, Some(id1));
     assert_eq!(ws.active_tab().unwrap().label, "Clusters");
 
-    let id2 = ws.open_tab(NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    });
+    let id2 = ws.open_tab(NavigationTarget::Dashboard { cluster_context: "prod".to_string() });
     assert_eq!(ws.active_tab_id, Some(id2));
     assert_eq!(ws.active_tab().unwrap().label, "prod - Overview");
 
@@ -479,9 +427,7 @@ fn test_activate_tab_switches_active() {
     let mut ws = WorkspaceState::default();
 
     let id1 = ws.open_tab(NavigationTarget::ClusterList);
-    let id2 = ws.open_tab(NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    });
+    let id2 = ws.open_tab(NavigationTarget::Dashboard { cluster_context: "prod".to_string() });
     let _id3 = ws.open_tab(NavigationTarget::ResourceList {
         cluster_context: "prod".to_string(),
         category: ResourceCategory::Monitoring,
@@ -519,9 +465,7 @@ fn test_close_active_tab_selects_previous_neighbor() {
     let mut ws = WorkspaceState::default();
 
     let _id1 = ws.open_tab(NavigationTarget::ClusterList);
-    let id2 = ws.open_tab(NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    });
+    let id2 = ws.open_tab(NavigationTarget::Dashboard { cluster_context: "prod".to_string() });
     let id3 = ws.open_tab(NavigationTarget::ResourceList {
         cluster_context: "prod".to_string(),
         category: ResourceCategory::Monitoring,
@@ -542,9 +486,7 @@ fn test_close_middle_active_tab_selects_neighbor() {
     let mut ws = WorkspaceState::default();
 
     let _id1 = ws.open_tab(NavigationTarget::ClusterList);
-    let id2 = ws.open_tab(NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    });
+    let id2 = ws.open_tab(NavigationTarget::Dashboard { cluster_context: "prod".to_string() });
     let id3 = ws.open_tab(NavigationTarget::ResourceList {
         cluster_context: "prod".to_string(),
         category: ResourceCategory::Monitoring,
@@ -568,9 +510,7 @@ fn test_close_first_active_tab_selects_next() {
     let mut ws = WorkspaceState::default();
 
     let id1 = ws.open_tab(NavigationTarget::ClusterList);
-    let id2 = ws.open_tab(NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    });
+    let id2 = ws.open_tab(NavigationTarget::Dashboard { cluster_context: "prod".to_string() });
     let _id3 = ws.open_tab(NavigationTarget::ResourceList {
         cluster_context: "prod".to_string(),
         category: ResourceCategory::Monitoring,
@@ -604,9 +544,7 @@ fn test_close_non_active_tab_does_not_change_active() {
     let mut ws = WorkspaceState::default();
 
     let id1 = ws.open_tab(NavigationTarget::ClusterList);
-    let _id2 = ws.open_tab(NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    });
+    let _id2 = ws.open_tab(NavigationTarget::Dashboard { cluster_context: "prod".to_string() });
     let id3 = ws.open_tab(NavigationTarget::ResourceList {
         cluster_context: "prod".to_string(),
         category: ResourceCategory::Monitoring,
@@ -630,9 +568,7 @@ fn test_close_non_active_tab_does_not_change_active() {
 fn test_open_same_target_twice_reuses_tab() {
     let mut ws = WorkspaceState::default();
 
-    let target = NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    };
+    let target = NavigationTarget::Dashboard { cluster_context: "prod".to_string() };
 
     let id1 = ws.open_tab(target.clone());
     let id2 = ws.open_tab(target);
@@ -670,12 +606,8 @@ fn test_open_same_resource_list_twice_reuses_tab() {
 fn test_open_different_clusters_same_variant_creates_separate_tabs() {
     let mut ws = WorkspaceState::default();
 
-    let id1 = ws.open_tab(NavigationTarget::Dashboard {
-        cluster_context: "prod".to_string(),
-    });
-    let id2 = ws.open_tab(NavigationTarget::Dashboard {
-        cluster_context: "staging".to_string(),
-    });
+    let id1 = ws.open_tab(NavigationTarget::Dashboard { cluster_context: "prod".to_string() });
+    let id2 = ws.open_tab(NavigationTarget::Dashboard { cluster_context: "staging".to_string() });
 
     assert_ne!(id1, id2);
     assert_eq!(ws.tab_count(), 2);

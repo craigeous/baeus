@@ -126,10 +126,7 @@ fn test_set_error() {
     state.add_entry(make_entry("pf-1", "nginx", 8080, 80));
     assert!(state.set_error("pf-1", "connection refused".to_string()));
     assert_eq!(state.entries[0].state, PortForwardDisplayState::Error);
-    assert_eq!(
-        state.entries[0].error_message.as_deref(),
-        Some("connection refused")
-    );
+    assert_eq!(state.entries[0].error_message.as_deref(), Some("connection refused"));
 }
 
 #[test]
@@ -151,7 +148,8 @@ fn test_entry_is_active() {
     let active = make_entry("pf-1", "nginx", 8080, 80);
     assert!(active.is_active());
 
-    let stopped = make_entry_with_state("pf-2", "redis", 6379, 6379, PortForwardDisplayState::Stopped);
+    let stopped =
+        make_entry_with_state("pf-2", "redis", 6379, 6379, PortForwardDisplayState::Stopped);
     assert!(!stopped.is_active());
 }
 
@@ -177,20 +175,8 @@ fn test_active_count_all_active() {
 fn test_active_count_mixed_states() {
     let mut state = PortForwardPanelState::new();
     state.add_entry(make_entry("pf-1", "a", 8080, 80));
-    state.add_entry(make_entry_with_state(
-        "pf-2",
-        "b",
-        8081,
-        81,
-        PortForwardDisplayState::Stopped,
-    ));
-    state.add_entry(make_entry_with_state(
-        "pf-3",
-        "c",
-        8082,
-        82,
-        PortForwardDisplayState::Error,
-    ));
+    state.add_entry(make_entry_with_state("pf-2", "b", 8081, 81, PortForwardDisplayState::Stopped));
+    state.add_entry(make_entry_with_state("pf-3", "c", 8082, 82, PortForwardDisplayState::Error));
     assert_eq!(state.active_count(), 1);
 }
 

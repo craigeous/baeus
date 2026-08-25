@@ -1,6 +1,6 @@
 use baeus_plugins::{Plugin, PluginError, PluginPermission, PluginState};
 use gpui::prelude::FluentBuilder as _;
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 
 use crate::theme::Theme;
 
@@ -55,9 +55,7 @@ impl PluginManagerState {
 
     /// Returns a reference to the currently selected plugin, if any.
     pub fn selected(&self) -> Option<&Plugin> {
-        self.selected_plugin.as_ref().and_then(|id| {
-            self.plugins.iter().find(|p| p.id == *id)
-        })
+        self.selected_plugin.as_ref().and_then(|id| self.plugins.iter().find(|p| p.id == *id))
     }
 
     /// Install a plugin (add to list).
@@ -248,19 +246,8 @@ impl PluginManagerViewComponent {
             .py_1()
             .rounded(px(4.0))
             .bg(colors.surface)
-            .child(
-                div()
-                    .w(px(8.0))
-                    .h(px(8.0))
-                    .rounded(px(4.0))
-                    .bg(dot_color),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_primary)
-                    .child(label),
-            )
+            .child(div().w(px(8.0)).h(px(8.0)).rounded(px(4.0)).bg(dot_color))
+            .child(div().text_xs().text_color(colors.text_primary).child(label))
     }
 
     /// Plugin list: grid or list of plugin cards.
@@ -269,23 +256,12 @@ impl PluginManagerViewComponent {
             return self.render_empty_state(colors);
         }
 
-        let mut list = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .w_full()
-            .overflow_hidden()
-            .gap(px(8.0))
-            .px_3()
-            .py_3();
+        let mut list =
+            div().flex().flex_col().flex_1().w_full().overflow_hidden().gap(px(8.0)).px_3().py_3();
 
         for plugin in &self.state.plugins {
-            let is_selected = self
-                .state
-                .selected_plugin
-                .as_ref()
-                .map(|id| id == &plugin.id)
-                .unwrap_or(false);
+            let is_selected =
+                self.state.selected_plugin.as_ref().map(|id| id == &plugin.id).unwrap_or(false);
             list = list.child(self.render_plugin_card(plugin, is_selected, colors));
         }
 
@@ -303,11 +279,7 @@ impl PluginManagerViewComponent {
         let state_label = SharedString::from(Self::state_label(&plugin.state));
 
         let card_id = format!("plugin-card-{}", plugin.id);
-        let bg = if selected {
-            colors.selection
-        } else {
-            colors.surface
-        };
+        let bg = if selected { colors.selection } else { colors.surface };
 
         div()
             .id(ElementId::Name(SharedString::from(card_id)))
@@ -320,9 +292,7 @@ impl PluginManagerViewComponent {
             .border_1()
             .border_color(colors.border)
             .cursor_pointer()
-            .when(selected, |el| {
-                el.border_l_4().border_color(colors.accent)
-            })
+            .when(selected, |el| el.border_l_4().border_color(colors.accent))
             .child(self.render_plugin_header(plugin, state_label, state_color, colors))
             .child(self.render_plugin_description(&plugin.manifest.description, colors))
             .child(self.render_plugin_permissions(&plugin.manifest.permissions, colors))
@@ -362,11 +332,7 @@ impl PluginManagerViewComponent {
     }
 
     /// State badge: colored dot + label.
-    fn render_state_badge(
-        &self,
-        label: SharedString,
-        color: Rgba,
-    ) -> gpui::Div {
+    fn render_state_badge(&self, label: SharedString, color: Rgba) -> gpui::Div {
         div()
             .flex()
             .flex_row()
@@ -375,19 +341,8 @@ impl PluginManagerViewComponent {
             .px_2()
             .py_1()
             .rounded(px(4.0))
-            .bg(gpui::Rgba {
-                r: color.r,
-                g: color.g,
-                b: color.b,
-                a: 0.1,
-            })
-            .child(
-                div()
-                    .w(px(6.0))
-                    .h(px(6.0))
-                    .rounded(px(3.0))
-                    .bg(color),
-            )
+            .bg(gpui::Rgba { r: color.r, g: color.g, b: color.b, a: 0.1 })
+            .child(div().w(px(6.0)).h(px(6.0)).rounded(px(3.0)).bg(color))
             .child(div().text_xs().text_color(color).child(label))
     }
 
@@ -410,12 +365,7 @@ impl PluginManagerViewComponent {
         permissions: &[PluginPermission],
         _colors: &PluginManagerColors,
     ) -> gpui::Div {
-        let mut row = div()
-            .flex()
-            .flex_row()
-            .flex_wrap()
-            .gap(px(4.0))
-            .mb_2();
+        let mut row = div().flex().flex_row().flex_wrap().gap(px(4.0)).mb_2();
 
         for permission in permissions {
             row = row.child(self.render_permission_badge(permission));
@@ -425,10 +375,7 @@ impl PluginManagerViewComponent {
     }
 
     /// Single permission badge.
-    fn render_permission_badge(
-        &self,
-        permission: &PluginPermission,
-    ) -> gpui::Div {
+    fn render_permission_badge(&self, permission: &PluginPermission) -> gpui::Div {
         let label = Self::permission_label(permission);
         let color = self.permission_color(permission);
 
@@ -436,12 +383,7 @@ impl PluginManagerViewComponent {
             .px_2()
             .py_1()
             .rounded(px(4.0))
-            .bg(gpui::Rgba {
-                r: color.r,
-                g: color.g,
-                b: color.b,
-                a: 0.1,
-            })
+            .bg(gpui::Rgba { r: color.r, g: color.g, b: color.b, a: 0.1 })
             .border_1()
             .border_color(color)
             .text_xs()
@@ -450,11 +392,7 @@ impl PluginManagerViewComponent {
     }
 
     /// Plugin action buttons: enable/disable toggle, uninstall.
-    fn render_plugin_actions(
-        &self,
-        plugin: &Plugin,
-        colors: &PluginManagerColors,
-    ) -> gpui::Div {
+    fn render_plugin_actions(&self, plugin: &Plugin, colors: &PluginManagerColors) -> gpui::Div {
         div()
             .flex()
             .flex_row()
@@ -476,11 +414,7 @@ impl PluginManagerViewComponent {
             PluginState::Error(_) => ("Enable", false),
         };
 
-        let bg = if enabled {
-            colors.success
-        } else {
-            colors.accent
-        };
+        let bg = if enabled { colors.success } else { colors.accent };
 
         let btn_id = format!("toggle-{plugin_id}");
 
@@ -524,10 +458,7 @@ impl PluginManagerViewComponent {
     fn render_detail_panel(&self, colors: &PluginManagerColors) -> Option<gpui::Div> {
         let plugin = self.state.selected()?;
 
-        let installed_at = plugin
-            .installed_at
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string();
+        let installed_at = plugin.installed_at.format("%Y-%m-%d %H:%M:%S").to_string();
 
         Some(
             div()
@@ -599,12 +530,7 @@ impl PluginManagerViewComponent {
             .flex_1()
             .items_center()
             .justify_center()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("No plugins installed"),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child("No plugins installed"))
             .child(
                 div()
                     .text_xs()
@@ -622,34 +548,15 @@ impl PluginManagerViewComponent {
             .flex_1()
             .items_center()
             .justify_center()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("Loading plugins..."),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child("Loading plugins..."))
     }
 
     /// Error message display.
     fn render_error(&self, colors: &PluginManagerColors) -> gpui::Div {
-        let msg = self
-            .state
-            .error
-            .as_deref()
-            .unwrap_or("Unknown error");
-        div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .items_center()
-            .justify_center()
-            .px_4()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.error)
-                    .child(SharedString::from(msg.to_string())),
-            )
+        let msg = self.state.error.as_deref().unwrap_or("Unknown error");
+        div().flex().flex_col().flex_1().items_center().justify_center().px_4().child(
+            div().text_sm().text_color(colors.error).child(SharedString::from(msg.to_string())),
+        )
     }
 }
 
@@ -669,11 +576,7 @@ impl Render for PluginManagerViewComponent {
             selection: self.theme.colors.selection.to_gpui(),
         };
 
-        let mut root = div()
-            .flex()
-            .flex_col()
-            .size_full()
-            .bg(colors.background);
+        let mut root = div().flex().flex_col().size_full().bg(colors.background);
 
         root = root.child(self.render_toolbar(&colors));
 
@@ -711,10 +614,7 @@ mod tests {
     }
 
     fn sample_plugin(id: &str, name: &str) -> Plugin {
-        Plugin::new(
-            sample_manifest(id, name),
-            format!("/plugins/{id}.dylib"),
-        )
+        Plugin::new(sample_manifest(id, name), format!("/plugins/{id}.dylib"))
     }
 
     fn sample_plugins() -> Vec<Plugin> {
@@ -781,10 +681,7 @@ mod tests {
         state.set_plugins(sample_plugins());
 
         state.select_plugin("io.example.metrics");
-        assert_eq!(
-            state.selected_plugin.as_deref(),
-            Some("io.example.metrics")
-        );
+        assert_eq!(state.selected_plugin.as_deref(), Some("io.example.metrics"));
 
         let selected = state.selected().unwrap();
         assert_eq!(selected.manifest.name, "Metrics");
@@ -826,9 +723,7 @@ mod tests {
     #[test]
     fn test_install_duplicate_rejected() {
         let mut state = PluginManagerState::default();
-        state
-            .install(sample_plugin("io.example.dup", "Dup"))
-            .unwrap();
+        state.install(sample_plugin("io.example.dup", "Dup")).unwrap();
 
         let result = state.install(sample_plugin("io.example.dup", "Dup Again"));
         assert!(result.is_err());
@@ -863,11 +758,7 @@ mod tests {
 
         // metrics is Enabled
         state.disable("io.example.metrics").unwrap();
-        let plugin = state
-            .plugins
-            .iter()
-            .find(|p| p.id == "io.example.metrics")
-            .unwrap();
+        let plugin = state.plugins.iter().find(|p| p.id == "io.example.metrics").unwrap();
         assert_eq!(plugin.state, PluginState::Disabled);
     }
 
@@ -907,10 +798,7 @@ mod tests {
 
         state.uninstall("io.example.gitops").unwrap();
         // Metrics selection should still be there
-        assert_eq!(
-            state.selected_plugin.as_deref(),
-            Some("io.example.metrics")
-        );
+        assert_eq!(state.selected_plugin.as_deref(), Some("io.example.metrics"));
     }
 
     #[test]
@@ -965,9 +853,7 @@ mod tests {
         assert_eq!(state.plugins.len(), 3);
 
         // Install new plugin
-        state
-            .install(sample_plugin("io.example.new", "New"))
-            .unwrap();
+        state.install(sample_plugin("io.example.new", "New")).unwrap();
         assert_eq!(state.plugins.len(), 4);
 
         // Enable it
@@ -998,10 +884,7 @@ mod tests {
 
         state.set_error("failed to scan directory".to_string());
         assert!(!state.loading);
-        assert_eq!(
-            state.error.as_deref(),
-            Some("failed to scan directory")
-        );
+        assert_eq!(state.error.as_deref(), Some("failed to scan directory"));
         assert!(state.plugins.is_empty());
     }
 

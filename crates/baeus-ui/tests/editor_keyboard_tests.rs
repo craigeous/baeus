@@ -2,21 +2,13 @@
 // Tests for cursor movement, text insertion/deletion, undo/redo via keyboard,
 // selection, and read-only mode protection.
 
-use baeus_ui::components::editor_view::{
-    CursorDirection, EditorViewState, KeyModifiers,
-};
+use baeus_ui::components::editor_view::{CursorDirection, EditorViewState, KeyModifiers};
 
 const SAMPLE_YAML: &str =
     "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: nginx\nspec:\n  replicas: 3\n";
 
 fn make_editor() -> EditorViewState {
-    EditorViewState::new(
-        SAMPLE_YAML,
-        "Deployment",
-        "nginx",
-        Some("default".to_string()),
-        "12345",
-    )
+    EditorViewState::new(SAMPLE_YAML, "Deployment", "nginx", Some("default".to_string()), "12345")
 }
 
 fn no_modifiers() -> KeyModifiers {
@@ -24,18 +16,11 @@ fn no_modifiers() -> KeyModifiers {
 }
 
 fn cmd() -> KeyModifiers {
-    KeyModifiers {
-        cmd: true,
-        ..Default::default()
-    }
+    KeyModifiers { cmd: true, ..Default::default() }
 }
 
 fn cmd_shift() -> KeyModifiers {
-    KeyModifiers {
-        cmd: true,
-        shift: true,
-        ..Default::default()
-    }
+    KeyModifiers { cmd: true, shift: true, ..Default::default() }
 }
 
 // === Typing printable characters ===

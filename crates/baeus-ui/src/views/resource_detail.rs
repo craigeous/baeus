@@ -1,6 +1,6 @@
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
 use crate::components::editor_view::EditorViewState;
 use crate::theme::Theme;
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -79,9 +79,8 @@ pub struct ExecConfirmState {
 impl ExecConfirmState {
     /// Create a new exec confirmation prompt.
     pub fn new(pod_name: &str, container_name: Option<&str>) -> Self {
-        let container_info = container_name
-            .map(|c| format!(" (container: {c})"))
-            .unwrap_or_default();
+        let container_info =
+            container_name.map(|c| format!(" (container: {c})")).unwrap_or_default();
         Self {
             pod_name: pod_name.to_string(),
             container_name: container_name.map(|s| s.to_string()),
@@ -125,7 +124,12 @@ pub struct PortForwardConfirmState {
 
 impl PortForwardConfirmState {
     /// Create a new port-forward confirmation prompt.
-    pub fn new(resource_kind: &str, resource_name: &str, local_port: Option<u16>, remote_port: Option<u16>) -> Self {
+    pub fn new(
+        resource_kind: &str,
+        resource_name: &str,
+        local_port: Option<u16>,
+        remote_port: Option<u16>,
+    ) -> Self {
         let port_info = match (local_port, remote_port) {
             (Some(l), Some(r)) => format!(" (local:{l} -> remote:{r})"),
             (None, Some(r)) => format!(" (remote:{r})"),
@@ -299,10 +303,7 @@ impl ResourceDetailState {
 
     /// Returns the number of warning events.
     pub fn warning_event_count(&self) -> usize {
-        self.events
-            .iter()
-            .filter(|e| e.type_name == "Warning")
-            .count()
+        self.events.iter().filter(|e| e.type_name == "Warning").count()
     }
 
     // --- T075: Logs and Terminal tab wiring ---
@@ -336,9 +337,7 @@ impl ResourceDetailState {
 
     /// Returns true if exec has been confirmed and terminal can be opened.
     pub fn is_exec_confirmed(&self) -> bool {
-        self.exec_confirm
-            .as_ref()
-            .is_some_and(|c| c.is_confirmed())
+        self.exec_confirm.as_ref().is_some_and(|c| c.is_confirmed())
     }
 
     /// Switch to the Logs tab (convenience).
@@ -371,12 +370,8 @@ impl ResourceDetailState {
 
     /// Open a port-forward confirmation dialog before establishing connection.
     pub fn request_port_forward(&mut self, local_port: Option<u16>, remote_port: Option<u16>) {
-        self.port_forward_confirm = Some(PortForwardConfirmState::new(
-            &self.kind,
-            &self.name,
-            local_port,
-            remote_port,
-        ));
+        self.port_forward_confirm =
+            Some(PortForwardConfirmState::new(&self.kind, &self.name, local_port, remote_port));
     }
 
     /// Confirm the port-forward action.
@@ -398,9 +393,7 @@ impl ResourceDetailState {
 
     /// Returns true if port-forward has been confirmed.
     pub fn is_port_forward_confirmed(&self) -> bool {
-        self.port_forward_confirm
-            .as_ref()
-            .is_some_and(|c| c.is_confirmed())
+        self.port_forward_confirm.as_ref().is_some_and(|c| c.is_confirmed())
     }
 
     // --- T084: YAML tab wiring ---
@@ -517,16 +510,17 @@ impl ResourceDetailView {
     }
 
     /// Render a single tab.
-    fn render_tab(&self, tab: &DetailTab, idx: usize, colors: &DetailColors) -> gpui::Stateful<gpui::Div> {
+    fn render_tab(
+        &self,
+        tab: &DetailTab,
+        idx: usize,
+        colors: &DetailColors,
+    ) -> gpui::Stateful<gpui::Div> {
         let is_active = *tab == self.state.active_tab;
         let label = SharedString::from(tab.label().to_string());
         let tab_id = ElementId::Name(SharedString::from(format!("tab-{idx}")));
 
-        let text_color = if is_active {
-            colors.accent
-        } else {
-            colors.text_secondary
-        };
+        let text_color = if is_active { colors.accent } else { colors.text_secondary };
 
         let mut tab_div = div()
             .id(tab_id)
@@ -548,21 +542,11 @@ impl ResourceDetailView {
     fn render_overview(&self, colors: &DetailColors) -> gpui::Div {
         let name = SharedString::from(self.state.name.clone());
         let kind = SharedString::from(self.state.kind.clone());
-        let ns = self
-            .state
-            .namespace
-            .as_deref()
-            .unwrap_or("(cluster-scoped)");
+        let ns = self.state.namespace.as_deref().unwrap_or("(cluster-scoped)");
         let ns_text = SharedString::from(ns.to_string());
 
         let header = self.render_overview_header(&name, &kind, &ns_text, colors);
-        let mut overview = div()
-            .flex()
-            .flex_col()
-            .w_full()
-            .p_4()
-            .gap(px(8.0))
-            .child(header);
+        let mut overview = div().flex().flex_col().w_full().p_4().gap(px(8.0)).child(header);
 
         // Related resources
         if !self.state.related_resources.is_empty() {
@@ -595,65 +579,37 @@ impl ResourceDetailView {
                 div()
                     .flex()
                     .gap(px(8.0))
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(colors.text_secondary)
-                            .child(kind.clone()),
-                    )
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(colors.text_muted)
-                            .child(ns_text.clone()),
-                    ),
+                    .child(div().text_sm().text_color(colors.text_secondary).child(kind.clone()))
+                    .child(div().text_sm().text_color(colors.text_muted).child(ns_text.clone())),
             )
     }
 
     /// Render related resources list.
     fn render_related_resources(&self, colors: &DetailColors) -> gpui::Div {
-        let mut section = div()
-            .flex()
-            .flex_col()
-            .gap(px(4.0))
-            .child(
-                div()
-                    .text_sm()
-                    .font_weight(gpui::FontWeight::BOLD)
-                    .text_color(colors.text_primary)
-                    .child("Related Resources"),
-            );
+        let mut section = div().flex().flex_col().gap(px(4.0)).child(
+            div()
+                .text_sm()
+                .font_weight(gpui::FontWeight::BOLD)
+                .text_color(colors.text_primary)
+                .child("Related Resources"),
+        );
 
         for related in &self.state.related_resources {
             let text = SharedString::from(format!(
                 "{}/{} ({})",
                 related.kind, related.name, related.relationship
             ));
-            section = section.child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_secondary)
-                    .child(text),
-            );
+            section = section.child(div().text_sm().text_color(colors.text_secondary).child(text));
         }
 
         section
     }
 
     /// Render the JSON spec/status tab content.
-    fn render_json_content(
-        &self,
-        json: Option<&str>,
-        colors: &DetailColors,
-    ) -> gpui::Div {
+    fn render_json_content(&self, json: Option<&str>, colors: &DetailColors) -> gpui::Div {
         let text = json.unwrap_or("(not available)");
         let content = SharedString::from(text.to_string());
-        div()
-            .w_full()
-            .p_4()
-            .text_xs()
-            .text_color(colors.text_secondary)
-            .child(content)
+        div().w_full().p_4().text_xs().text_color(colors.text_secondary).child(content)
     }
 
     /// Render the events tab content.
@@ -661,12 +617,8 @@ impl ResourceDetailView {
         let mut container = div().flex().flex_col().w_full().p_4().gap(px(4.0));
 
         if self.state.events.is_empty() {
-            container = container.child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("No events"),
-            );
+            container =
+                container.child(div().text_sm().text_color(colors.text_muted).child("No events"));
         } else {
             for event in &self.state.events {
                 container = container.child(self.render_event_row(event, colors));
@@ -678,11 +630,8 @@ impl ResourceDetailView {
 
     /// Render a single event row.
     fn render_event_row(&self, event: &EventDisplay, colors: &DetailColors) -> gpui::Div {
-        let type_color = if event.type_name == "Warning" {
-            colors.warning
-        } else {
-            colors.text_secondary
-        };
+        let type_color =
+            if event.type_name == "Warning" { colors.warning } else { colors.text_secondary };
 
         let type_text = SharedString::from(event.type_name.clone());
         let reason = SharedString::from(event.reason.clone());
@@ -693,41 +642,19 @@ impl ResourceDetailView {
             .flex_row()
             .gap(px(8.0))
             .py_1()
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(type_color)
-                    .w(px(60.0))
-                    .child(type_text),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_primary)
-                    .w(px(120.0))
-                    .child(reason),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .text_xs()
-                    .text_color(colors.text_secondary)
-                    .child(message),
-            )
+            .child(div().text_xs().text_color(type_color).w(px(60.0)).child(type_text))
+            .child(div().text_xs().text_color(colors.text_primary).w(px(120.0)).child(reason))
+            .child(div().flex_1().text_xs().text_color(colors.text_secondary).child(message))
     }
 
     /// Render the active tab content.
     fn render_tab_content(&self, colors: &DetailColors) -> gpui::Div {
         match &self.state.active_tab {
             DetailTab::Overview => self.render_overview(colors),
-            DetailTab::Spec => self.render_json_content(
-                self.state.spec_json.as_deref(),
-                colors,
-            ),
-            DetailTab::Status => self.render_json_content(
-                self.state.status_json.as_deref(),
-                colors,
-            ),
+            DetailTab::Spec => self.render_json_content(self.state.spec_json.as_deref(), colors),
+            DetailTab::Status => {
+                self.render_json_content(self.state.status_json.as_deref(), colors)
+            }
             DetailTab::Events => self.render_events(colors),
             DetailTab::Yaml => self.render_yaml_content(colors),
             DetailTab::Conditions => self.render_conditions(colors),
@@ -736,11 +663,7 @@ impl ResourceDetailView {
                     "{} (not yet implemented)",
                     self.state.active_tab.label()
                 ));
-                div()
-                    .p_4()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child(label)
+                div().p_4().text_sm().text_color(colors.text_muted).child(label)
             }
         }
     }
@@ -764,11 +687,7 @@ impl ResourceDetailView {
     fn render_conditions(&self, colors: &DetailColors) -> gpui::Div {
         if self.state.conditions.is_empty() {
             let msg = SharedString::from("No conditions available");
-            return div()
-                .p_4()
-                .text_sm()
-                .text_color(colors.text_muted)
-                .child(msg);
+            return div().p_4().text_sm().text_color(colors.text_muted).child(msg);
         }
 
         let mut table = div().flex().flex_col().w_full().p_4().gap(px(4.0));
@@ -796,46 +715,37 @@ impl ResourceDetailView {
             } else {
                 colors.warning
             };
-            let row = div()
-                .flex()
-                .flex_row()
-                .gap(px(8.0))
-                .py(px(2.0))
-                .text_xs()
-                .child(
-                    div()
-                        .w(px(140.0))
-                        .text_color(colors.text_primary)
-                        .child(SharedString::from(cond.type_name.clone())),
-                )
-                .child(
-                    div()
-                        .w(px(80.0))
-                        .text_color(status_color)
-                        .child(SharedString::from(cond.status.clone())),
-                )
-                .child(
-                    div()
-                        .w(px(120.0))
-                        .text_color(colors.text_secondary)
-                        .child(SharedString::from(
-                            cond.reason.as_deref().unwrap_or("-").to_string(),
-                        )),
-                )
-                .child(
-                    div()
-                        .w(px(80.0))
-                        .text_color(colors.text_secondary)
-                        .child(SharedString::from(cond.age.clone())),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .text_color(colors.text_secondary)
-                        .child(SharedString::from(
-                            cond.message.as_deref().unwrap_or("-").to_string(),
-                        )),
-                );
+            let row =
+                div()
+                    .flex()
+                    .flex_row()
+                    .gap(px(8.0))
+                    .py(px(2.0))
+                    .text_xs()
+                    .child(
+                        div()
+                            .w(px(140.0))
+                            .text_color(colors.text_primary)
+                            .child(SharedString::from(cond.type_name.clone())),
+                    )
+                    .child(
+                        div()
+                            .w(px(80.0))
+                            .text_color(status_color)
+                            .child(SharedString::from(cond.status.clone())),
+                    )
+                    .child(div().w(px(120.0)).text_color(colors.text_secondary).child(
+                        SharedString::from(cond.reason.as_deref().unwrap_or("-").to_string()),
+                    ))
+                    .child(
+                        div()
+                            .w(px(80.0))
+                            .text_color(colors.text_secondary)
+                            .child(SharedString::from(cond.age.clone())),
+                    )
+                    .child(div().flex_1().text_color(colors.text_secondary).child(
+                        SharedString::from(cond.message.as_deref().unwrap_or("-").to_string()),
+                    ));
             table = table.child(row);
         }
 
@@ -868,12 +778,7 @@ impl Render for ResourceDetailView {
             text_muted: self.theme.colors.text_muted.to_gpui(),
         };
 
-        let mut container = div()
-            .flex()
-            .flex_col()
-            .w_full()
-            .h_full()
-            .bg(colors.background);
+        let mut container = div().flex().flex_col().w_full().h_full().bg(colors.background);
 
         if self.state.loading {
             container = container.child(
@@ -1003,4 +908,3 @@ pub struct PvcDetail {
     pub storage_class_name: Option<String>,
     pub volume_name: Option<String>,
 }
-

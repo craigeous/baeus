@@ -7,11 +7,11 @@
 //! - Quick actions
 //! - RBAC integration
 
+use baeus_core::rbac::{PermissionCheck, PermissionResult, RbacCache, RbacVerb};
 use baeus_ui::views::resource_list::{
-    columns_for_kind, ResourceListState, actions_for_kind, api_group_for_kind,
-    kind_to_plural, resource_for_action, verb_for_action, QuickAction,
+    QuickAction, ResourceListState, actions_for_kind, api_group_for_kind, columns_for_kind,
+    kind_to_plural, resource_for_action, verb_for_action,
 };
-use baeus_core::rbac::{RbacCache, RbacVerb, PermissionCheck, PermissionResult};
 
 // ---------------------------------------------------------------------------
 // T072: Storage resource column definitions
@@ -311,11 +311,21 @@ fn test_filtered_actions_pvc_all_allowed() {
 
     // Grant permissions for PVC
     rbac_cache.record(
-        PermissionCheck::new(RbacVerb::Update, "persistentvolumeclaims", "", Some("default".to_string())),
+        PermissionCheck::new(
+            RbacVerb::Update,
+            "persistentvolumeclaims",
+            "",
+            Some("default".to_string()),
+        ),
         PermissionResult::allowed(),
     );
     rbac_cache.record(
-        PermissionCheck::new(RbacVerb::Delete, "persistentvolumeclaims", "", Some("default".to_string())),
+        PermissionCheck::new(
+            RbacVerb::Delete,
+            "persistentvolumeclaims",
+            "",
+            Some("default".to_string()),
+        ),
         PermissionResult::allowed(),
     );
 
@@ -406,13 +416,7 @@ fn test_cancel_delete_storage_class() {
 fn test_complete_action_persistent_volume() {
     let mut state = ResourceListState::new("PersistentVolume", "v1");
 
-    state.submit_action(
-        "pv-uid-789",
-        "my-pv",
-        None,
-        "PersistentVolume",
-        QuickAction::Delete,
-    );
+    state.submit_action("pv-uid-789", "my-pv", None, "PersistentVolume", QuickAction::Delete);
 
     state.confirm_action();
     state.complete_action("PersistentVolume deleted successfully");

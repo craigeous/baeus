@@ -39,10 +39,7 @@ impl HighlightToken {
     }
 
     pub fn is_value(&self) -> bool {
-        matches!(
-            self,
-            Self::StringValue | Self::NumberValue | Self::BooleanValue | Self::NullValue
-        )
+        matches!(self, Self::StringValue | Self::NumberValue | Self::BooleanValue | Self::NullValue)
     }
 }
 
@@ -59,34 +56,16 @@ mod tests {
 
     #[test]
     fn test_token_from_node_kind() {
-        assert_eq!(
-            HighlightToken::from_node_kind("block_mapping_pair"),
-            HighlightToken::Key
-        );
+        assert_eq!(HighlightToken::from_node_kind("block_mapping_pair"), HighlightToken::Key);
         assert_eq!(
             HighlightToken::from_node_kind("double_quote_scalar"),
             HighlightToken::StringValue
         );
-        assert_eq!(
-            HighlightToken::from_node_kind("integer_scalar"),
-            HighlightToken::NumberValue
-        );
-        assert_eq!(
-            HighlightToken::from_node_kind("boolean_scalar"),
-            HighlightToken::BooleanValue
-        );
-        assert_eq!(
-            HighlightToken::from_node_kind("null_scalar"),
-            HighlightToken::NullValue
-        );
-        assert_eq!(
-            HighlightToken::from_node_kind("comment"),
-            HighlightToken::Comment
-        );
-        assert_eq!(
-            HighlightToken::from_node_kind("unknown"),
-            HighlightToken::Default
-        );
+        assert_eq!(HighlightToken::from_node_kind("integer_scalar"), HighlightToken::NumberValue);
+        assert_eq!(HighlightToken::from_node_kind("boolean_scalar"), HighlightToken::BooleanValue);
+        assert_eq!(HighlightToken::from_node_kind("null_scalar"), HighlightToken::NullValue);
+        assert_eq!(HighlightToken::from_node_kind("comment"), HighlightToken::Comment);
+        assert_eq!(HighlightToken::from_node_kind("unknown"), HighlightToken::Default);
     }
 
     #[test]

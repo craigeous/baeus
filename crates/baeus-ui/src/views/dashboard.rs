@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use gpui::*;
 use gpui::prelude::FluentBuilder as _;
+use gpui::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -59,7 +59,6 @@ impl TimeRange {
     }
 }
 
-
 /// T358: A cluster issue detected from warning events or unhealthy nodes (FR-066).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClusterIssue {
@@ -113,13 +112,7 @@ pub struct PodSummary {
 
 impl PodSummary {
     pub fn new(running: u32, pending: u32, failed: u32, succeeded: u32) -> Self {
-        Self {
-            running,
-            pending,
-            failed,
-            succeeded,
-            total: running + pending + failed + succeeded,
-        }
+        Self { running, pending, failed, succeeded, total: running + pending + failed + succeeded }
     }
 }
 
@@ -232,12 +225,7 @@ pub struct NodeHealth {
 
 impl NodeHealth {
     pub fn new(name: impl Into<String>, ready: bool) -> Self {
-        Self {
-            name: name.into(),
-            ready,
-            roles: Vec::new(),
-            conditions_ok: ready,
-        }
+        Self { name: name.into(), ready, roles: Vec::new(), conditions_ok: ready }
     }
 
     pub fn with_role(mut self, role: impl Into<String>) -> Self {
@@ -527,11 +515,8 @@ impl DashboardState {
         for event in &self.recent_events {
             if event.is_warning {
                 issues.push(
-                    ClusterIssue::warning(
-                        event.reason.clone(),
-                        event.message.clone(),
-                    )
-                    .with_timestamp(event.timestamp),
+                    ClusterIssue::warning(event.reason.clone(), event.message.clone())
+                        .with_timestamp(event.timestamp),
                 );
             }
         }
@@ -541,18 +526,12 @@ impl DashboardState {
 
     /// Returns the count of critical issues.
     pub fn critical_issue_count(&self) -> usize {
-        self.issues()
-            .iter()
-            .filter(|i| i.severity == IssueSeverity::Critical)
-            .count()
+        self.issues().iter().filter(|i| i.severity == IssueSeverity::Critical).count()
     }
 
     /// Returns the count of warning issues.
     pub fn warning_issue_count(&self) -> usize {
-        self.issues()
-            .iter()
-            .filter(|i| i.severity == IssueSeverity::Warning)
-            .count()
+        self.issues().iter().filter(|i| i.severity == IssueSeverity::Warning).count()
     }
 }
 
@@ -628,43 +607,72 @@ impl Render for DashboardView {
                         .child(self.state.cluster_name.clone()),
                 )
                 .when(self.state.is_degraded(), |el| {
-                    el.child(
-                        div()
-                            .text_xs()
-                            .text_color(warning)
-                            .child("Degraded"),
-                    )
+                    el.child(div().text_xs().text_color(warning).child("Degraded"))
                 }),
         );
 
         // --- Section A: Node Health Grid ---
         root = root.child(self.render_node_health_section(
-            text, text_secondary, text_muted, surface, border, success, error,
+            text,
+            text_secondary,
+            text_muted,
+            surface,
+            border,
+            success,
+            error,
         ));
 
         // --- Section B: Pod Summary ---
         root = root.child(self.render_pod_summary_section(
-            text, text_secondary, surface, border, success, warning, error, accent,
+            text,
+            text_secondary,
+            surface,
+            border,
+            success,
+            warning,
+            error,
+            accent,
         ));
 
         // --- Section C: Metrics Charts with Time Range Selector (T357) ---
         root = root.child(self.render_metrics_section(
-            text, text_secondary, text_muted, surface, border, accent,
+            text,
+            text_secondary,
+            text_muted,
+            surface,
+            border,
+            accent,
         ));
 
         // --- Section D: Issues Feed (T358) ---
         root = root.child(self.render_issues_section(
-            text, text_secondary, text_muted, surface, border, warning, error,
+            text,
+            text_secondary,
+            text_muted,
+            surface,
+            border,
+            warning,
+            error,
         ));
 
         // --- Section E: Namespace List ---
         root = root.child(self.render_namespace_section(
-            text, text_secondary, text_muted, surface, border,
+            text,
+            text_secondary,
+            text_muted,
+            surface,
+            border,
         ));
 
         // --- Section F: Recent Events Feed ---
         root = root.child(self.render_events_section(
-            text, text_secondary, text_muted, surface, border, warning, error,
+            text,
+            text_secondary,
+            text_muted,
+            surface,
+            border,
+            warning,
+            error,
         ));
 
         root.into_any_element()
@@ -685,16 +693,9 @@ impl DashboardView {
             .gap_2()
             .pb_2()
             .child(
-                div()
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(text)
-                    .child(label.to_string()),
+                div().font_weight(FontWeight::SEMIBOLD).text_color(text).child(label.to_string()),
             )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(text_secondary),
-            )
+            .child(div().text_xs().text_color(text_secondary))
     }
 
     /// Render the node health grid section.
@@ -723,21 +724,13 @@ impl DashboardView {
             );
         } else {
             // Grid of node cards
-            let mut grid = div()
-                .flex()
-                .flex_row()
-                .flex_wrap()
-                .gap_2()
-                .overflow_hidden();
+            let mut grid = div().flex().flex_row().flex_wrap().gap_2().overflow_hidden();
 
             for node in &self.state.nodes {
                 let status_color = if node.ready { success } else { error };
                 let status_label = if node.ready { "Ready" } else { "NotReady" };
-                let conditions_label = if node.conditions_ok {
-                    "Conditions OK"
-                } else {
-                    "Conditions Degraded"
-                };
+                let conditions_label =
+                    if node.conditions_ok { "Conditions OK" } else { "Conditions Degraded" };
 
                 let roles_text = if node.roles.is_empty() {
                     "worker".to_string()
@@ -764,12 +757,7 @@ impl DashboardView {
                             .child(node.name.clone()),
                     )
                     // Roles
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(text_muted)
-                            .child(roles_text),
-                    )
+                    .child(div().text_xs().text_color(text_muted).child(roles_text))
                     // Status row
                     .child(
                         div()
@@ -777,13 +765,7 @@ impl DashboardView {
                             .flex_row()
                             .items_center()
                             .gap_1()
-                            .child(
-                                div()
-                                    .w(px(8.0))
-                                    .h(px(8.0))
-                                    .rounded_full()
-                                    .bg(status_color),
-                            )
+                            .child(div().w(px(8.0)).h(px(8.0)).rounded_full().bg(status_color))
                             .child(
                                 div()
                                     .text_xs()
@@ -835,12 +817,7 @@ impl DashboardView {
             ("Succeeded", pods.succeeded, accent),
         ];
 
-        let mut cards_row = div()
-            .flex()
-            .flex_row()
-            .flex_wrap()
-            .gap_2()
-            .overflow_hidden();
+        let mut cards_row = div().flex().flex_row().flex_wrap().gap_2().overflow_hidden();
 
         for (label, count, color) in pod_cards {
             let card = div()
@@ -856,18 +833,10 @@ impl DashboardView {
                 .min_w(px(100.0))
                 // Count
                 .child(
-                    div()
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(color)
-                        .child(count.to_string()),
+                    div().font_weight(FontWeight::BOLD).text_color(color).child(count.to_string()),
                 )
                 // Label
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(text_secondary)
-                        .child(label.to_string()),
-                );
+                .child(div().text_xs().text_color(text_secondary).child(label.to_string()));
 
             cards_row = cards_row.child(card);
         }
@@ -885,17 +854,9 @@ impl DashboardView {
             .border_color(border)
             .min_w(px(100.0))
             .child(
-                div()
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(text)
-                    .child(pods.total.to_string()),
+                div().font_weight(FontWeight::BOLD).text_color(text).child(pods.total.to_string()),
             )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(text_secondary)
-                    .child("Total".to_string()),
-            );
+            .child(div().text_xs().text_color(text_secondary).child("Total".to_string()));
 
         cards_row = cards_row.child(total_card);
         section = section.child(cards_row);
@@ -924,12 +885,7 @@ impl DashboardView {
                     .child("No namespaces discovered".to_string()),
             );
         } else {
-            let mut list = div()
-                .flex()
-                .flex_row()
-                .flex_wrap()
-                .gap_1()
-                .overflow_hidden();
+            let mut list = div().flex().flex_row().flex_wrap().gap_1().overflow_hidden();
 
             for ns in &self.state.namespaces {
                 let chip = div()
@@ -972,17 +928,10 @@ impl DashboardView {
 
         if events.is_empty() {
             section = section.child(
-                div()
-                    .text_sm()
-                    .text_color(text_muted)
-                    .child("No recent events".to_string()),
+                div().text_sm().text_color(text_muted).child("No recent events".to_string()),
             );
         } else {
-            let mut event_list = div()
-                .flex()
-                .flex_col()
-                .gap_1()
-                .overflow_hidden();
+            let mut event_list = div().flex().flex_col().gap_1().overflow_hidden();
 
             for event in events {
                 let type_color = if event.is_warning { warning } else { text_secondary };
@@ -1030,19 +979,11 @@ impl DashboardView {
                     )
                     // Timestamp
                     .child(
-                        div()
-                            .text_xs()
-                            .text_color(text_muted)
-                            .flex_shrink_0()
-                            .child(timestamp_str),
+                        div().text_xs().text_color(text_muted).flex_shrink_0().child(timestamp_str),
                     );
 
                 // Add a left accent border for warnings
-                let row = if event.is_warning {
-                    row.border_l_2().border_color(error)
-                } else {
-                    row
-                };
+                let row = if event.is_warning { row.border_l_2().border_color(error) } else { row };
 
                 event_list = event_list.child(row);
             }
@@ -1067,28 +1008,16 @@ impl DashboardView {
         let mut section = div().flex().flex_col().gap_2();
 
         // Header row with "Metrics" label and time range buttons
-        let mut header = div()
-            .flex()
-            .flex_row()
-            .items_center()
-            .gap_2()
-            .pb_2();
+        let mut header = div().flex().flex_row().items_center().gap_2().pb_2();
 
-        header = header.child(
-            div()
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(text)
-                .child("Metrics"),
-        );
+        header =
+            header.child(div().font_weight(FontWeight::SEMIBOLD).text_color(text).child("Metrics"));
 
         // Spacer to push time range selector right
         header = header.child(div().flex_1());
 
         // Time range button row
-        let mut range_row = div()
-            .flex()
-            .flex_row()
-            .gap_1();
+        let mut range_row = div().flex().flex_row().gap_1();
 
         for &range in TimeRange::all() {
             let is_selected = self.state.selected_time_range == range;
@@ -1100,14 +1029,9 @@ impl DashboardView {
                 .rounded_md()
                 .text_xs()
                 .cursor_pointer()
-                .when(is_selected, |el| {
-                    el.bg(accent).text_color(gpui::rgb(0xFFFFFF))
-                })
+                .when(is_selected, |el| el.bg(accent).text_color(gpui::rgb(0xFFFFFF)))
                 .when(!is_selected, |el| {
-                    el.bg(surface)
-                        .border_1()
-                        .border_color(border)
-                        .text_color(text_secondary)
+                    el.bg(surface).border_1().border_color(border).text_color(text_secondary)
                 })
                 .child(label);
 
@@ -1160,29 +1084,19 @@ impl DashboardView {
             {
                 if !message.is_empty() {
                     let warning_color = self.theme.colors.warning.to_gpui();
-                    panel = panel.child(
-                        div()
-                            .text_xs()
-                            .text_color(warning_color)
-                            .child(message.clone()),
-                    );
+                    panel = panel
+                        .child(div().text_xs().text_color(warning_color).child(message.clone()));
                 }
             }
 
             // Explanation
             panel = panel.child(
-                div()
-                    .text_sm()
-                    .text_color(text_muted)
-                    .child(MetricsAvailability::explanation()),
+                div().text_sm().text_color(text_muted).child(MetricsAvailability::explanation()),
             );
 
             // Install instructions label
             panel = panel.child(
-                div()
-                    .text_xs()
-                    .text_color(text_secondary)
-                    .child("Install metrics-server with:"),
+                div().text_xs().text_color(text_secondary).child("Install metrics-server with:"),
             );
 
             // Command block
@@ -1230,11 +1144,7 @@ impl DashboardView {
             );
         } else {
             // CPU chart placeholder
-            let mut charts = div()
-                .flex()
-                .flex_row()
-                .flex_wrap()
-                .gap_3();
+            let mut charts = div().flex().flex_row().flex_wrap().gap_3();
 
             let chart_names = ["CPU Usage", "Memory Usage", "Pod Count"];
             for name in chart_names {
@@ -1310,37 +1220,20 @@ impl DashboardView {
                 .items_center()
                 .gap_2()
                 .pb_2()
-                .child(
-                    div()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(text)
-                        .child("Issues"),
-                )
+                .child(div().font_weight(FontWeight::SEMIBOLD).text_color(text).child("Issues"))
                 .child(
                     div()
                         .text_xs()
-                        .text_color(if issues.is_empty() {
-                            text_secondary
-                        } else {
-                            warning
-                        })
+                        .text_color(if issues.is_empty() { text_secondary } else { warning })
                         .child(count_label),
                 ),
         );
 
         if issues.is_empty() {
-            section = section.child(
-                div()
-                    .text_sm()
-                    .text_color(text_muted)
-                    .child("No issues detected"),
-            );
+            section =
+                section.child(div().text_sm().text_color(text_muted).child("No issues detected"));
         } else {
-            let mut issue_list = div()
-                .flex()
-                .flex_col()
-                .gap_1()
-                .overflow_hidden();
+            let mut issue_list = div().flex().flex_col().gap_1().overflow_hidden();
 
             for issue in &issues {
                 let (severity_color, severity_label) = match issue.severity {

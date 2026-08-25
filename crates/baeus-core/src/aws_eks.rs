@@ -108,10 +108,7 @@ impl std::fmt::Debug for SsoDeviceAuth {
 /// Result of polling the SSO OIDC token endpoint.
 pub enum SsoTokenResult {
     Pending,
-    Success {
-        access_token: String,
-        expires_at: DateTime<Utc>,
-    },
+    Success { access_token: String, expires_at: DateTime<Utc> },
     Denied(String),
 }
 
@@ -124,10 +121,7 @@ impl std::fmt::Debug for SsoTokenResult {
                 .field("access_token", &"[REDACTED]")
                 .field("expires_at", expires_at)
                 .finish(),
-            Self::Denied(msg) => f
-                .debug_tuple("SsoTokenResult::Denied")
-                .field(msg)
-                .finish(),
+            Self::Denied(msg) => f.debug_tuple("SsoTokenResult::Denied").field(msg).finish(),
         }
     }
 }
@@ -234,9 +228,7 @@ pub const DEFAULT_EKS_REGIONS: &[&str] = &[
 
 /// Register this application as an OIDC client with IAM Identity Center.
 /// Returns (client_id, client_secret).
-pub async fn sso_register_client(
-    region: &str,
-) -> Result<(String, String)> {
+pub async fn sso_register_client(region: &str) -> Result<(String, String)> {
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(aws_types::region::Region::new(region.to_string()))
         .no_credentials()
@@ -345,10 +337,7 @@ pub async fn sso_poll_for_token(
 }
 
 /// List accounts the user can access via the SSO portal.
-pub async fn sso_list_accounts(
-    region: &str,
-    access_token: &str,
-) -> Result<Vec<SsoAccount>> {
+pub async fn sso_list_accounts(region: &str, access_token: &str) -> Result<Vec<SsoAccount>> {
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(aws_types::region::Region::new(region.to_string()))
         .no_credentials()
@@ -360,9 +349,7 @@ pub async fn sso_list_accounts(
     let mut next_token: Option<String> = None;
 
     loop {
-        let mut req = client
-            .list_accounts()
-            .access_token(access_token);
+        let mut req = client.list_accounts().access_token(access_token);
         if let Some(tok) = &next_token {
             req = req.next_token(tok);
         }
@@ -401,17 +388,11 @@ pub async fn sso_list_account_roles(
     let mut next_token: Option<String> = None;
 
     loop {
-        let mut req = client
-            .list_account_roles()
-            .access_token(access_token)
-            .account_id(account_id);
+        let mut req = client.list_account_roles().access_token(access_token).account_id(account_id);
         if let Some(tok) = &next_token {
             req = req.next_token(tok);
         }
-        let resp = req
-            .send()
-            .await
-            .context("SSO: list_account_roles failed")?;
+        let resp = req.send().await.context("SSO: list_account_roles failed")?;
 
         for role in resp.role_list() {
             roles.push(SsoRole {
@@ -451,16 +432,11 @@ pub async fn sso_get_role_credentials(
         .await
         .context("SSO: get_role_credentials failed")?;
 
-    let creds = resp
-        .role_credentials()
-        .context("No role credentials returned")?;
+    let creds = resp.role_credentials().context("No role credentials returned")?;
 
     let expiration_ms = creds.expiration();
     let expires_at = if expiration_ms > 0 {
-        Some(
-            DateTime::from_timestamp_millis(expiration_ms)
-                .unwrap_or_else(Utc::now),
-        )
+        Some(DateTime::from_timestamp_millis(expiration_ms).unwrap_or_else(Utc::now))
     } else {
         None
     };
@@ -469,9 +445,8 @@ pub async fn sso_get_role_credentials(
         creds.access_key_id().unwrap_or_default(),
         creds.secret_access_key().unwrap_or_default(),
         creds.session_token().map(|s| s.to_string()),
-        expires_at.map(|dt| {
-            SystemTime::UNIX_EPOCH + Duration::from_millis(dt.timestamp_millis() as u64)
-        }),
+        expires_at
+            .map(|dt| SystemTime::UNIX_EPOCH + Duration::from_millis(dt.timestamp_millis() as u64)),
         "baeus-sso",
     );
 
@@ -538,15 +513,9 @@ pub async fn assume_role(
         .await;
 
     let sts = aws_sdk_sts::Client::new(&sdk_config);
-    let session_name = config
-        .session_name
-        .as_deref()
-        .unwrap_or("baeus-session");
+    let session_name = config.session_name.as_deref().unwrap_or("baeus-session");
 
-    let mut req = sts
-        .assume_role()
-        .role_arn(&config.role_arn)
-        .role_session_name(session_name);
+    let mut req = sts.assume_role().role_arn(&config.role_arn).role_session_name(session_name);
 
     if let Some(ref ext_id) = config.external_id {
         req = req.external_id(ext_id);
@@ -584,10 +553,7 @@ pub async fn assume_role(
             .map(|u| u.arn().split(':').nth(4).unwrap_or(""))
             .unwrap_or("")
             .to_string(),
-        identity_arn: resp
-            .assumed_role_user()
-            .map(|u| u.arn().to_string())
-            .unwrap_or_default(),
+        identity_arn: resp.assumed_role_user().map(|u| u.arn().to_string()).unwrap_or_default(),
         region: config.region.clone(),
         expires_at,
         sso_access_token: None,
@@ -695,9 +661,7 @@ pub async fn discover_clusters_in_region(
                         tags: cluster
                             .tags()
                             .map(|t| {
-                                t.iter()
-                                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                                    .collect()
+                                t.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
                             })
                             .unwrap_or_default(),
                     });
@@ -738,10 +702,7 @@ async fn build_eks_presigned_token(
 ) -> Result<String> {
     use aws_credential_types::provider::ProvideCredentials;
 
-    let creds = credentials
-        .provide_credentials()
-        .await
-        .context("Failed to resolve credentials")?;
+    let creds = credentials.provide_credentials().await.context("Failed to resolve credentials")?;
 
     let access_key = creds.access_key_id();
     let secret_key = creds.secret_access_key();
@@ -765,17 +726,11 @@ async fn build_eks_presigned_token(
     let mut qp: Vec<(String, String)> = vec![
         ("Action".to_string(), "GetCallerIdentity".to_string()),
         ("Version".to_string(), "2011-06-15".to_string()),
-        (
-            "X-Amz-Algorithm".to_string(),
-            "AWS4-HMAC-SHA256".to_string(),
-        ),
+        ("X-Amz-Algorithm".to_string(), "AWS4-HMAC-SHA256".to_string()),
         ("X-Amz-Credential".to_string(), credential.clone()),
         ("X-Amz-Date".to_string(), amz_date.clone()),
         ("X-Amz-Expires".to_string(), "60".to_string()),
-        (
-            "X-Amz-SignedHeaders".to_string(),
-            signed_headers.to_string(),
-        ),
+        ("X-Amz-SignedHeaders".to_string(), signed_headers.to_string()),
     ];
     if let Some(tok) = session_token {
         qp.push(("X-Amz-Security-Token".to_string(), tok.to_string()));
@@ -802,18 +757,14 @@ async fn build_eks_presigned_token(
     );
 
     // Signing key
-    let k_date = hmac_sha256(
-        format!("AWS4{secret_key}").as_bytes(),
-        date_stamp.as_bytes(),
-    );
+    let k_date = hmac_sha256(format!("AWS4{secret_key}").as_bytes(), date_stamp.as_bytes());
     let k_region = hmac_sha256(&k_date, region.as_bytes());
     let k_service = hmac_sha256(&k_region, b"sts");
     let k_signing = hmac_sha256(&k_service, b"aws4_request");
     let signature = hex::encode(&hmac_sha256(&k_signing, string_to_sign.as_bytes()));
 
-    let presigned_url = format!(
-        "https://{host}/?{canonical_querystring}&X-Amz-Signature={signature}"
-    );
+    let presigned_url =
+        format!("https://{host}/?{canonical_querystring}&X-Amz-Signature={signature}");
 
     // EKS token format: "k8s-aws-v1." + base64url(presigned_url) with padding stripped
     let encoded = base64_url_encode(presigned_url.as_bytes());
@@ -935,18 +886,9 @@ mod tests {
 
     #[test]
     fn test_aws_auth_method_serialization() {
-        assert_eq!(
-            serde_json::to_string(&AwsAuthMethod::Sso).unwrap(),
-            "\"Sso\""
-        );
-        assert_eq!(
-            serde_json::to_string(&AwsAuthMethod::AccessKey).unwrap(),
-            "\"AccessKey\""
-        );
-        assert_eq!(
-            serde_json::to_string(&AwsAuthMethod::AssumeRole).unwrap(),
-            "\"AssumeRole\""
-        );
+        assert_eq!(serde_json::to_string(&AwsAuthMethod::Sso).unwrap(), "\"Sso\"");
+        assert_eq!(serde_json::to_string(&AwsAuthMethod::AccessKey).unwrap(), "\"AccessKey\"");
+        assert_eq!(serde_json::to_string(&AwsAuthMethod::AssumeRole).unwrap(), "\"AssumeRole\"");
     }
 
     #[test]
@@ -1083,29 +1025,20 @@ mod tests {
     #[test]
     fn test_sha256_empty() {
         let hash = hex_sha256(b"");
-        assert_eq!(
-            hash,
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        );
+        assert_eq!(hash, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
     }
 
     #[test]
     fn test_sha256_hello() {
         let hash = hex_sha256(b"hello");
-        assert_eq!(
-            hash,
-            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
-        );
+        assert_eq!(hash, "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
     }
 
     #[test]
     fn test_hmac_sha256_known_vector() {
         let result = hmac_sha256(b"key", b"The quick brown fox jumps over the lazy dog");
         let hex_result = hex::encode(&result);
-        assert_eq!(
-            hex_result,
-            "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8"
-        );
+        assert_eq!(hex_result, "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8");
     }
 
     #[test]

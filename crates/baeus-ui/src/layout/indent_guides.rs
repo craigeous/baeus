@@ -68,11 +68,7 @@ pub fn compute_indent_guides(entries: &[NavigatorFlatEntry]) -> Vec<IndentGuideL
         // If this is the last sibling at this depth, close the guide
         if is_last {
             if let Some(start) = active[depth].take() {
-                guides.push(IndentGuideLayout {
-                    depth,
-                    start_row: start,
-                    end_row: row,
-                });
+                guides.push(IndentGuideLayout { depth, start_row: start, end_row: row });
             }
         }
     }
@@ -81,11 +77,7 @@ pub fn compute_indent_guides(entries: &[NavigatorFlatEntry]) -> Vec<IndentGuideL
     let last_row = entries.len().saturating_sub(1);
     for (depth, slot) in active.iter().enumerate() {
         if let Some(start) = slot {
-            guides.push(IndentGuideLayout {
-                depth,
-                start_row: *start,
-                end_row: last_row,
-            });
+            guides.push(IndentGuideLayout { depth, start_row: *start, end_row: last_row });
         }
     }
 
@@ -100,10 +92,7 @@ pub struct NavigatorIndentGuideDecoration {
 
 impl NavigatorIndentGuideDecoration {
     pub fn new(entries: Vec<NavigatorFlatEntry>, guide_color: Hsla) -> Self {
-        Self {
-            entries,
-            guide_color,
-        }
+        Self { entries, guide_color }
     }
 }
 
@@ -129,22 +118,16 @@ impl UniformListDecoration for NavigatorIndentGuideDecoration {
             move |bounds, (), window, _cx| {
                 let zero = px(0.0);
                 for guide in &guides {
-                    let x = px(
-                        INDENT_OFFSET
-                            + (guide.depth as f32 - 1.0) * INDENT_STEP
-                            + INDENT_STEP / 2.0,
-                    );
+                    let x = px(INDENT_OFFSET
+                        + (guide.depth as f32 - 1.0) * INDENT_STEP
+                        + INDENT_STEP / 2.0);
 
                     let y_start = item_h * guide.start_row as f32 + scroll_y;
                     let y_end = item_h * (guide.end_row as f32 + 1.0) + scroll_y;
 
                     // Clip to visible viewport
                     let y_start = if y_start > zero { y_start } else { zero };
-                    let y_end = if y_end < viewport_height {
-                        y_end
-                    } else {
-                        viewport_height
-                    };
+                    let y_end = if y_end < viewport_height { y_end } else { viewport_height };
 
                     if y_end > y_start {
                         let guide_bounds = Bounds::new(

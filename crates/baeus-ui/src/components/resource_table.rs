@@ -1,4 +1,4 @@
-use gpui::{div, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*};
 use serde::{Deserialize, Serialize};
 
 use crate::components::details_panel::ResourceInfo;
@@ -78,18 +78,21 @@ impl ResourceTableState {
     /// and viewport size.
     pub fn new(columns: Vec<ColumnDef>, visible_rows: usize) -> Self {
         let col_count = columns.len();
-        let default_widths: Vec<f32> = columns.iter().map(|c| {
-            // Produce sensible pixel defaults based on column label
-            match c.label.as_str() {
-                "Name" => 200.0,
-                "Namespace" | "Controlled By" | "Node" => 120.0,
-                "CPU" | "Memory" | "Restarts" | "QoS" | "Age" | "Status" => 80.0,
-                "Containers" | "Ports" | "Type" => 90.0,
-                "Message" => 200.0,
-                "Conditions" => 150.0,
-                _ => (c.width_weight * 100.0).max(60.0),
-            }
-        }).collect();
+        let default_widths: Vec<f32> = columns
+            .iter()
+            .map(|c| {
+                // Produce sensible pixel defaults based on column label
+                match c.label.as_str() {
+                    "Name" => 200.0,
+                    "Namespace" | "Controlled By" | "Node" => 120.0,
+                    "CPU" | "Memory" | "Restarts" | "QoS" | "Age" | "Status" => 80.0,
+                    "Containers" | "Ports" | "Type" => 90.0,
+                    "Message" => 200.0,
+                    "Conditions" => 150.0,
+                    _ => (c.width_weight * 100.0).max(60.0),
+                }
+            })
+            .collect();
         Self {
             columns,
             rows: Vec::new(),
@@ -116,21 +119,16 @@ impl ResourceTableState {
     /// this column, the direction is toggled. Otherwise, sorts ascending.
     /// Does nothing if the column is not found or is not sortable.
     pub fn sort_by(&mut self, column_id: &str) {
-        let is_sortable = self
-            .columns
-            .iter()
-            .any(|c| c.id == column_id && c.sortable);
+        let is_sortable = self.columns.iter().any(|c| c.id == column_id && c.sortable);
         if !is_sortable {
             return;
         }
 
         let new_direction = match &self.sort {
-            Some(current) if current.column_id == column_id => {
-                match current.direction {
-                    SortDirection::Ascending => SortDirection::Descending,
-                    SortDirection::Descending => SortDirection::Ascending,
-                }
-            }
+            Some(current) if current.column_id == column_id => match current.direction {
+                SortDirection::Ascending => SortDirection::Descending,
+                SortDirection::Descending => SortDirection::Ascending,
+            },
             _ => SortDirection::Ascending,
         };
 
@@ -142,18 +140,11 @@ impl ResourceTableState {
             self.rows.sort_by(|a, b| {
                 let val_a = a.cells.get(idx).map(String::as_str).unwrap_or("");
                 let val_b = b.cells.get(idx).map(String::as_str).unwrap_or("");
-                if ascending {
-                    val_a.cmp(val_b)
-                } else {
-                    val_b.cmp(val_a)
-                }
+                if ascending { val_a.cmp(val_b) } else { val_b.cmp(val_a) }
             });
         }
 
-        self.sort = Some(TableSort {
-            column_id: column_id.to_string(),
-            direction: new_direction,
-        });
+        self.sort = Some(TableSort { column_id: column_id.to_string(), direction: new_direction });
     }
 
     /// Returns rows that match the current filter text.
@@ -176,9 +167,7 @@ impl ResourceTableState {
                         return true;
                     }
                 }
-                row.cells
-                    .iter()
-                    .any(|cell| cell.to_lowercase().contains(&query))
+                row.cells.iter().any(|cell| cell.to_lowercase().contains(&query))
             })
             .collect()
     }
@@ -209,9 +198,7 @@ impl ResourceTableState {
 
     /// Returns the currently selected row, if any.
     pub fn selected_row(&self) -> Option<&TableRow> {
-        self.selected_uid
-            .as_ref()
-            .and_then(|uid| self.rows.iter().find(|r| r.uid == *uid))
+        self.selected_uid.as_ref().and_then(|uid| self.rows.iter().find(|r| r.uid == *uid))
     }
 
     /// Returns the total number of rows matching the current filter.
@@ -252,12 +239,7 @@ impl ResourceTableState {
         for row in self.filtered_rows() {
             let cells: Vec<String> = visible_indices
                 .iter()
-                .map(|&i| {
-                    row.cells
-                        .get(i)
-                        .map(|c| csv_escape(c))
-                        .unwrap_or_default()
-                })
+                .map(|&i| row.cells.get(i).map(|c| csv_escape(c)).unwrap_or_default())
                 .collect();
             out.push_str(&cells.join(","));
             out.push('\n');
@@ -337,11 +319,7 @@ impl ResourceTableState {
             .iter()
             .enumerate()
             .filter_map(|(i, c)| {
-                if self.visible_columns.get(i).copied().unwrap_or(true) {
-                    Some(c)
-                } else {
-                    None
-                }
+                if self.visible_columns.get(i).copied().unwrap_or(true) { Some(c) } else { None }
             })
             .collect()
     }
@@ -390,11 +368,7 @@ impl ResourceTableState {
         let row = self.selected_row()?;
         Some(
             ResourceInfo::new(&row.name, &row.kind, &row.uid)
-                .with_namespace(
-                    row.namespace
-                        .clone()
-                        .unwrap_or_default(),
-                ),
+                .with_namespace(row.namespace.clone().unwrap_or_default()),
         )
     }
 }
@@ -423,21 +397,13 @@ pub struct ResourceTableView {
 
 impl ResourceTableView {
     pub fn new(state: ResourceTableState, theme: Theme) -> Self {
-        Self {
-            state,
-            theme,
-            resource_kind: String::new(),
-        }
+        Self { state, theme, resource_kind: String::new() }
     }
 
     /// Creates a new view with an associated resource kind for context
     /// menu actions.
     pub fn with_kind(state: ResourceTableState, theme: Theme, kind: &str) -> Self {
-        Self {
-            state,
-            theme,
-            resource_kind: kind.to_string(),
-        }
+        Self { state, theme, resource_kind: kind.to_string() }
     }
 }
 
@@ -537,15 +503,17 @@ impl ResourceTableView {
     /// Highlights both UID-based and index-based (T341) selection.
     /// Includes a three-dot context menu button (T338) and conditionally
     /// renders the floating actions menu.
-    fn render_row(&self, row: &TableRow, idx: usize, colors: &BodyColors) -> gpui::Stateful<gpui::Div> {
+    fn render_row(
+        &self,
+        row: &TableRow,
+        idx: usize,
+        colors: &BodyColors,
+    ) -> gpui::Stateful<gpui::Div> {
         let is_uid_selected = self.state.selected_uid.as_deref() == Some(&row.uid);
         let is_idx_selected = self.state.selected_row_index == Some(idx);
 
-        let bg_color = if is_uid_selected || is_idx_selected {
-            colors.selection
-        } else {
-            colors.background
-        };
+        let bg_color =
+            if is_uid_selected || is_idx_selected { colors.selection } else { colors.background };
 
         let row_id = ElementId::Name(SharedString::from(format!("row-{idx}")));
 
@@ -564,11 +532,7 @@ impl ResourceTableView {
         // Only render visible columns (T342).
         let vis_indices = self.visible_column_indices();
         for col_idx in &vis_indices {
-            let cell_val = row
-                .cells
-                .get(*col_idx)
-                .map(String::as_str)
-                .unwrap_or("");
+            let cell_val = row.cells.get(*col_idx).map(String::as_str).unwrap_or("");
             row_div = row_div.child(self.render_cell(cell_val, colors));
         }
 
@@ -598,11 +562,7 @@ impl ResourceTableView {
     /// T338: Render the floating context menu with actions for the current
     /// resource kind.
     fn render_context_menu(&self, colors: &BodyColors) -> gpui::Div {
-        let kind = if self.resource_kind.is_empty() {
-            "Unknown"
-        } else {
-            &self.resource_kind
-        };
+        let kind = if self.resource_kind.is_empty() { "Unknown" } else { &self.resource_kind };
         let actions = actions_for_kind(kind);
 
         let mut menu = div()
@@ -615,9 +575,7 @@ impl ResourceTableView {
             .py_1();
 
         for (ai, action) in actions.iter().enumerate() {
-            let action_id = ElementId::Name(SharedString::from(format!(
-                "ctx-action-{ai}"
-            )));
+            let action_id = ElementId::Name(SharedString::from(format!("ctx-action-{ai}")));
             let label = SharedString::from(action.label.clone());
             let item = div()
                 .id(action_id)
@@ -636,13 +594,7 @@ impl ResourceTableView {
     /// Render a single cell in a row.
     fn render_cell(&self, value: &str, colors: &BodyColors) -> gpui::Div {
         let text = SharedString::from(value.to_string());
-        div()
-            .flex_1()
-            .px_2()
-            .py_1()
-            .text_sm()
-            .text_color(colors.text_primary)
-            .child(text)
+        div().flex_1().px_2().py_1().text_sm().text_color(colors.text_primary).child(text)
     }
 
     /// Render the empty state placeholder.
@@ -662,12 +614,7 @@ impl ResourceTableView {
 // ---------------------------------------------------------------------------
 
 fn col(id: &str, label: &str, weight: f32, sortable: bool) -> ColumnDef {
-    ColumnDef {
-        id: id.to_string(),
-        label: label.to_string(),
-        sortable,
-        width_weight: weight,
-    }
+    ColumnDef { id: id.to_string(), label: label.to_string(), sortable, width_weight: weight }
 }
 
 /// Returns the column definitions for a specific resource kind (FR-069).
@@ -985,10 +932,7 @@ pub struct ResourceAction {
 
 impl ResourceAction {
     fn new(id: &str, label: &str) -> Self {
-        Self {
-            id: id.to_string(),
-            label: label.to_string(),
-        }
+        Self { id: id.to_string(), label: label.to_string() }
     }
 }
 
@@ -1042,10 +986,7 @@ pub fn actions_for_kind(kind: &str) -> Vec<ResourceAction> {
             ResourceAction::new("delete", "Delete"),
         ],
         // Default actions for all other resource types.
-        _ => vec![
-            ResourceAction::new("edit", "Edit"),
-            ResourceAction::new("delete", "Delete"),
-        ],
+        _ => vec![ResourceAction::new("edit", "Edit"), ResourceAction::new("delete", "Delete")],
     }
 }
 

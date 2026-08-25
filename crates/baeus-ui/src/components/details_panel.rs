@@ -1,4 +1,4 @@
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 use std::collections::HashMap;
 
 use crate::theme::Theme;
@@ -46,11 +46,7 @@ pub struct ResourceInfo {
 impl ResourceInfo {
     /// Creates a minimal ResourceInfo with required fields; other fields are
     /// defaulted to empty.
-    pub fn new(
-        name: impl Into<String>,
-        kind: impl Into<String>,
-        uid: impl Into<String>,
-    ) -> Self {
+    pub fn new(name: impl Into<String>, kind: impl Into<String>, uid: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             namespace: None,
@@ -129,11 +125,7 @@ pub struct DetailsPanelState {
 
 impl Default for DetailsPanelState {
     fn default() -> Self {
-        Self {
-            open: false,
-            resource: None,
-            width: 400.0,
-        }
+        Self { open: false, resource: None, width: 400.0 }
     }
 }
 
@@ -145,11 +137,7 @@ impl DetailsPanelState {
 
     /// Creates a new details panel with a custom width.
     pub fn with_width(width: f32) -> Self {
-        Self {
-            open: false,
-            resource: None,
-            width,
-        }
+        Self { open: false, resource: None, width }
     }
 
     /// Opens the panel with the given resource info.
@@ -266,11 +254,7 @@ impl DetailsPanelView {
 
     /// Render the metadata section: name, namespace, UID, creation timestamp,
     /// labels as tag chips, and annotations.
-    fn render_metadata_section(
-        &self,
-        resource: &ResourceInfo,
-        colors: &PanelColors,
-    ) -> gpui::Div {
+    fn render_metadata_section(&self, resource: &ResourceInfo, colors: &PanelColors) -> gpui::Div {
         let mut section = div()
             .flex()
             .flex_col()
@@ -288,10 +272,7 @@ impl DetailsPanelView {
         section = section.child(self.render_metadata_row("Name", &resource.name, colors));
 
         // Namespace
-        let ns_value = resource
-            .namespace
-            .as_deref()
-            .unwrap_or("(cluster-scoped)");
+        let ns_value = resource.namespace.as_deref().unwrap_or("(cluster-scoped)");
         section = section.child(self.render_metadata_row("Namespace", ns_value, colors));
 
         // Kind
@@ -325,10 +306,7 @@ impl DetailsPanelView {
 
         // Annotations
         if !resource.annotations.is_empty() {
-            section = section.child(self.render_annotations_section(
-                &resource.annotations,
-                colors,
-            ));
+            section = section.child(self.render_annotations_section(&resource.annotations, colors));
         }
 
         section
@@ -361,13 +339,7 @@ impl DetailsPanelView {
                     .w(px(80.0))
                     .child(key_text),
             )
-            .child(
-                div()
-                    .flex_1()
-                    .text_xs()
-                    .text_color(colors.text_primary)
-                    .child(value_text),
-            )
+            .child(div().flex_1().text_xs().text_color(colors.text_primary).child(value_text))
     }
 
     /// Render labels as tag chips.
@@ -420,10 +392,7 @@ impl DetailsPanelView {
                 .text_xs()
                 .font_weight(gpui::FontWeight::MEDIUM)
                 .text_color(colors.text_secondary)
-                .child(SharedString::from(format!(
-                    "Annotations ({})",
-                    annotations.len()
-                ))),
+                .child(SharedString::from(format!("Annotations ({})", annotations.len()))),
         );
 
         let mut sorted_annotations: Vec<_> = annotations.iter().collect();
@@ -431,13 +400,8 @@ impl DetailsPanelView {
 
         for (key, value) in sorted_annotations {
             let annotation_text = SharedString::from(format!("{key}: {value}"));
-            container = container.child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .pl_2()
-                    .child(annotation_text),
-            );
+            container = container
+                .child(div().text_xs().text_color(colors.text_muted).pl_2().child(annotation_text));
         }
 
         container
@@ -464,12 +428,8 @@ impl DetailsPanelView {
         section = section.child(self.render_section_header("Conditions", colors));
 
         if conditions.is_empty() {
-            section = section.child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child("No conditions"),
-            );
+            section =
+                section.child(div().text_xs().text_color(colors.text_muted).child("No conditions"));
         } else {
             for condition in conditions {
                 section = section.child(self.render_condition_row(condition, colors));
@@ -501,13 +461,7 @@ impl DetailsPanelView {
             .items_center()
             .gap(px(8.0))
             .py_1()
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_primary)
-                    .w(px(100.0))
-                    .child(type_text),
-            )
+            .child(div().text_xs().text_color(colors.text_primary).w(px(100.0)).child(type_text))
             .child(
                 div()
                     .text_xs()
@@ -516,23 +470,12 @@ impl DetailsPanelView {
                     .w(px(60.0))
                     .child(status_text),
             )
-            .child(
-                div()
-                    .flex_1()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child(reason_text),
-            );
+            .child(div().flex_1().text_xs().text_color(colors.text_muted).child(reason_text));
 
         // Show message as a tooltip-like sub-row if non-empty
         if !condition.message.is_empty() {
             let msg = SharedString::from(condition.message.clone());
-            row = row.child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child(msg),
-            );
+            row = row.child(div().text_xs().text_color(colors.text_muted).child(msg));
         }
 
         row
@@ -559,12 +502,8 @@ impl DetailsPanelView {
         section = section.child(self.render_section_header("Owner References", colors));
 
         if owner_refs.is_empty() {
-            section = section.child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child("No owner references"),
-            );
+            section = section
+                .child(div().text_xs().text_color(colors.text_muted).child("No owner references"));
         } else {
             for (idx, owner) in owner_refs.iter().enumerate() {
                 section = section.child(self.render_owner_reference(owner, idx, colors));
@@ -591,22 +530,13 @@ impl DetailsPanelView {
             .items_center()
             .gap(px(4.0))
             .cursor_pointer()
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.accent)
-                    .child(link_text),
-            )
+            .child(div().text_xs().text_color(colors.accent).child(link_text))
     }
 
     // --- Panel header ---
 
     /// Render the panel header with resource kind/name and close button.
-    fn render_panel_header(
-        &self,
-        resource: &ResourceInfo,
-        colors: &PanelColors,
-    ) -> gpui::Div {
+    fn render_panel_header(&self, resource: &ResourceInfo, colors: &PanelColors) -> gpui::Div {
         let title = SharedString::from(format!("{}/{}", resource.kind, resource.name));
 
         div()
@@ -693,8 +623,8 @@ impl Render for DetailsPanelView {
                     .child(self.render_metadata_section(&resource, &colors));
 
                 if !resource.conditions.is_empty() {
-                    panel = panel
-                        .child(self.render_conditions_section(&resource.conditions, &colors));
+                    panel =
+                        panel.child(self.render_conditions_section(&resource.conditions, &colors));
                 }
 
                 if !resource.owner_references.is_empty() {
@@ -726,10 +656,8 @@ mod tests {
         labels.insert("env".to_string(), "production".to_string());
 
         let mut annotations = HashMap::new();
-        annotations.insert(
-            "kubernetes.io/change-cause".to_string(),
-            "initial deployment".to_string(),
-        );
+        annotations
+            .insert("kubernetes.io/change-cause".to_string(), "initial deployment".to_string());
 
         ResourceInfo::new("nginx-abc123", "Pod", "f47ac10b-58cc-4372-a567-0e02b2c3d479")
             .with_namespace("default")

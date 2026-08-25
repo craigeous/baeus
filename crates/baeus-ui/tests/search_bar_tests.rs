@@ -166,10 +166,7 @@ fn test_fuzzy_match_exact_beats_prefix() {
 fn test_fuzzy_match_prefix_beats_middle() {
     let prefix = fuzzy_match("ng", "nginx-pod").unwrap();
     let middle = fuzzy_match("po", "nginx-pod").unwrap();
-    assert!(
-        prefix > middle,
-        "prefix should beat middle match: {prefix} vs {middle}"
-    );
+    assert!(prefix > middle, "prefix should beat middle match: {prefix} vs {middle}");
 }
 
 #[test]
@@ -216,10 +213,7 @@ fn sample_items() -> Vec<SearchItem> {
             "api-gateway".to_string(),
             Some("production".to_string()),
             "Service".to_string(),
-            vec![
-                ("app".to_string(), "api".to_string()),
-                ("env".to_string(), "prod".to_string()),
-            ],
+            vec![("app".to_string(), "api".to_string()), ("env".to_string(), "prod".to_string())],
         ),
         (
             "uid-4".to_string(),
@@ -262,10 +256,7 @@ fn test_search_by_label() {
     let items = sample_items();
     let results = search_resources("frontend", &items);
     assert!(!results.is_empty());
-    let top = results
-        .iter()
-        .find(|m| m.uid == "uid-1")
-        .expect("nginx-pod should match on label");
+    let top = results.iter().find(|m| m.uid == "uid-1").expect("nginx-pod should match on label");
     assert_eq!(top.matched_field, "label");
 }
 
@@ -273,12 +264,9 @@ fn test_search_by_label() {
 fn test_search_results_sorted_by_score() {
     let items = sample_items();
     let results = search_resources("api", &items);
-    assert!(results.len() >= 1);
+    assert!(!results.is_empty());
     for window in results.windows(2) {
-        assert!(
-            window[0].score >= window[1].score,
-            "results should be sorted descending by score"
-        );
+        assert!(window[0].score >= window[1].score, "results should be sorted descending by score");
     }
 }
 
@@ -312,10 +300,7 @@ fn test_search_matched_field_tracks_best() {
     let items = sample_items();
     // "default" is a namespace, not a name
     let results = search_resources("default", &items);
-    let m = results
-        .iter()
-        .find(|m| m.uid == "uid-1")
-        .expect("nginx-pod is in default namespace");
+    let m = results.iter().find(|m| m.uid == "uid-1").expect("nginx-pod is in default namespace");
     assert_eq!(m.matched_field, "namespace");
 }
 
@@ -352,11 +337,7 @@ fn test_search_multiple_matches() {
     let items = sample_items();
     // "app" appears as a label key in items uid-1, uid-2, uid-3
     let results = search_resources("app", &items);
-    assert!(
-        results.len() >= 3,
-        "at least 3 items have 'app' label: got {}",
-        results.len()
-    );
+    assert!(results.len() >= 3, "at least 3 items have 'app' label: got {}", results.len());
 }
 
 #[test]
@@ -455,20 +436,14 @@ fn test_view_should_show_results_focused_no_results() {
 fn test_view_with_light_theme() {
     let state = SearchBarState::new();
     let view = SearchBarView::new(state, Theme::light());
-    assert_eq!(
-        view.theme.colors.background,
-        baeus_ui::theme::Color::rgb(255, 255, 255)
-    );
+    assert_eq!(view.theme.colors.background, baeus_ui::theme::Color::rgb(255, 255, 255));
 }
 
 #[test]
 fn test_view_with_dark_theme() {
     let state = SearchBarState::new();
     let view = SearchBarView::new(state, Theme::dark());
-    assert_eq!(
-        view.theme.colors.background,
-        baeus_ui::theme::Color::rgb(0x1e, 0x21, 0x24)
-    );
+    assert_eq!(view.theme.colors.background, baeus_ui::theme::Color::rgb(0x1e, 0x21, 0x24));
 }
 
 #[test]

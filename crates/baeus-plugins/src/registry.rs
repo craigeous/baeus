@@ -18,10 +18,7 @@ pub struct PluginRegistry {
 impl PluginRegistry {
     /// Create a new PluginRegistry with the given plugin directory.
     pub fn new(plugin_dir: PathBuf) -> Self {
-        Self {
-            plugins: HashMap::new(),
-            plugin_dir,
-        }
+        Self { plugins: HashMap::new(), plugin_dir }
     }
 
     /// Returns the plugin directory path.
@@ -129,10 +126,7 @@ impl PluginRegistry {
 
     /// List plugins filtered by state.
     pub fn list_by_state(&self, state: &PluginState) -> Vec<&Plugin> {
-        self.plugins
-            .values()
-            .filter(|p| &p.state == state)
-            .collect()
+        self.plugins.values().filter(|p| &p.state == state).collect()
     }
 
     /// List all enabled plugins.
@@ -185,9 +179,7 @@ mod tests {
         let mut registry = PluginRegistry::new(PathBuf::from("/tmp/test"));
         let manifest = sample_manifest("io.example.test");
 
-        registry
-            .install(manifest, "/plugins/test.dylib".to_string())
-            .unwrap();
+        registry.install(manifest, "/plugins/test.dylib".to_string()).unwrap();
         assert_eq!(registry.plugin_count(), 1);
         assert!(registry.is_installed("io.example.test"));
     }
@@ -197,9 +189,7 @@ mod tests {
         let mut registry = PluginRegistry::new(PathBuf::from("/tmp/test"));
         let manifest = sample_manifest("io.example.test");
 
-        registry
-            .install(manifest.clone(), "/plugins/test.dylib".to_string())
-            .unwrap();
+        registry.install(manifest.clone(), "/plugins/test.dylib".to_string()).unwrap();
         let result = registry.install(manifest, "/plugins/test2.dylib".to_string());
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -214,10 +204,7 @@ mod tests {
     fn test_registry_enable() {
         let mut registry = PluginRegistry::new(PathBuf::from("/tmp/test"));
         registry
-            .install(
-                sample_manifest("io.example.test"),
-                "/plugins/test.dylib".to_string(),
-            )
+            .install(sample_manifest("io.example.test"), "/plugins/test.dylib".to_string())
             .unwrap();
 
         registry.enable("io.example.test").unwrap();
@@ -240,10 +227,7 @@ mod tests {
     fn test_registry_disable() {
         let mut registry = PluginRegistry::new(PathBuf::from("/tmp/test"));
         registry
-            .install(
-                sample_manifest("io.example.test"),
-                "/plugins/test.dylib".to_string(),
-            )
+            .install(sample_manifest("io.example.test"), "/plugins/test.dylib".to_string())
             .unwrap();
         registry.enable("io.example.test").unwrap();
 
@@ -263,10 +247,7 @@ mod tests {
     fn test_registry_uninstall() {
         let mut registry = PluginRegistry::new(PathBuf::from("/tmp/test"));
         registry
-            .install(
-                sample_manifest("io.example.test"),
-                "/plugins/test.dylib".to_string(),
-            )
+            .install(sample_manifest("io.example.test"), "/plugins/test.dylib".to_string())
             .unwrap();
 
         registry.uninstall("io.example.test").unwrap();
@@ -285,10 +266,7 @@ mod tests {
     fn test_registry_get_plugin() {
         let mut registry = PluginRegistry::new(PathBuf::from("/tmp/test"));
         registry
-            .install(
-                sample_manifest("io.example.test"),
-                "/plugins/test.dylib".to_string(),
-            )
+            .install(sample_manifest("io.example.test"), "/plugins/test.dylib".to_string())
             .unwrap();
 
         let plugin = registry.get_plugin("io.example.test");
@@ -302,18 +280,8 @@ mod tests {
     #[test]
     fn test_registry_list_plugins() {
         let mut registry = PluginRegistry::new(PathBuf::from("/tmp/test"));
-        registry
-            .install(
-                sample_manifest("io.example.a"),
-                "/plugins/a.dylib".to_string(),
-            )
-            .unwrap();
-        registry
-            .install(
-                sample_manifest("io.example.b"),
-                "/plugins/b.dylib".to_string(),
-            )
-            .unwrap();
+        registry.install(sample_manifest("io.example.a"), "/plugins/a.dylib".to_string()).unwrap();
+        registry.install(sample_manifest("io.example.b"), "/plugins/b.dylib".to_string()).unwrap();
 
         let plugins = registry.list_plugins();
         assert_eq!(plugins.len(), 2);
@@ -322,24 +290,9 @@ mod tests {
     #[test]
     fn test_registry_list_by_state() {
         let mut registry = PluginRegistry::new(PathBuf::from("/tmp/test"));
-        registry
-            .install(
-                sample_manifest("io.example.a"),
-                "/plugins/a.dylib".to_string(),
-            )
-            .unwrap();
-        registry
-            .install(
-                sample_manifest("io.example.b"),
-                "/plugins/b.dylib".to_string(),
-            )
-            .unwrap();
-        registry
-            .install(
-                sample_manifest("io.example.c"),
-                "/plugins/c.dylib".to_string(),
-            )
-            .unwrap();
+        registry.install(sample_manifest("io.example.a"), "/plugins/a.dylib".to_string()).unwrap();
+        registry.install(sample_manifest("io.example.b"), "/plugins/b.dylib".to_string()).unwrap();
+        registry.install(sample_manifest("io.example.c"), "/plugins/c.dylib".to_string()).unwrap();
 
         registry.enable("io.example.a").unwrap();
         registry.enable("io.example.b").unwrap();
@@ -393,13 +346,8 @@ mod tests {
         let id = "io.example.lifecycle";
 
         // Install
-        registry
-            .install(sample_manifest(id), "/plugins/lifecycle.dylib".to_string())
-            .unwrap();
-        assert_eq!(
-            registry.get_plugin(id).unwrap().state,
-            PluginState::Installed
-        );
+        registry.install(sample_manifest(id), "/plugins/lifecycle.dylib".to_string()).unwrap();
+        assert_eq!(registry.get_plugin(id).unwrap().state, PluginState::Installed);
 
         // Enable
         registry.enable(id).unwrap();
@@ -407,10 +355,7 @@ mod tests {
 
         // Disable
         registry.disable(id).unwrap();
-        assert_eq!(
-            registry.get_plugin(id).unwrap().state,
-            PluginState::Disabled
-        );
+        assert_eq!(registry.get_plugin(id).unwrap().state, PluginState::Disabled);
 
         // Re-enable
         registry.enable(id).unwrap();
@@ -425,10 +370,7 @@ mod tests {
     fn test_registry_get_plugin_mut() {
         let mut registry = PluginRegistry::new(PathBuf::from("/tmp/test"));
         registry
-            .install(
-                sample_manifest("io.example.test"),
-                "/plugins/test.dylib".to_string(),
-            )
+            .install(sample_manifest("io.example.test"), "/plugins/test.dylib".to_string())
             .unwrap();
 
         let plugin = registry.get_plugin_mut("io.example.test").unwrap();

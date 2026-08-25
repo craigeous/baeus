@@ -1,6 +1,6 @@
+use baeus_core::resource::{RelationshipKind, ResourceRef, ResourceRelationship};
 use baeus_ui::components::resource_map::*;
 use baeus_ui::theme::Theme;
-use baeus_core::resource::{ResourceRef, ResourceRelationship, RelationshipKind};
 
 // ---------------------------------------------------------------------------
 // T077: Render tests for ResourceMap component
@@ -53,12 +53,8 @@ fn sample_layout() -> LayoutState {
 #[test]
 fn test_nodes_render_at_correct_positions() {
     let layout = sample_layout();
-    let state = ResourceMapState {
-        layout,
-        zoom_level: 1.0,
-        pan_offset: (0.0, 0.0),
-        selected_node: None,
-    };
+    let state =
+        ResourceMapState { layout, zoom_level: 1.0, pan_offset: (0.0, 0.0), selected_node: None };
 
     // Verify nodes have correct positions from GraphNode data
     assert_eq!(state.layout.nodes[0].x, 0.0);
@@ -72,12 +68,8 @@ fn test_nodes_render_at_correct_positions() {
 #[test]
 fn test_edges_render_between_connected_nodes() {
     let layout = sample_layout();
-    let state = ResourceMapState {
-        layout,
-        zoom_level: 1.0,
-        pan_offset: (0.0, 0.0),
-        selected_node: None,
-    };
+    let state =
+        ResourceMapState { layout, zoom_level: 1.0, pan_offset: (0.0, 0.0), selected_node: None };
 
     // Verify edges connect correct nodes
     assert_eq!(state.layout.edges.len(), 2);
@@ -90,12 +82,8 @@ fn test_edges_render_between_connected_nodes() {
 #[test]
 fn test_selected_node_highlighting() {
     let layout = sample_layout();
-    let mut state = ResourceMapState {
-        layout,
-        zoom_level: 1.0,
-        pan_offset: (0.0, 0.0),
-        selected_node: None,
-    };
+    let mut state =
+        ResourceMapState { layout, zoom_level: 1.0, pan_offset: (0.0, 0.0), selected_node: None };
 
     // Select a node
     state.select_node("Pod/default/pod-a");
@@ -109,12 +97,8 @@ fn test_selected_node_highlighting() {
 #[test]
 fn test_zoom_affects_display() {
     let layout = sample_layout();
-    let mut state = ResourceMapState {
-        layout,
-        zoom_level: 1.0,
-        pan_offset: (0.0, 0.0),
-        selected_node: None,
-    };
+    let mut state =
+        ResourceMapState { layout, zoom_level: 1.0, pan_offset: (0.0, 0.0), selected_node: None };
 
     // Zoom in
     state.zoom_in();
@@ -129,12 +113,8 @@ fn test_zoom_affects_display() {
 #[test]
 fn test_pan_offset_affects_positions() {
     let layout = sample_layout();
-    let mut state = ResourceMapState {
-        layout,
-        zoom_level: 1.0,
-        pan_offset: (0.0, 0.0),
-        selected_node: None,
-    };
+    let mut state =
+        ResourceMapState { layout, zoom_level: 1.0, pan_offset: (0.0, 0.0), selected_node: None };
 
     // Pan the view
     state.pan(50.0, -30.0);
