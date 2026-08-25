@@ -20,9 +20,9 @@ planning cycle.
 
 Specs 01–05 are **Status: Draft** — descriptive back-fill authored during
 loom alignment (2026-08-25), pending blind Plan Review. They describe the
-project as it exists; they prescribe nothing. Spec 06 is **Status: Plan
-Review** — a prescriptive remediation plan derived from the five Approved
-research notes.
+project as it exists; they prescribe nothing. Spec 06 is **Status: Approved**
+— a prescriptive remediation plan derived from the five Approved research
+notes; slice A (its first four highs) has passed code evaluation.
 
 ## Non-negotiable decisions
 

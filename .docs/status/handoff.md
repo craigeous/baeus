@@ -21,8 +21,7 @@
 
 ## Immediate next step
 
-**Developing (loom:run, 2026-08-25):** slice-plan A Approved; developer
-implementing on branch `slice/a-ci-hardening`. On Implemented: orchestrator
-runs automated /code-review + /security-review on the slice diff, writes the
-findings artifact, dispatches blind code-eval (Kimi K3), then lands via PR.
-Remaining slices: B (watch cancellation + EKS refresh) → C → D → E → F → G.
+**Slice A Ready to Publish — PR open (2026-08-25):** branch
+`slice/a-ci-hardening` awaits owner merge. After merge: author slice-plan B
+(watch cancellation + EKS token refresh, per spec 06). Remaining slices:
+B → C → D → E → F → G.

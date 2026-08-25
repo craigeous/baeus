@@ -23,9 +23,14 @@ recorded results.
 | lint | `RUST_MIN_STACK=268435456 cargo clippy --workspace --all-targets -- -D warnings` |
 | test | `RUST_MIN_STACK=268435456 cargo test --workspace` |
 
-CI (`.github/workflows/ci.yml`, macos-14, PRs to main touching crates/ or
-Cargo manifests) runs the same lint and tests via `cargo nextest run
---workspace`. `-D warnings` is load-bearing — warnings are CI errors.
+CI (`.github/workflows/ci.yml`, matrix over macos-14 / ubuntu-latest /
+windows-latest, PRs to main touching `crates/**`, `Cargo.toml`, `Cargo.lock`,
+`deny.toml`, or `.github/workflows/**`) runs the gate in `format → deny →
+lint → test` order: `cargo fmt --all -- --check`, `cargo deny check`,
+`cargo clippy --workspace -- -D warnings`, and `cargo nextest run --workspace`.
+`-D warnings` is load-bearing — warnings are CI errors. (Updated to reflect
+slice A: 3-OS matrix, fmt gate, deny gate, and extended trigger paths added by
+findings 0006-H1/H2/H3.)
 
 Current recorded state at alignment time: 3,641 tests passing, clippy clean.
 

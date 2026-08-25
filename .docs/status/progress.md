@@ -2,15 +2,13 @@
 
 Status source of truth and decision index.
 
-- **Phase**: research / full project review complete — at owner gate
-- **Last action**: `/loom:run` full project review (2026-08-25) — five
-  research notes (`.docs/research/0002`–`0006`) authored across core/AWS, UI
-  layout, UI components, supporting crates, and quality infra; all five
-  passed blind plan evaluation on round 0 and are **Approved**. Verdicts in
-  `.docs/evaluations/`. ~62 findings total (17 high / 26 medium / 19 low).
-- **Next**: **owner gate** — owner reviews findings and picks which
-  improvements go to planning (ADRs → specs → slice-plans). Also pending:
-  Plan Review of back-filled specs 01–05 (roadmap milestone 2).
+- **Phase**: remediation in flight — slice A landed (PR open), slices B–G queued
+- **Last action**: slice A (CI & deny-gate hardening) code-eval PASS — status
+  Ready to Publish; PR open on branch `slice/a-ci-hardening` awaiting owner
+  merge (2026-08-25).
+- **Next**: slice-plan B — watch cancellation + EKS token refresh (spec 06
+  findings 0006-H5 and the first EKS-auth high); begin after slice A merges.
+  Also pending: Plan Review of back-filled specs 01–05 (roadmap milestone 2).
 
 ## Decision index
 
