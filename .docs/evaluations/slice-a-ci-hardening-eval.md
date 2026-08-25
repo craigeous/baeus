@@ -88,3 +88,159 @@ None — no BLOCKERs, no MAJORs.
 ## Notes
 
 Scope-discipline attack (spec 06 H1 lists only `ci.yml` as an affected file; the slice now edits `deny.toml` and `Cargo.lock`): judged **not** creep-disguised-as-intrinsic. The expansion is openly declared ("Affected files (superset of spec 06's per-finding lists …)"), justified from load-bearing spec text (the "CI gate stays green … (after slice A) `cargo deny check`" invariant, which no ci.yml-only slice can satisfy against this lockfile), mirrors the spec's own precedent for pulling the `paths:` extension into Slice A, and is bound by a 5-rule policy that keeps every suppression per-ID, provenance-named, bump-attempt-first, and expiry-triggered — exactly the planning-level (not developer-improvisation) remedy round 1 demanded. Non-goals correctly continue to exclude `[bans]`/`[sources]` tightening, SHA pinning, broader trigger redesign, and any `Cargo.toml` constraint edits. Round-0 invariants re-confirmed: the four Slice A findings retain their round-1-verified steps; GH Actions semantics unchanged in the verified regions; the TDD/verification shape (PR-as-acceptance-test + dry-run branch + slice-blocking local green gate) is coherent and consistent with spec 06's test-expectation exception for pure workflow/config changes (no Rust code touched, test count invariant holds). Escape hatch + acceptance 1c ("escape hatch invoked ⇒ criterion failed ⇒ not mergeable") is the correct failure semantics for the one residual unknowable (a future advisory surfacing mid-slice).
+
+
+---
+
+# Code evaluation (round 2)
+
+# Evaluation: slice-a-ci-hardening (code review)
+
+Verdict: FAIL
+Round: 2
+Reviewed against: `.docs/slice-plans/slice-a-ci-hardening.md` (Implemented),
+`.docs/spec/06-remediation-highs.md` (Approved; Slice A = 0006-H1..H4),
+`.docs/spec/03-toolchain-and-gate.md`, diff `git diff 9ad8d57..HEAD` on branch
+`slice/a-ci-hardening`, `.docs/evaluations/slice-a-ci-hardening-review-findings.md`.
+Round counting: prior plan-eval FAIL on this artifact was Round 1
+(`.docs/evaluations/slice-a-ci-hardening-eval.md`); per the one-counter-per-artifact
+rule, this code-eval FAIL increments to Round 2.
+
+## Gate re-run (performed, not trusted)
+
+| Step | Command | Result |
+|------|---------|--------|
+| format | `cargo fmt --all -- --check` | PASS (exit 0) |
+| lint (spec 03 local) | `RUST_MIN_STACK=268435456 cargo clippy --workspace --all-targets -- -D warnings` | **FAIL (exit 101)** — 46+ errors |
+| lint (CI shape) | `cargo clippy --workspace -- -D warnings` | PASS (exit 0) |
+| test | `RUST_MIN_STACK=268435456 cargo test --workspace` | PASS (exit 0; 76 binaries, 3,680 passed, 0 failed) |
+| deny (slice-specific) | `cargo deny check` | PASS (exit 0; advisories/bans/licenses/sources ok) |
+| yaml | `actionlint .github/workflows/ci.yml .github/workflows/release.yml` | PASS (exit 0) |
+
+(First-pass runs of clippy/test/deny were piped through `tail`, masking cargo's
+exit code; all were re-run with direct exit-code capture. The table reflects the
+unmasked results.)
+
+The clippy failure detail (current stable clippy 0.1.94; no rust-toolchain.toml
+pin exists, so the gate floats on stable):
+
+- `field_reassign_with_default` ×39 — `crates/baeus-ui/src/views/plugin_manager.rs`,
+  `components/resource_map.rs`, `views/crd_browser.rs`, `views/events.rs`,
+  `views/helm_install.rs`, `crates/baeus-app/src/settings.rs`, etc. (lib tests,
+  bin tests, integration tests)
+- "this expression always evaluates to false" ×3 — `resource_map_render_tests.rs`
+- `function ctrl_key is never used` ×1 — `terminal_view_render_tests.rs`
+- 9 targets fail to compile under `-D warnings`: `baeus-ui` lib test, `baeus-app`
+  bin test, and 7 `baeus-ui` integration test files.
+
+Spot-verified the linted patterns are pre-existing at `9ad8d57` (e.g.
+`plugin_manager.rs` old lines 744-745, 757-758) — this is toolchain drift on
+stable clippy, not slice-introduced code. That does not clear the slice: see
+BLOCKER 1.
+
+## Findings
+
+- [BLOCKER] Spec-03 lint gate is red at the slice tip —
+  `cargo clippy --workspace --all-targets -- -D warnings` exits 101 with 46+
+  errors. The slice-plan's own Verification §Local step 4 makes this exact
+  command a slice acceptance floor ("These must pass unchanged on macOS; they
+  are the invariant floor spec 06 restates"), and spec 03's gate table defines
+  lint with `--all-targets`. The plan's "known scope gap" sentence documents
+  only that **CI** omits `--all-targets`; it does not waive the local gate —
+  the plan's documented handling therefore does not cover shipping with this
+  command red, and the commit message claim "gate green (Implemented)" is not
+  reproducible. The developer demonstrably accepted responsibility for this
+  gate in-slice (ten files received behavior-neutral `--all-targets` lint
+  fixes: `useless_vec`, `len_zero`, `expect_fun_call`, unused-import removal,
+  byte-str comparisons) but stopped short, leaving 46+ errors of the same
+  drift class unfixed. A red gate is an automatic BLOCKER; landing as-is would
+  leave every subsequent slice inheriting a red local gate.
+
+- [MINOR] Scope-text gap: the ten files carrying clippy fixes exceed the
+  plan's "no `crates/**` edits" change list, which authorized only a
+  `cargo fmt --all` commit. Verified the fixes are gate-necessary (a probe
+  crate with the old patterns errors under the installed clippy) and
+  behavior-neutral (all 3,680 tests pass; the other 130 changed `crates/`
+  files verified byte-identical to `rustfmt(old)`). Recorded as a plan-text
+  gap — the plan should have authorized "lint fixes required by the
+  `--all-targets` gate" the same way it authorized the fmt commit — not as a
+  code defect.
+
+- [MINOR] Plan step 6's documentation obligation (record in
+  `handoff.md`/`roadmap.md` that spec 03:26-28's CI prose is now stale and
+  queue a spec-03 revision cycle) is not yet present in the diff. This is
+  finalize-pass territory (the finalize pass runs after a PASS verdict), so it
+  is recorded as an outstanding finalize obligation, not a current defect.
+  Note: spec 03 is `Status: Draft` (not Approved as the plan's step 6
+  assumed), so the frozen-spec concern is moot.
+
+## Fidelity to plan & specs (verified mechanically)
+
+- 0006-H1 — `on.pull_request.paths:` gains exactly `deny.toml` and
+  `.github/workflows/**` (matches plan step 1 verbatim); `Install cargo-deny`
+  (`taiki-e/install-action@cargo-deny`, same `@vN`-style as existing `@nextest`)
+  sits between Install Rust and Install cargo-nextest; `cargo deny check` step
+  runs after Format check and before Clippy. `cargo deny check` exits 0
+  (re-run). Triage complies with the plan's binding policy: every
+  `[advisories].ignore` addition is per-ID with provenance + pin + removal
+  trigger; the three pins were confirmed in `Cargo.lock` (hyper 0.14.32 →
+  `h2 0.3.27`; rustls 0.21.12 → `rustls-webpki 0.101.7`; wayland-scanner
+  0.31.8 → `quick-xml 0.38.4`); bumps applied where reachable (aws-lc-sys
+  0.38.0→0.44.0, aws-lc-rs →1.18.0, `h2 0.4.13→0.4.19`, `rustls-webpki
+  0.103.9→0.103.15`, crossbeam-epoch 0.9.18→0.9.20) — no workspace or crate
+  `Cargo.toml` edits. Licenses: `0BSD`/`NCSA` added to `[licenses].allow` with
+  OSI-status comments; `Apache-2.0 WITH LLVM-exception` scoped via
+  `[[licenses.exceptions]]` to `ar_archive_writer` only. `[bans]`/`[sources]`
+  untouched, per non-goals.
+- 0006-H2 — `components: rustfmt, clippy`; `Format check` is the first gate
+  step; in-slice fmt commit `1cddd73` present; tree passes fmt (re-run).
+- 0006-H3 — `check` job is a `fail-fast: false` matrix over
+  macos-14/ubuntu-latest/windows-latest with per-OS targets; Linux dep list
+  matches `release.yml`; cache key is `${{ runner.os }}-ci-${{ hashFiles }}`;
+  `RUST_MIN_STACK` retained on Clippy and Test.
+- 0006-H4 — single `compute-tag` job emits `tag/version/date/short_sha`;
+  version via `cargo metadata … select(.name == "baeus-app")`; all three
+  build jobs `needs:` it and consume `needs.compute-tag.outputs.tag`; the
+  three per-runner `Generate release tag` steps are deleted; `grep -rn
+  'v0.1.0-dev' .github/` → no matches.
+- Scope — the change surface is exactly `.github/workflows/ci.yml`,
+  `.github/workflows/release.yml`, `deny.toml`, `Cargo.lock`, the 140
+  fmt/lint-only `crates/` files, and `.docs/` status/review artifacts
+  (slice-plan status line, handoff, review-findings — recorder/orchestrator
+  territory). No spec/ADR edits, no workspace `Cargo.toml` edits.
+- Test expectations — infra slice; spec 06's "no new unit tests; verification
+  is CI itself" applies; test count undecreased (3,680 passing). Local
+  verifications the plan mandates (actionlint, fmt, deny) all re-run green;
+  remote A1–A4 acceptance is PR-time evidence outside the checkout.
+
+## Review-findings adjudication
+
+- `/security-review` — Status: ran-clean. **Confirmed** as consistent with my
+  own read: no blanket suppressions in `deny.toml` (every ignore is per-ID
+  with justification), workflow `permissions:` unchanged (`contents: read` on
+  ci.yml; pre-existing `contents: write` on release.yml), no new secret
+  handling, install-action pinning matches the spec-06-sanctioned `@vN`
+  pattern. Nothing to escalate.
+- `/code-review` — Status: skipped: command-unavailable. Per the rubric this
+  is informational, not a finding and not a clean review; the dimension was
+  covered manually above (diff-vs-plan fidelity, YAML expression correctness,
+  lockfile pin verification, whitespace/format-only verification of the
+  `crates/` surface).
+
+## Required changes (for FAIL)
+
+1. Make `RUST_MIN_STACK=268435456 cargo clippy --workspace --all-targets --
+   -D warnings` exit 0 on the slice branch — fix the 46+ drift lints
+   (`field_reassign_with_default`, always-false comparisons, dead `ctrl_key`)
+   with the same behavior-neutral minimal-edit class already used for the ten
+   files in this slice.
+2. Re-run the full spec 03 gate unmasked (no `| tail` pipelines swallowing
+   exit codes) and record honest gate evidence for the slice.
+
+## Notes
+
+The blocking defect is not the workflow YAML, the deny triage, or the lockfile
+work — those were verified correct against the plan and spec 06. The slice
+fails solely because its own mandated local gate is red at the tip while the
+recorded claim says green; the fix is mechanical and confined to test/bin
+targets.
