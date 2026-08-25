@@ -3,12 +3,9 @@
 Milestone order — what's next and why. Owned by the project owner; loom
 records, the owner decides.
 
-1. **Full project review** (owner-requested, 2026-08-25): a deep,
-   end-to-end review of the codebase in its current state — "it's ok, but it
-   needs to be better." Run as a loom research pass: parallel readers over
-   the subsystems, findings into `.docs/research/`, then ADRs/specs for the
-   improvements the owner approves. This is the immediate next scope for
-   `/loom:run`.
+1. ~~**Full project review**~~ **DONE (2026-08-25)**: research notes
+   `.docs/research/0002`–`0006` Approved; ~62 findings (17 high). Now at the
+   **owner gate**: owner picks which improvements go to planning.
 2. **Plan Review of back-filled specs**: the five Draft specs in
    `.docs/spec/` (01–05) need blind plan-evaluator review to reach Approved.
 3. **Plugin system completion**: `baeus-plugins` is scaffolded (trait,

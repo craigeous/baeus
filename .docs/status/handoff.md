@@ -21,10 +21,9 @@
 
 ## Immediate next step
 
-**In progress (loom:run, 2026-08-25):** full project review research pass.
-Five research notes (0002–0006) are committed at `Status: Research Review`.
-Five blind `loom:plan-evaluator` agents (opus) now review them against their
-cited sources. Orchestrator (recorder) installs verdicts to
-`.docs/evaluations/`, transitions statuses, commits, then pauses at the
-owner-claimed gate: findings + verdicts to the owner, who picks which
-improvements go to planning (ADRs → specs → slice-plans).
+**Owner gate (loom:run, 2026-08-25):** the full project review is complete —
+research notes 0002–0006 Approved, evals in `.docs/evaluations/`. The owner
+reviews the findings (start with the highs in each note) and declares which
+improvements go to planning. On the owner's pick: planner drafts ADR(s) →
+spec(s) → slice-plan(s) for the approved direction (new branch per user
+convention).
