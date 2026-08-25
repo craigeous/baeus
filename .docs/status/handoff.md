@@ -21,9 +21,9 @@
 
 ## Immediate next step
 
-**Planning (loom:run, 2026-08-25):** owner approved all 17 high-severity
-research notes 0002–0006 Approved, evals in `.docs/evaluations/`. The owner
-reviews the findings (start with the highs in each note) and declares which
-improvements go to planning. On the owner's pick: planner drafts ADR(s) →
-spec(s) → slice-plan(s) for the approved direction (new branch per user
-convention).
+**Planning (loom:run, 2026-08-25):** owner approved remediating all 17
+high-severity findings from research notes 0002–0006. Planner is authoring
+the remediation spec (`.docs/spec/06-remediation-highs.md`, Plan Review),
+judging first whether any new ADRs are needed (existing ADRs 0003/0004/0005
+and the constitution likely already decide the direction). Then: blind plan
+eval → slice-plans per work stream → developer slices on branches + PRs.
