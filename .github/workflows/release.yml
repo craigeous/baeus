@@ -12,8 +12,36 @@ permissions:
   contents: write
 
 jobs:
+  compute-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      date: ${{ steps.tag.outputs.date }}
+      short_sha: ${{ steps.tag.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute release tag
+        id: tag
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          DATE=$(date -u +%Y%m%d)
+          VERSION=$(cargo metadata --no-deps --format-version 1 \
+                      | jq -r '.packages
+                                | map(select(.name == "baeus-app"))
+                                | .[0].version')
+          TAG="v${VERSION}-dev.${DATE}.${SHORT_SHA}"
+          {
+            echo "short_sha=${SHORT_SHA}"
+            echo "date=${DATE}"
+            echo "version=${VERSION}"
+            echo "tag=${TAG}"
+          } >> "$GITHUB_OUTPUT"
+
   # ── macOS: build + release (independent, ships immediately) ──────────
   build-macos:
+    needs: [compute-tag]
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -70,19 +98,11 @@ jobs:
             -ov -format UDZO "${DMG_PATH}"
           rm -rf "${STAGING_DIR}"
 
-      - name: Generate release tag
-        id: tag
-        run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          DATE=$(date -u +%Y%m%d)
-          TAG="v0.1.0-dev.${DATE}.${SHORT_SHA}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: Baeus ${{ steps.tag.outputs.tag }}
+          tag_name: ${{ needs.compute-tag.outputs.tag }}
+          name: Baeus ${{ needs.compute-tag.outputs.tag }}
           body: |
             Automated build from `main` (${{ github.sha }}).
 
@@ -144,7 +164,7 @@ jobs:
         run: cargo nextest run --workspace
 
   build-linux:
-    needs: [check-linux]
+    needs: [check-linux, compute-tag]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -187,18 +207,10 @@ jobs:
           tar -czf Baeus-linux-x86_64.tar.gz -C dist baeus
           rm -rf dist
 
-      - name: Generate release tag
-        id: tag
-        run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          DATE=$(date -u +%Y%m%d)
-          TAG="v0.1.0-dev.${DATE}.${SHORT_SHA}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
+          tag_name: ${{ needs.compute-tag.outputs.tag }}
           files: Baeus-linux-x86_64.tar.gz
 
   # ── Windows: check → build → upload to same release ─────────────────
@@ -237,7 +249,7 @@ jobs:
         run: cargo nextest run --workspace
 
   build-windows:
-    needs: [check-windows]
+    needs: [check-windows, compute-tag]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -269,17 +281,8 @@ jobs:
           Copy-Item "target\x86_64-pc-windows-msvc\release\baeus-app.exe" "dist\baeus.exe"
           Compress-Archive -Path "dist\baeus.exe" -DestinationPath "Baeus-windows-x86_64.zip"
 
-      - name: Generate release tag
-        id: tag
-        shell: bash
-        run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          DATE=$(date -u +%Y%m%d)
-          TAG="v0.1.0-dev.${DATE}.${SHORT_SHA}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
+          tag_name: ${{ needs.compute-tag.outputs.tag }}
           files: Baeus-windows-x86_64.zip

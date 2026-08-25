@@ -5,6 +5,47 @@ ignore = [
     { id = "RUSTSEC-2025-0012", reason = "backoff is a transitive dep of kube-runtime, no direct usage" },
     { id = "RUSTSEC-2024-0384", reason = "instant is a transitive dep of backoff via kube-runtime" },
     { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile is a transitive dep of kube-client" },
+
+    # Vulnerabilities: bump attempted per triage rule 2; advisory survives because the
+    # vulnerable crate version is pinned by a transitive constraint this slice does not own.
+    # ── h2 0.3.27 ─────────────────────────────────────────────────────────────────────────
+    # Transitive via hyper 0.14.32 → aws-smithy-http-client. Fix requires h2 >=0.4.16
+    # (different major-version series); cargo update -p h2@0.3.27 could not resolve past 0.3.27
+    # because hyper 0.14.x requires h2 ^0.3. Remove when AWS SDK drops hyper 0.14.x.
+    { id = "RUSTSEC-2026-0258", reason = "h2 0.3.27: pinned by hyper 0.14.32 → aws-smithy-http-client; fix only in h2 >=0.4.16. Remove when AWS SDK drops hyper 0.14.x." },
+    # ── rustls-webpki 0.101.7 ─────────────────────────────────────────────────────────────
+    # Transitive via rustls 0.21.12 → aws-smithy-http-client. Fix requires webpki >=0.103.12
+    # (different minor series); cargo update -p rustls-webpki@0.101.7 could not resolve past
+    # 0.101.7 because rustls 0.21.12 requires webpki ^0.101. Remove when AWS SDK upgrades to
+    # rustls 0.23.x (already present as 0.103.15 for the kube-client 0.98.0 path).
+    { id = "RUSTSEC-2026-0098", reason = "rustls-webpki 0.101.7: pinned by rustls 0.21.12 → aws-smithy-http-client; fix needs webpki >=0.103.12. Remove when AWS SDK upgrades rustls." },
+    { id = "RUSTSEC-2026-0099", reason = "rustls-webpki 0.101.7: pinned by rustls 0.21.12 → aws-smithy-http-client; same constraint as RUSTSEC-2026-0098. Remove when AWS SDK upgrades rustls." },
+    { id = "RUSTSEC-2026-0104", reason = "rustls-webpki 0.101.7: pinned by rustls 0.21.12 → aws-smithy-http-client; same constraint as RUSTSEC-2026-0098. Remove when AWS SDK upgrades rustls." },
+    # ── quick-xml 0.38.4 ──────────────────────────────────────────────────────────────────
+    # Transitive via wayland-scanner 0.31.8 → gpui (wayland backend on Linux). Fix requires
+    # quick-xml >=0.41.0; cargo update -p quick-xml@0.38.4 could not resolve past 0.38.4
+    # because wayland-scanner 0.31.8 requires quick-xml ^0.38. Remove when gpui updates
+    # wayland-scanner past 0.31.8.
+    { id = "RUSTSEC-2026-0194", reason = "quick-xml 0.38.4: pinned by wayland-scanner 0.31.8 → gpui wayland backend; fix needs quick-xml >=0.41.0. Remove when gpui updates wayland-scanner." },
+    { id = "RUSTSEC-2026-0195", reason = "quick-xml 0.38.4: pinned by wayland-scanner 0.31.8 → gpui wayland backend; same constraint as RUSTSEC-2026-0194. Remove when gpui updates wayland-scanner." },
+
+    # Unmaintained crates — no safe upgrade available; all are transitive via gpui or gpui-component.
+    # Shape follows existing three entries above per triage rule 3.
+    # ── async-std ─────────────────────────────────────────────────────────────────────────
+    { id = "RUSTSEC-2025-0052", reason = "async-std: transitive via zed-async-tar → gpui_http_client → gpui; no safe upgrade. Remove when gpui replaces zed-async-tar." },
+    # ── core2 ─────────────────────────────────────────────────────────────────────────────
+    { id = "RUSTSEC-2026-0105", reason = "core2: transitive via bitstream-io → rav1e → ravif → image → gpui; no safe upgrade. Remove when rav1e or gpui drop core2." },
+    # ── paste ─────────────────────────────────────────────────────────────────────────────
+    { id = "RUSTSEC-2024-0436", reason = "paste: transitive via stacksafe-macro → stacksafe → gpui and gpui-component; no safe upgrade. Remove when upstream crates migrate off paste." },
+    # ── proc-macro-error2 ─────────────────────────────────────────────────────────────────
+    { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2: transitive via stacksafe-macro → stacksafe → gpui; no safe upgrade. Remove when stacksafe-macro migrates." },
+    # ── rustybuzz ─────────────────────────────────────────────────────────────────────────
+    # Two instances: rustybuzz 0.14.1 (via cosmic-text 0.14.2 → gpui) and 0.20.1 (via usvg 0.45.1 → gpui).
+    { id = "RUSTSEC-2026-0206", reason = "rustybuzz: transitive via cosmic-text 0.14.2 → gpui and usvg 0.45.1 → gpui; no safe upgrade. Remove when gpui updates cosmic-text/usvg." },
+    # ── ttf-parser ────────────────────────────────────────────────────────────────────────
+    # Three instances: ttf-parser 0.21.1 (via rustybuzz/cosmic-text → gpui), 0.20.0 (via fontdb
+    # 0.16.2 → cosmic-text → gpui), 0.25.1 (via fontdb 0.23.0 → usvg → gpui).
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser: transitive via cosmic-text/fontdb → gpui and usvg/fontdb → gpui; no safe upgrade. Remove when gpui updates cosmic-text/usvg." },
 ]
 
 [licenses]
@@ -21,7 +62,21 @@ allow = [
     "BSL-1.0",
     "CC0-1.0",
     "MPL-2.0",
+    # OSI-approved permissive licenses encountered via transitive deps
+    # (0BSD via enum-iterator/enum-iterator-derive → gpui-component;
+    #  NCSA via libfuzzer-sys → rav1e → ravif → image → gpui).
+    # Both are cargo-deny-reported "OSI approved"; NCSA is additionally
+    # "FSF Free/Libre" per cargo-deny's own labelling.
+    "0BSD",
+    "NCSA",
 ]
+
+# LLVM's standard Apache-2.0 exception. Scoped to the specific crate carrying
+# the SPDX-expression form so a future crate importing it under different terms
+# would fail the license check. (ar_archive_writer → psm → stacker → stacksafe → gpui)
+[[licenses.exceptions]]
+name = "ar_archive_writer"
+allow = ["Apache-2.0 WITH LLVM-exception"]
 
 [licenses.private]
 ignore = true
