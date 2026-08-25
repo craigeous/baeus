@@ -21,9 +21,8 @@
 
 ## Immediate next step
 
-**Slicing (loom:run, 2026-08-25):** spec 06 Approved (7 slices A–G).
-Slice-plan A (CI fixes) being authored → adversarial eval → developer slice
-on its own branch + PR. Slices run sequentially: A (CI) → B (watch
-cancellation + EKS refresh) → C (injection errors + async tests) → D
-(plugin/helm/diff) → E (alacritty) → F (virtualization + col-guard) → G
-(app_shell decomposition).
+**Developing (loom:run, 2026-08-25):** slice-plan A Approved; developer
+implementing on branch `slice/a-ci-hardening`. On Implemented: orchestrator
+runs automated /code-review + /security-review on the slice diff, writes the
+findings artifact, dispatches blind code-eval (Kimi K3), then lands via PR.
+Remaining slices: B (watch cancellation + EKS refresh) → C → D → E → F → G.
