@@ -16,10 +16,13 @@ planning cycle.
 3. [03 — Toolchain & Gate](03-toolchain-and-gate.md) — build, test, lint, CI, release
 4. [04 — Data Model](04-data-model.md) — core entities and relationships
 5. [05 — Feature Scope](05-feature-scope.md) — requirement inventory and implementation status
+6. [06 — Remediation of High-Severity Findings](06-remediation-highs.md) — prescriptive fix plan for the 17 highs surfaced by research 0002–0006
 
-All five are **Status: Draft** — descriptive back-fill authored during loom
-alignment (2026-08-25), pending blind Plan Review. They describe the project
-as it exists; they prescribe nothing.
+Specs 01–05 are **Status: Draft** — descriptive back-fill authored during
+loom alignment (2026-08-25), pending blind Plan Review. They describe the
+project as it exists; they prescribe nothing. Spec 06 is **Status: Plan
+Review** — a prescriptive remediation plan derived from the five Approved
+research notes.
 
 ## Non-negotiable decisions
 
