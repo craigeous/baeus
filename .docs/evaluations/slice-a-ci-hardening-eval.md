@@ -244,3 +244,160 @@ work — those were verified correct against the plan and spec 06. The slice
 fails solely because its own mandated local gate is red at the tip while the
 recorded claim says green; the fix is mechanical and confined to test/bin
 targets.
+
+
+---
+
+# Code re-evaluation (round 2, resolving)
+
+# Evaluation: slice-a-ci-hardening (code review, re-review of round-2 FAIL)
+
+Verdict: PASS
+Round: 2
+Reviewed against: `.docs/slice-plans/slice-a-ci-hardening.md` (Implemented),
+`.docs/spec/06-remediation-highs.md` (Approved; Slice A = 0006-H1..H4),
+`.docs/spec/03-toolchain-and-gate.md`, fix diff `git diff 8ca4eb2..HEAD` on branch
+`slice/a-ci-hardening` (HEAD = 0b90e44), full slice diff `git diff 9ad8d57..HEAD`,
+prior eval `.docs/evaluations/slice-a-ci-hardening-eval.md` (round-2 code-eval FAIL),
+`.docs/evaluations/slice-a-ci-hardening-review-findings.md`.
+Round counting: a PASS resolving the round-2 FAIL repeats the FAIL's round number
+(one counter per artifact) — Round stays 2, does not advance.
+
+## Gate re-run (performed, not trusted — all four steps, unmasked exit codes)
+
+| Step | Command | Result |
+|------|---------|--------|
+| format | `cargo fmt --all -- --check` | PASS (exit 0) |
+| lint (spec 03 local, the round-2 blocker) | `RUST_MIN_STACK=268435456 cargo clippy --workspace --all-targets -- -D warnings` | **PASS (exit 0)** |
+| test | `RUST_MIN_STACK=268435456 cargo test --workspace` | PASS (exit 0; 76 test binaries, 3,680 passed, 0 failed) |
+| deny (slice-specific) | `cargo deny check` | PASS (exit 0; `advisories ok, bans ok, licenses ok, sources ok`) |
+
+Environment facts: clippy 0.1.94 / rustc 1.94.0 — the **same clippy version** that
+produced the 46+ errors in round 2, so this is a true reversal on an identical
+toolchain, not version drift masking the lints. Working tree verified clean at
+HEAD 0b90e44 (only untracked `.sdlc/`), so the gate ran against exactly the
+reviewed tree. The clippy step replayed from cargo's fingerprint cache
+("Finished in 1.22s"); the fingerprint is content-based and the tree is unchanged
+since the fix commits, so the replay is valid evidence for this tree. Test step
+re-run a second time with direct exit-code capture (no `| tail` masking) — exit 0.
+`cargo deny check` emits warnings only (`license-not-encountered` for the
+pre-existing `"OpenSSL"` allow entry — unmatched allowances are warnings, not
+failures; exit 0).
+
+## Prior-findings disposition (round 2)
+
+- [BLOCKER, round 2] "`clippy --workspace --all-targets -- -D warnings` red with
+  46+ errors" — **Resolved.** The exact failing command now exits 0 on the same
+  clippy 0.1.94. Fix commits `a18f5bf` (lint fixes in test/bin targets) +
+  `c69ecb1` (fmt over the touched files) address all three round-2 lint classes:
+  `field_reassign_with_default` (39 sites) converted to struct-update syntax;
+  the always-false expressions in `resource_map_render_tests.rs` cleared with the
+  rewrite of the enclosing construction patterns (no assertion or comparison
+  lines deleted — verified in the diff); the dead `ctrl_key` helper handled via a
+  targeted allow (adjudicated below). Round-2 required-change #2 (honest unmasked
+  gate evidence) is satisfied by this re-run: every step captured with direct
+  exit codes.
+- [MINOR, round 2] "Plan-text gap: lint fixes exceed the plan's authorized
+  `crates/**` change list" — **Persists** (non-blocking). The fix adds 15 more
+  `crates/` files beyond the plan's change list (which authorizes only a
+  `cargo fmt --all` commit). As in round 2, the fixes are gate-necessary and
+  behavior-neutral (3,680 tests pass unchanged; no assertion text altered), so
+  this remains a plan-authorization nit, not a code defect.
+- [MINOR, round 2] "Step-6 documentation obligation (spec 03:26-28 staleness note
+  in handoff/roadmap) not yet present" — **Persists** (non-blocking). This is
+  finalize-pass territory; the finalize pass runs after this PASS verdict.
+
+## Attack on the fixes (adversarial pass over `git diff 8ca4eb2..HEAD -- crates/`)
+
+- **Struct-update-syntax conversions (13 files):** every hunk re-inspected. All
+  conversions are `let mut x = T::default(); x.a = …; x.b = …;` →
+  `T { a: …, b: …, ..Default::default() }` with the same values. No field
+  assignment dropped, no expected value changed — assertion lines are untouched
+  throughout. Spot-verified the non-obvious cases:
+  - `crates/baeus-app/src/settings.rs::test_preferences_serialization_roundtrip`:
+    old code set 7 fields post-default; new code moves 5 into the literal and
+    keeps `favorite_clusters.push` / `keybindings.insert` as post-construction
+    mutations of default-empty collections. Final state identical.
+  - `crates/baeus-ui/tests/keyboard_nav_tests.rs`: uses
+    `AppShellState { focus_mode: … }` with **no** `..Default::default()` —
+    verified `AppShellState` (app_shell.rs:3323) is a single-field struct
+    (`focus_mode` only), so the literal is complete and equivalent.
+  - `helm_install_render_tests.rs::test_full_install_workflow`: binding demoted
+    from `mut` to immutable where no later mutation occurs; values unchanged.
+- **`#[allow(clippy::const_is_empty)]` ×2** (`details_panel_tests.rs`
+  `test_metadata_fields_for_resource_detail`, `test_owner_references_concept`):
+  **legitimate.** Read both functions: they assert `!name.is_empty()` /
+  `uid.len() == 36` etc. over `&'static str` fixtures — the lint fires precisely
+  because the fixtures are compile-time constants, which is the test's deliberate
+  design (data-model "concept" tests). The allow is function-scoped, names the
+  exact lint, and hides no real defect; restructuring to dodge the lint would
+  make the tests strictly worse. Not suppression-to-pass.
+- **`#[allow(dead_code)]` on `ctrl_key`** (`terminal_view_render_tests.rs:25`):
+  verified the helper is genuinely uncalled. It is a pre-existing intentional
+  test utility; a targeted allow is an accepted hygiene choice, though deletion
+  would be one line cleaner. Recorded as [MINOR] below; not suppression of a
+  real issue (dead test helper, not dead production code).
+- **No workspace-level suppression introduced:** the fix surface contains no
+  `Cargo.toml` `[lints]` table, no crate-root `#![allow(...)]`, no
+  `clippy.toml` change — suppressions are exactly the three function-scoped
+  allows above.
+- **fmt commit `c69ecb1`:** touches only the files `a18f5bf` modified; gate
+  `cargo fmt --check` re-run green.
+
+## Re-confirmation of round-2's clean areas
+
+- `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `deny.toml`,
+  `Cargo.lock`, `Cargo.toml`: `git diff 8ca4eb2..HEAD` over these paths is
+  **empty** — untouched since round 2's line-by-line fidelity verification
+  (0006-H1 paths/deny-step, H2 fmt/components, H3 3-OS matrix, H4 compute-tag,
+  deny triage per-ID ignores with pins verified in the lockfile). That
+  verification carries over unchanged.
+- The round-2 whitespace-only verdict on the ~140 `crates/` fmt-commit files is
+  likewise undisturbed (no further edits to those files).
+- Scope: fix commits add only `crates/` test/bin lint fixes plus `.docs/`
+  status/review artifacts (slice-plan Status line, review-findings update —
+  recorder/orchestrator territory). No spec/ADR edits; no production-code
+  behavior changes (all `crates/` src hunks are inside `#[cfg(test)]` modules).
+
+## Review-findings adjudication
+
+- `/security-review` — Status: ran-clean (initial run, and re-run over the
+  lint-fix delta). **Confirmed** as consistent with my own read: the three new
+  `#[allow]` attributes are function-scoped, exact-lint, and security-irrelevant;
+  all src hunks are test-only; no `unsafe`, process, network, or credential
+  content introduced; workflow/deny/lock surface byte-identical to what round 2
+  verified. Nothing to escalate.
+- `/code-review` — Status: skipped: command-unavailable (both runs).
+  Informational per the rubric, not a clean review; the dimension was covered
+  manually above (diff-vs-plan fidelity, conversion semantics, allow
+  adjudication, scope checks).
+
+## Findings (this round)
+
+- [MINOR] Dead test helper retained under `#[allow(dead_code)]`
+  (`crates/baeus-ui/tests/terminal_view_render_tests.rs::ctrl_key`) — deletion
+  would be strictly cleaner; the allow is acceptable hygiene and blocks nothing.
+- [MINOR, carried from round 2] Plan-text gap: the plan's change list still
+  authorizes only a fmt commit under `crates/**`; the slice has now landed two
+  waves of gate-necessary lint fixes (25 files total) without a plan-text
+  update. Behavior-neutral and gate-required, but the plan should have
+  authorized "lint fixes required by the `--all-targets` gate" explicitly.
+- [MINOR, carried from round 2] Step-6 finalize obligation outstanding: record
+  spec 03:26-28's stale CI prose (3-OS matrix, fmt + deny added) in
+  handoff/roadmap and queue a spec-03 revision. Finalize-pass territory —
+  expected to be discharged by the post-PASS finalize pass.
+
+## Required changes (for FAIL)
+
+None — no BLOCKERs, no MAJORs.
+
+## Notes
+
+The round-2 BLOCKER was the sole basis for that FAIL ("the slice fails solely
+because its own mandated local gate is red at the tip"); the workflow YAML, deny
+triage, and lockfile work were verified correct then and are untouched now. The
+fix is exactly the minimal behavior-neutral class round 2 prescribed, the full
+four-step gate re-runs green on the identical toolchain that failed before, and
+the three `#[allow]` attributes adjudicate as legitimate const-context/test-
+utility hygiene rather than suppression-to-pass. Landing this unblocks the
+finalize pass; the two carried MINORs are recorded there and above.
