@@ -23,3 +23,19 @@ cache-poisoning and tag-flow attack paths, lockfile add/remove check). The
 finder executed and completed normally (no infrastructure-failure indicators)
 and reported no candidate findings; with zero candidates, the false-positive
 filtering phases were vacuous. Final report: no vulnerabilities found.
+
+---
+
+## Re-run after round-2 lint fixes (commits a18f5bf..e38e017)
+
+### /code-review
+Status: skipped: command-unavailable
+
+### /security-review
+Status: ran-clean
+
+Incremental finder pass over the lint-fix delta verified every src hunk is
+confined to `#[cfg(test)]` blocks (struct-update-syntax conversions), the
+`#[allow]` attributes suppress no security-relevant lint, and no new
+`unsafe`/process/network/credential content was introduced. No candidate
+findings; finder executed normally.
