@@ -2,15 +2,15 @@
 
 Status source of truth and decision index.
 
-- **Phase**: init / Unaligned alignment complete
-- **Last action**: `/loom:init` alignment pass (2026-08-25) — detected
-  Unaligned-bare (no `.docs/`, no in-repo docs spine; speckit tree lives in
-  the separate `~/git/baeus-spec` repo). Scaffolded `.docs/`, adopted the
-  verified Rust gate (workspace-adapted), back-filled five descriptive Draft
-  specs, imported six Accepted ADRs and the Phase-0 research note with
-  provenance, seeded status. No new decisions were made.
-- **Next**: owner declares scope and runs `/loom:run`. Declared scope on
-  file: **full project review** (see `roadmap.md` milestone 1).
+- **Phase**: research / full project review complete — at owner gate
+- **Last action**: `/loom:run` full project review (2026-08-25) — five
+  research notes (`.docs/research/0002`–`0006`) authored across core/AWS, UI
+  layout, UI components, supporting crates, and quality infra; all five
+  passed blind plan evaluation on round 0 and are **Approved**. Verdicts in
+  `.docs/evaluations/`. ~62 findings total (17 high / 26 medium / 19 low).
+- **Next**: **owner gate** — owner reviews findings and picks which
+  improvements go to planning (ADRs → specs → slice-plans). Also pending:
+  Plan Review of back-filled specs 01–05 (roadmap milestone 2).
 
 ## Decision index
 
