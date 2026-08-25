@@ -21,6 +21,10 @@
 
 ## Immediate next step
 
-Run `/loom:run` with the owner-declared scope: **full project review** —
-research pass over the whole codebase, findings into `.docs/research/`, then
-planning for the improvements the owner approves (roadmap milestone 1).
+**In progress (loom:run, 2026-08-25):** full project review research pass.
+Five `loom:researcher` agents fan out over the subsystems (core/client+AWS,
+UI layout, UI components, supporting crates, quality infra), each writing a
+`Status: Research Review` note under `.docs/research/`. Orchestrator commits
+their output, then dispatches blind plan-evaluator review per note, then
+pauses at the owner-claimed gate: findings + verdicts to the owner, who picks
+which improvements go to planning (ADRs → specs → slice-plans).
