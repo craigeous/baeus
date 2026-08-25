@@ -1,6 +1,6 @@
 # Research: Quality & delivery infrastructure review
 
-**Status**: Research Review
+**Status**: Approved
 **Date**: 2026-08-25
 **Subsystem**: workspace config, CI/release, test estate
 
