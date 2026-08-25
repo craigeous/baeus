@@ -1,6 +1,6 @@
 # Research: UI layout & app shell review
 
-**Status**: Research Review
+**Status**: Approved
 **Date**: 2026-08-25
 **Subsystem**: crates/baeus-ui layout + crate root
 
