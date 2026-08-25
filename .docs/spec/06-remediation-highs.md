@@ -1,6 +1,6 @@
 # 06 — Remediation of High-Severity Findings
 
-Status: Plan Review
+Status: Draft
 
 This spec is the authoritative plan for remediating the seventeen (17)
 high-severity findings surfaced by the deep review captured in research notes
