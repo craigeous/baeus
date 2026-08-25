@@ -15,3 +15,8 @@ first (through a new planning cycle).
 
 Active slice-plans live here; landed ones move to
 [`archive/`](archive/README.md).
+
+## Active
+
+- [`slice-a-ci-hardening.md`](slice-a-ci-hardening.md) — Status: Plan Review
+  — CI & release hygiene (spec 06 findings 0006-H1, H2, H3, H4).
