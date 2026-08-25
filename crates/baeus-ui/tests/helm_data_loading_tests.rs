@@ -253,7 +253,8 @@ fn sort_by_last_deployed_empty_releases() {
 
 #[test]
 fn begin_search_sets_searching() {
-    let mut state = HelmInstallViewState { error: Some("old error".to_string()), ..Default::default() };
+    let mut state =
+        HelmInstallViewState { error: Some("old error".to_string()), ..Default::default() };
 
     state.begin_search();
 

@@ -555,7 +555,8 @@ mod tests {
 
     #[test]
     fn test_set_loading() {
-        let mut state = HelmReleasesViewState { error: Some("some error".to_string()), ..Default::default() };
+        let mut state =
+            HelmReleasesViewState { error: Some("some error".to_string()), ..Default::default() };
 
         state.set_loading(true);
         assert!(state.loading);

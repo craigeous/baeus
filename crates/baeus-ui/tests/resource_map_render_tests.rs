@@ -255,7 +255,8 @@ fn test_zoom_out_clamped_at_min() {
 
 #[test]
 fn test_reset_zoom_resets_pan() {
-    let mut state = ResourceMapState { zoom_level: 2.5, pan_offset: (100.0, -50.0), ..Default::default() };
+    let mut state =
+        ResourceMapState { zoom_level: 2.5, pan_offset: (100.0, -50.0), ..Default::default() };
 
     state.reset_zoom();
     assert!((state.zoom_level - 1.0).abs() < f64::EPSILON);

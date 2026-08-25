@@ -760,7 +760,8 @@ mod tests {
 
     #[test]
     fn test_clear() {
-        let mut state = HelmInstallViewState { search_query: "nginx".to_string(), ..Default::default() };
+        let mut state =
+            HelmInstallViewState { search_query: "nginx".to_string(), ..Default::default() };
         state.set_search_results(sample_search_results());
         state.select_chart(sample_chart("nginx", "15.4.0"));
         state.set_namespace("production");

@@ -54,13 +54,15 @@ fn make_component() -> HelmInstallViewComponent {
 }
 
 fn make_component_with_results() -> HelmInstallViewComponent {
-    let mut state = HelmInstallViewState { search_query: "nginx".to_string(), ..Default::default() };
+    let mut state =
+        HelmInstallViewState { search_query: "nginx".to_string(), ..Default::default() };
     state.set_search_results(sample_search_results());
     HelmInstallViewComponent::new(state, Theme::dark())
 }
 
 fn make_component_with_selection() -> HelmInstallViewComponent {
-    let mut state = HelmInstallViewState { search_query: "nginx".to_string(), ..Default::default() };
+    let mut state =
+        HelmInstallViewState { search_query: "nginx".to_string(), ..Default::default() };
     state.set_search_results(sample_search_results());
     state.select_chart(sample_chart("nginx", "15.4.0"));
     HelmInstallViewComponent::new(state, Theme::dark())
@@ -396,14 +398,16 @@ fn test_no_error_initially() {
 
 #[test]
 fn test_error_set() {
-    let state = HelmInstallViewState { error: Some("search failed".to_string()), ..Default::default() };
+    let state =
+        HelmInstallViewState { error: Some("search failed".to_string()), ..Default::default() };
     let comp = HelmInstallViewComponent::new(state, Theme::dark());
     assert_eq!(comp.state.error.as_deref(), Some("search failed"));
 }
 
 #[test]
 fn test_error_cleared_on_search_results() {
-    let mut state = HelmInstallViewState { error: Some("old error".to_string()), ..Default::default() };
+    let mut state =
+        HelmInstallViewState { error: Some("old error".to_string()), ..Default::default() };
     state.set_search_results(sample_search_results());
     assert!(state.error.is_none());
 }
