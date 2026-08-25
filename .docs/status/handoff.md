@@ -21,7 +21,7 @@
 
 ## Immediate next step
 
-**Owner gate (loom:run, 2026-08-25):** the full project review is complete —
+**Planning (loom:run, 2026-08-25):** owner approved all 17 high-severity
 research notes 0002–0006 Approved, evals in `.docs/evaluations/`. The owner
 reviews the findings (start with the highs in each note) and declares which
 improvements go to planning. On the owner's pick: planner drafts ADR(s) →
