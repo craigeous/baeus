@@ -115,7 +115,7 @@ impl HelmReleasesViewState {
 
     /// Sort releases by name (ascending, case-insensitive).
     pub fn sort_by_name(&mut self) {
-        self.releases.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        self.releases.sort_by_key(|a| a.name.to_lowercase());
     }
 
     /// Sort releases by status label (ascending alphabetical on the debug
@@ -126,7 +126,7 @@ impl HelmReleasesViewState {
 
     /// Sort releases by last deployed timestamp (newest first).
     pub fn sort_by_last_deployed(&mut self) {
-        self.releases.sort_by(|a, b| b.last_deployed.cmp(&a.last_deployed));
+        self.releases.sort_by_key(|a| std::cmp::Reverse(a.last_deployed));
     }
 
     /// Returns the total number of releases (unfiltered).

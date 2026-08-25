@@ -449,7 +449,7 @@ pub async fn fetch_dashboard_data(client: &Client) -> Result<DashboardData> {
         .collect();
 
     // Sort by timestamp descending.
-    events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    events.sort_by_key(|a| std::cmp::Reverse(a.timestamp));
     events.truncate(50);
 
     let pod_count = pod_list.items.len() as u32;

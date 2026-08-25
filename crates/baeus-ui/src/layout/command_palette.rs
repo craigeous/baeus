@@ -179,7 +179,7 @@ impl CommandPaletteState {
             }
         }
 
-        scored.sort_by(|a, b| b.score.cmp(&a.score));
+        scored.sort_by_key(|a| std::cmp::Reverse(a.score));
         scored
     }
 }

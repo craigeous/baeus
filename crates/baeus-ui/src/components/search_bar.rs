@@ -188,7 +188,7 @@ pub fn search_resources(query: &str, items: &[SearchItem]) -> Vec<SearchMatch> {
         }
     }
 
-    results.sort_by(|a, b| b.score.cmp(&a.score));
+    results.sort_by_key(|a| std::cmp::Reverse(a.score));
     results
 }
 
