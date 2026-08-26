@@ -125,3 +125,103 @@ is false under `GITHUB_TOKEN` and whose verification step cannot run
 pre-merge; plus one mechanically wrong acceptance-check command. A revision
 that severs step 5 per the plan's own escape hatch, or properly redesigns
 it, should pass on re-review.
+
+
+---
+
+# Evaluation: slice-a2-ci-toolchain-pin
+
+Verdict: PASS
+Round: 1
+Re-review of the revision at `.docs/slice-plans/slice-a2-ci-toolchain-pin.md`
+(diff `82f19f4..HEAD` inspected in full). Reviewed against: the round-1
+evaluation (`.docs/evaluations/slice-a2-ci-toolchain-pin-eval.md`),
+`.docs/spec/06-remediation-highs.md` Slice A2 section (lines 720–805,
+re-read verbatim), the real `.github/workflows/ci.yml` / `release.yml`,
+and the live `dtolnay/rust-toolchain` action repo.
+
+## Prior findings — resolution proof
+
+- **[MAJOR] step-5 bump-PR workflow (GITHUB_TOKEN PRs don't trigger CI;
+  A2-c unexecutable pre-merge) — RESOLVED by severance, which is
+  spec-admissible.** The entire `toolchain-bump.yml` step is deleted;
+  no workflow file, no `peter-evans/create-pull-request` dependency, and
+  no A2-c verification remain. The automation is now an explicit
+  non-goal deferred to a follow-up slice A3, with the two mechanical
+  defects (PAT vs `GITHUB_TOKEN`; post-merge dispatch verification)
+  named in the non-goal and re-named in step 5's finalize queue so a
+  future planner must resolve them honestly. Severance does not violate
+  spec 06 A2: the cadence policy section explicitly sanctions "a
+  scheduled PR (opened by a scheduled workflow, **or by convention on a
+  fixed day of month**)" and requires only that the policy be recorded
+  in "an inline comment at the pin sites in both workflow files" —
+  automation was the plan's own addition, never a spec requirement. The
+  replacement comment text is honest about the interim state ("the
+  enforcing automation is deferred to slice A3. Until A3 lands, bumps
+  are manual: open a PR that edits this pin and rust-toolchain.toml
+  together and lets the full CI matrix verify the new version before
+  merge") — a manual PR does trigger CI, so the claim is now true. The
+  spec acceptance criterion "bump cadence policy is discoverable from a
+  documented location" is met (comment in `ci.yml`, above the first
+  `release.yml` pin site, and inside `rust-toolchain.toml`).
+- **[MINOR] acceptance criterion 2 sed empty-match — RESOLVED.** The
+  check is now `sed -n 's|.*dtolnay/rust-toolchain@\([0-9][0-9.]*\).*|\1|p'
+  .github/workflows/*.yml | sort -u` asserted to return exactly one line
+  (`1.98.0`). The digit-anchored `[0-9][0-9.]*` cannot match the empty
+  string and cannot match `${OLD}`/`${NEW}` shell literals, so it is
+  correct both on the post-slice tree (six matches collapsing to one
+  unique line) and against any future A3 bump workflow — the plan says
+  exactly this. BSD-sed BRE syntax is valid on macOS.
+- **[MINOR] `rust-toolchain.toml` `targets = ["aarch64-apple-darwin"]`
+  — RESOLVED.** The `targets` field is dropped; the toml is now
+  `channel` + `components` only, with a note explaining the round-1
+  rationale (CI legs get their target from `targets: ${{ matrix.target
+  }}`; cross-compilation not a supported local flow). The remaining
+  `components = ["rustfmt", "clippy"]` matches CI's component set.
+- **[MINOR] step-1 stale drift-conditional pin selection — RESOLVED.**
+  Step 1 now states "The pin is **`1.98.0`**, stated unconditionally",
+  cites the channel-manifest evidence, and demotes the drift case to a
+  bounded code-eval-time escape hatch (code evaluator may request a
+  bump to a newer stable that passes the gate locally). The planning
+  artifact itself no longer branches.
+
+## Fresh attack — what I re-verified mechanically
+
+- **Edit targets unchanged and exact.** `ci.yml` has exactly one
+  `@stable` (line 33, as step 2 states); `release.yml` has exactly five
+  (lines 50, 127, 173, 223, 258, as step 3 states). No
+  `rust-toolchain.toml` exists yet (step 4 creates it). Local grep
+  counts in Verification §Local item 4 (zero `@stable`, exactly six
+  `@1.98.0` lines) are arithmetically correct for the post-edit tree.
+- **Pin mechanism still valid.** `refs/heads/1.98.0` exists on
+  `dtolnay/rust-toolchain` (re-verified via `git ls-remote`,
+  `f8be11a`); round-1's verification that the branch's `action.yml`
+  hardcodes `toolchain: 1.98.0` while accepting `targets:`/`components:`
+  stands.
+- **Cadence enforcement after severance is not hand-waving.** The
+  interim manual flow is concrete (one PR edits the workflow pin and
+  the toml channel together; full CI matrix verifies before merge) and
+  matches spec 06 A2's "by convention" option; A3 is queued as a
+  finalize follow-up with its design constraints recorded. Spec
+  acceptance criteria map one-to-one onto the plan's acceptance
+  criteria 1–4 plus A2-a/A2-b.
+- **Amendment discipline intact.** The revision stays inside spec 06
+  A2's offered options (toml included per "recommended"; monthly
+  cadence per owner default; inline-comment location; spec 03 revision
+  queued, not edited). No new files beyond `.github/workflows/**` +
+  `rust-toolchain.toml`; non-goals still exclude MSRV, `crates/**`,
+  action SHA-pinning, and spec 03 edits.
+
+## Findings
+
+None.
+
+## Notes
+
+Two observations below finding threshold, recorded for the developer's
+benefit only: (a) A2-b lives under the "Remote" heading but is executed
+locally pre-push — cosmetic placement, the check itself is executable
+and meaningful; (b) the inline comment names cadence and cites owner
+direction as authority without naming a human owner of the monthly
+bump — spec 06 A2's acceptance criterion requires only that the policy
+be *discoverable*, which the comment satisfies.
