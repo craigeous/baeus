@@ -1,6 +1,6 @@
 # Slice B — Watch Cancellation + EKS Token Refresh
 
-Status: Plan Review
+Status: Approved
 Target specs: `.docs/spec/06-remediation-highs.md` (§ 0002-H1 "Cancellation
 surface on `watch_events` / `watch_resources`", § 0002-H2 "EKS bearer token
 60-second TTL with no refresh path"); gate defined by

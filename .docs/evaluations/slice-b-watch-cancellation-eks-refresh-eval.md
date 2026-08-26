@@ -441,3 +441,138 @@ different ways. A slice-plan whose central acceptance evidence is
 arithmetically self-defeating is not executable as written; per the
 severity rule (an unaddressed MAJOR fails), this cannot pass. The fix is
 an hour of editing, not a redesign.
+
+
+---
+
+# Evaluation: slice-b-watch-cancellation-eks-refresh.md
+
+Verdict: PASS
+Round: 2
+Reviewed against: the round-2 evaluation
+(`.docs/evaluations/slice-b-watch-cancellation-eks-refresh-eval.md`, last
+section), the diff `274f407..3134215` of the artifact,
+`.docs/spec/06-remediation-highs.md` (0002-H1, 0002-H2, Invariants, Slice B
+row), `.docs/research/0002-core-client-aws-review.md` (finding 2), and the
+real tree: `crates/baeus-core/src/{client.rs, aws_eks.rs, cluster.rs,
+informer.rs, watch.rs}`, `crates/baeus-ui/src/layout/app_shell.rs`.
+
+## Round-2 findings — resolution status
+
+- **MAJOR (step-6 wiremock test arithmetically unsatisfiable) — RESOLVED.**
+  The revision replaces the contradictory `now+2s` / "initially-not-
+  should-refresh" / `counter >= 2` recipe with a single coherent
+  parameterisation, and I walked the timeline mechanically:
+  - t0: initial `TokenState { token = "token-0", expires_at = t0 + 12s }`.
+    Request 1: `should_refresh()` ⇔ `t0+10 >= t0+12` ⇔ false → fast path.
+    Header `Bearer token-0`, counter 0. Bullet 4's assertions hold.
+  - Sleep 3 s → t0+3: remaining lifetime 9 s; `t0+13 >= t0+12` ⇔ true →
+    the second request refreshes exactly once: counter 0→1, closure
+    returns `token = "token-1"` (`n` read post-increment — bullet 2 now
+    states this), `expires_at = t0+3+60s` (outside the leeway, so no
+    further refresh can fire). Bullet 6's `Bearer token-1` assertion
+    holds; bullet 7's `counter == 1` holds.
+  - The self-contradictory bullet-2 parenthetical is deleted; bullets
+  4–7, and the Verification section's 2a and 2c restatements, all name
+  the same +12 s / 3 s / token-0 → token-1 / counter == 1 variant.
+  A workspace grep of the artifact confirms no surviving `seconds(2)`,
+  "two-second", `>= 2`, or "higher counter" text.
+  Robustness note (not a finding): the only timing failure mode is the
+  front-side margin — refresher construction to request-1 dispatch must
+  stay under ~2 s of wall clock or the fast-path assertion flakes. That
+  gap is wiremock-server-already-running plus a local `kube::Client`
+  build, i.e. milliseconds in practice; 2 s of slack is acceptable for
+  an integration test of this class. The back side is safe by
+  construction (`tokio::time::sleep` never undershoots, so remaining
+  lifetime is ≤ 9 s < 10 s leeway with ≥ 1 s slack).
+
+- **MAJOR-adjacent flaw in step 4 (`refresher_produces_fresh_token_on_call`
+  two-refresh precondition unstated) — RESOLVED.** The step now states the
+  precondition explicitly: the canned closure returns `expires_at =
+  Utc::now() + 5s` (inside the leeway) and the initial `TokenState` is
+  also +5 s. Walked: refresh 1 fires (5 < 10), new expiry `now+5s`;
+  refresh 2 re-checks `now+10 >= now+5` ⇔ true → fires again → two
+  distinct tokens. Satisfiable and non-trivial. The companion
+  `should_refresh` unit test's three cases (+9 s → true, +11 s → false,
+  −1 s → true) match the spec-06 formula `Utc::now() + 10s >= expires_at`
+  exactly.
+
+- **MINOR (Slice B row omits `app_shell.rs`) — RESOLVED.** New dated Notes
+  item acknowledges the row-level mismatch, cites the D/F/G-row precedent,
+  and routes the correction as a dated additive amendment to spec 06 in
+  the same finalize pass as the 0002-H2 Affected-files clarification.
+
+- **MINOR (`set_token_expiry` false doc claim) — RESOLVED.** Step 5 now
+  mandates future-tense wording ("will be populated by callers that hold
+  an `EksTokenRefresher`"), states that `token_expiry` stays unpopulated
+  post-slice-B, and the Notes item folds that gap into the queued spec 06
+  clarification with the (a)/(b) migration resolution path.
+
+- **MINOR (inert "fail-safe fallback" rationale) — RESOLVED.** Step 4 now
+  states the static kubeconfig token is inert under the custom-service
+  assembly (no `auth_layer` applied), explicitly forbids the "fail-safe
+  fallback" description, and keeps the `insert`-not-`append` point.
+
+- **MINOR (poisoned-lock contradiction) — RESOLVED.** The design note now
+  documents the split semantics explicitly: request-path getters
+  `.expect("lock poisoned")` (poisoning = unrecoverable invariant break),
+  the writer maps its own `PoisonError` to
+  `EksTokenRefreshError::LockPoisoned`. The sketch and the rationale are
+  now consistent.
+
+## Findings (round 3 — fresh)
+
+- [MINOR] The round-2 spec-06 misattribution was corrected by addition,
+  not by removal. Step 3 line 581 still reads "(spec 06 explicitly bounds
+  UI edits to the mechanical call-site adjustments)", while eight lines
+  later (:589-590) the same step correctly states "(the 'call-site
+  adjustments' phrase in spec 06 line 595 belongs to 0005-H5, not to
+  Slice B)". The false sentence directly contradicts the true one inside
+  a single step. The prescribed action is identical either way, so
+  executability is not compromised — but the stale parenthetical should
+  be deleted, not merely answered. (Round-2 required change 3 asked to
+  "fix the spec-06 misattribution in step 3"; this is half-done.)
+
+- [MINOR] Standing from round 2 (was not in its required-changes list,
+  still unaddressed): step 3's claim that `stop_event_watcher` "is
+  already called by every `on_cluster_connection_lost` and
+  cluster-disconnect path today" — it has exactly one caller
+  (app_shell.rs:1927, the disconnect handler). Substance is fine; the
+  quantifier is unverified. No text change in the revision.
+
+## What verified cleanly this round (for the record)
+
+- Verification-section 2a/2c restatements are now identical to step 6's
+  parameterisation (12 s seed, 3 s sleep, token-0 → token-1, counter ==
+  1) — the internal-consistency defect from round 2 is gone.
+- Test-count accounting unchanged and still internally consistent:
+  2 (step 1) + 2 (step 2 informer) + 3 (step 2 bridge) + 3 (step 4) +
+  1 (step 6 integration) = +11.
+- The revision touched only steps 3–6, Verification, and Notes; the
+  round-1-resolved surfaces (dependency manifest, optional-token
+  signature, `std::sync::RwLock` lock model, UI wiring through
+  `informer_manager` / `resource_watch_cancels`, dead-`create_eks_client`
+  mental model) were not regressed — re-spot-checked against the tree.
+- Spec 06 conformance intact: 0002-H1 optional-token fix approach still
+  verbatim; 0002-H2 acceptance 2a/2b/2c mapped to genuine, satisfiable
+  tests; the wiremock-as-K8s-API substitution justification (accepted in
+  kind at round 2) is untouched; the finalize amendment/clarification
+  path respects spec 06's frozen status.
+
+## Required changes (for FAIL)
+
+None. Two MINORs above are quality nits for the finalize pass; neither
+blocks development.
+
+## Notes
+
+The round-2 FAIL rode on one thing: the slice's flagship acceptance
+evidence was arithmetically self-defeating. The revision fixes it with
+exactly the parameterisation the round-2 eval prescribed (initial expiry
+outside the leeway, fast-path first request, single refresh on the
+second, counter == 1), extends the same rigour to step 4's two-refresh
+test, and cleans up four of the five round-2 MINORs in substance. The
+one remaining misattribution leftover (:581) is a stale-sentence
+deletion, not a design question. No unaddressed MAJOR and no BLOCKER
+remains; per the severity rule this passes, and per the round-counting
+rule a PASS resolving the round-2 FAIL carries Round: 2.
