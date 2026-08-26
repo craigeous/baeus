@@ -29,6 +29,10 @@ secrecy.workspace = true
 ring.workspace = true
 rustls.workspace = true
 http = "1"
+tokio-util = { version = "0.7", features = ["rt"] }
+tower = { version = "0.5", features = ["util"] }
+hyper = "1"
+hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", "http2", "tokio"] }
 open.workspace = true
 aws-config.workspace = true
 aws-sdk-eks.workspace = true
@@ -42,3 +46,4 @@ aws-smithy-runtime-api.workspace = true
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile.workspace = true
+wiremock = "0.6"
