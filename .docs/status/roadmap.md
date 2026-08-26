@@ -18,6 +18,8 @@ records, the owner decides.
 
 - ~~**Slice A** — CI & deny-gate hardening (0006-H1, H2, H3, H4)~~
   **DONE** (code-eval PASS, PR landing on `slice/a-ci-hardening`).
+- ~~**Slice A2** — CI toolchain pin (owner-directed, spec 06 Amendments)~~
+  **DONE** (code-eval PASS, PR landing on `slice/a2-ci-toolchain-pin`).
 - **Slice B** — watch cancellation + EKS token refresh (0006-H5 + EKS-auth
   highs from research 0002) — **next after slice A merges**.
 - **Slices C–G** — remaining spec 06 highs, to be planned in order.

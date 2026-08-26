@@ -8,7 +8,7 @@
    action, decision index.
 3. Check [`.docs/status/roadmap.md`](roadmap.md) — what the owner wants next.
 
-## Current context (2026-08-25)
+## Current context (2026-08-26)
 
 - The repo is loom-shaped as of today's `/loom:init` alignment pass
   (Unaligned-bare → aligned). Future `/loom:*` runs detect **Initialized**.
@@ -21,8 +21,7 @@
 
 ## Immediate next step
 
-**Slicing B (loom:run, 2026-08-26):** slice A Landed (PR #5, receipt in
-archive). Planner authoring slice-plan B (watch cancellation + EKS token
-refresh, spec 06) on branch `docs/slice-b-plan`, plus the owner-queued CI
-toolchain-pin as a spec-06 amendment candidate. Then: adversarial plan eval
-→ developer slice on its own branch + PR. Remaining: C → D → E → F → G.
+**Slice A2 PR open, awaiting owner merge** (branch `slice/a2-ci-toolchain-pin`).
+After merge: slice B developer starts on branch `slice/b-watch-eks` — watch
+cancellation + EKS token refresh (spec 06 findings 0002-H1, 0002-H2).
+Remaining: C → D → E → F → G.

@@ -1,6 +1,6 @@
 # Slice A2 — CI Toolchain Pin
 
-Status: Ready to Publish
+Status: Archived
 Target specs: `.docs/spec/06-remediation-highs.md` (§ "Slice A2 — CI toolchain
 pin (owner-directed, 2026-08-26)", authorised by the Amendments section, same
 spec); gate defined by `.docs/spec/03-toolchain-and-gate.md`.
