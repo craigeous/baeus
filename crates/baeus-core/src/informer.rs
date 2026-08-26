@@ -190,7 +190,7 @@ impl InformerManager {
     pub fn stop_for_cluster(&mut self, cluster_id: &Uuid) {
         let ids: Vec<Uuid> = self.informers_for_cluster(cluster_id);
         for id in &ids {
-            if let Some(entry) = self.informers.get(&id) {
+            if let Some(entry) = self.informers.get(id) {
                 if let Some(token) = &entry.cancel {
                     token.cancel();
                 }

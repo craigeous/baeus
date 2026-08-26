@@ -1206,7 +1206,7 @@ pub async fn watch_events<F>(
 where
     F: FnMut(EventInfo) + Send,
 {
-    let token = cancel.unwrap_or_else(CancellationToken::new);
+    let token = cancel.unwrap_or_default();
     let events_api: Api<Event> = Api::all(client.clone());
     let watch_config = watcher::Config::default();
     let stream = kube_runtime::watcher(events_api, watch_config).default_backoff();
@@ -1300,7 +1300,7 @@ pub async fn watch_resources<F>(
 where
     F: FnMut(Vec<serde_json::Value>) + Send,
 {
-    let token = cancel.unwrap_or_else(CancellationToken::new);
+    let token = cancel.unwrap_or_default();
     let api_resource = resolve_api_resource(kind);
 
     // Use kube's dynamic API via raw JSON to build a watcher.
