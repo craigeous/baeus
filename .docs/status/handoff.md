@@ -21,7 +21,8 @@
 
 ## Immediate next step
 
-**Slice A Ready to Publish — PR open (2026-08-25):** branch
-`slice/a-ci-hardening` awaits owner merge. After merge: author slice-plan B
-(watch cancellation + EKS token refresh, per spec 06). Remaining slices:
-B → C → D → E → F → G.
+**Slicing B (loom:run, 2026-08-26):** slice A Landed (PR #5, receipt in
+archive). Planner authoring slice-plan B (watch cancellation + EKS token
+refresh, spec 06) on branch `docs/slice-b-plan`, plus the owner-queued CI
+toolchain-pin as a spec-06 amendment candidate. Then: adversarial plan eval
+→ developer slice on its own branch + PR. Remaining: C → D → E → F → G.
