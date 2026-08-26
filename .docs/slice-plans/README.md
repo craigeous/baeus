@@ -18,7 +18,13 @@ Active slice-plans live here; landed ones move to
 
 ## Active
 
-_None at present._ Slice B (watch cancellation + EKS token refresh) is next.
+- [`slice-a2-ci-toolchain-pin.md`](slice-a2-ci-toolchain-pin.md) —
+  Status: Plan Review — CI toolchain pin (owner-directed 2026-08-26,
+  spec 06 Amendments). Kills the toolchain-drift class slice A hit
+  post-publish.
+- [`slice-b-watch-cancellation-eks-refresh.md`](slice-b-watch-cancellation-eks-refresh.md) —
+  Status: Plan Review — Core watch cancellation + EKS token refresh
+  (spec 06 findings 0002-H1, 0002-H2).
 
 ## Archived
 
