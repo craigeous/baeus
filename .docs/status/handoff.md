@@ -21,8 +21,8 @@
 
 ## Immediate next step
 
-**Slicing B (loom:run, 2026-08-26):** slice A Landed (PR #5, receipt in
-archive). Planner authoring slice-plan B (watch cancellation + EKS token
-refresh, spec 06) on branch `docs/slice-b-plan`, plus the owner-queued CI
-toolchain-pin as a spec-06 amendment candidate. Then: adversarial plan eval
-→ developer slice on its own branch + PR. Remaining: C → D → E → F → G.
+**Developing B (loom:run, 2026-08-26):** slice-plan B Approved; developer
+implementing on branch `slice/b-watch-eks` (watch cancellation + EKS token
+refresh). A2 is Ready to Publish as PR #6 (awaiting owner merge). On B
+Implemented: automated security review → blind code eval (Kimi K3) → PR.
+Remaining: C → D → E → F → G (+A3 bump automation, deferred).
