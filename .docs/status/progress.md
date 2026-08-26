@@ -2,13 +2,15 @@
 
 Status source of truth and decision index.
 
-- **Phase**: remediation in flight — slice A landed (PR open), slices B–G queued
-- **Last action**: slice A (CI & deny-gate hardening) code-eval PASS — status
-  Ready to Publish; PR open on branch `slice/a-ci-hardening` awaiting owner
-  merge (2026-08-25).
-- **Next**: slice-plan B — watch cancellation + EKS token refresh (spec 06
-  findings 0006-H5 and the first EKS-auth high); begin after slice A merges.
-  Also pending: Plan Review of back-filled specs 01–05 (roadmap milestone 2).
+- **Phase**: remediation in flight — slice A LANDED (2026-08-26), slices B–G queued
+- **Last action**: slice A landed on `main` via PR #5 (merge `5e90381`),
+  receipt recorded in `.docs/slice-plans/archive/slice-a-ci-hardening.md`.
+  Post-publish triage merged with it: RUSTSEC-2026-0190 (anyhow 1.0.104) +
+  CI toolchain-parity clippy fixes (1.94 → 1.98).
+- **Next**: slice-plan B — watch cancellation + EKS token refresh (spec 06).
+  Queued for the same planner pass (owner-directed): CI toolchain pin as a
+  spec-06 amendment candidate. Also pending: Plan Review of back-filled
+  specs 01–05 (roadmap milestone 2).
 
 ## Decision index
 
