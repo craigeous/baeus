@@ -476,6 +476,10 @@ pub struct AppShell {
     /// T327b: Tracks which resource list keys currently have an active watcher running,
     /// so we don't start duplicate watchers.
     active_resource_watchers: HashSet<ResourceListKey>,
+    /// Slice B 0002-H1: cancellation tokens for per-resource-key watchers.
+    /// Keyed by `ResourceListKey`; used to cancel the watcher loop when the resource
+    /// view is torn down or when `stop_event_watcher` disconnects the cluster.
+    resource_watch_cancels: HashMap<ResourceListKey, tokio_util::sync::CancellationToken>,
     /// T328: Cached resource detail data keyed by resource identity.
     resource_detail_data: HashMap<ResourceDetailKey, serde_json::Value>,
     /// T355: Unread notification count displayed in the header bell badge.
@@ -720,6 +724,7 @@ impl AppShell {
             resource_list_data: HashMap::new(),
             resource_table_states: HashMap::new(),
             active_resource_watchers: HashSet::new(),
+            resource_watch_cancels: HashMap::new(),
             resource_detail_data: HashMap::new(),
             notification_count: 0,
             navigation_history: Vec::new(),
@@ -2220,14 +2225,20 @@ impl AppShell {
         // Register the standard set of informers (Namespace, Node, Pod, Event).
         let informer_ids = self.informer_manager.register_standard_watchers(cluster_id);
 
-        // Mark all informers as Running.
+        // Mark all informers as Running and attach a shared cancellation token.
+        // The same token is shared across all four standard informers so that
+        // `stop_for_cluster` (which calls `token.cancel()` on each entry) stops
+        // the single shared watch_events loop deterministically.
+        let event_cancel_token = tokio_util::sync::CancellationToken::new();
         for id in &informer_ids {
             self.informer_manager.set_state(id, InformerState::Running);
+            self.informer_manager.set_cancel_token(id, event_cancel_token.clone());
         }
 
         // Retrieve the Tokio handle.
         let tokio_handle = cx.global::<GpuiTokioHandle>().0.clone();
         let context = context_name.to_string();
+        let token_for_spawn = event_cancel_token.clone();
 
         // Use a channel to bridge the Tokio watch stream to GPUI entity updates.
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<DashboardEvent>();
@@ -2237,7 +2248,7 @@ impl AppShell {
 
         // Spawn the actual kube-rs watcher on the Tokio runtime.
         tokio_handle.spawn(async move {
-            let result = baeus_core::client::watch_events(&client, move |event_info| {
+            let result = baeus_core::client::watch_events(&client, Some(token_for_spawn), move |event_info| {
                 let dashboard_event = DashboardEvent::with_details(
                     event_info.reason.clone(),
                     event_info.message.clone(),
@@ -2309,6 +2320,18 @@ impl AppShell {
         if let Some(cluster_id) = cluster_id {
             self.informer_manager.stop_for_cluster(&cluster_id);
         }
+
+        // Cancel and remove all resource-watcher tokens for this cluster context.
+        // This stops watch_resources loops for any resource list views tied to
+        // this cluster deterministically (spec 06 0002-H1).
+        self.resource_watch_cancels.retain(|key, token| {
+            if key.cluster_context == context_name {
+                token.cancel();
+                false // remove from map
+            } else {
+                true // keep
+            }
+        });
     }
 
     // --- Metrics-server polling ---
@@ -2642,6 +2665,12 @@ impl AppShell {
 
         self.active_resource_watchers.insert(key.clone());
 
+        // Create a cancellation token for this watcher and store it so
+        // `stop_event_watcher` can cancel the loop on cluster disconnect.
+        let resource_cancel_token = tokio_util::sync::CancellationToken::new();
+        self.resource_watch_cancels.insert(key.clone(), resource_cancel_token.clone());
+        let token_for_spawn = resource_cancel_token;
+
         let tokio_handle = cx.global::<GpuiTokioHandle>().0.clone();
         let kind_owned = kind.to_string();
         let ns_owned = namespace.map(|s| s.to_string());
@@ -2659,6 +2688,7 @@ impl AppShell {
                 &client,
                 &kind_owned,
                 ns_owned.as_deref(),
+                Some(token_for_spawn),
                 move |items| {
                     let _ = tx.send(items);
                 },
@@ -2716,6 +2746,7 @@ impl AppShell {
             // Clean up the tracker when the watcher ends.
             let _ = this.update(cx, |this, _cx| {
                 this.active_resource_watchers.remove(&key_for_cleanup);
+                this.resource_watch_cancels.remove(&key_for_cleanup);
             });
         }).detach();
     }

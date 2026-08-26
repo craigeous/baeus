@@ -1110,6 +1110,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "tokio",
+ "tokio-util",
  "tracing",
  "uuid",
  "zeroize",

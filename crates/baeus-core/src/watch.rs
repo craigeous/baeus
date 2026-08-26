@@ -3,15 +3,24 @@
 use crate::informer::{InformerConfig, InformerManager, InformerState};
 use crate::resource::Resource;
 use std::collections::HashMap;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+
+/// Internal entry in the bridge's watcher map — holds both the informer id and
+/// the cancellation token so `stop_watching` / `stop_for_cluster` can cancel
+/// the loop deterministically.
+struct WatcherEntry {
+    informer_id: Uuid,
+    cancel: CancellationToken,
+}
 
 /// Bridges the informer cache to provide a unified view of resources.
 /// Used to keep the UI's resource tables up-to-date from informer-managed caches.
 pub struct ResourceWatchBridge {
     /// Informer manager providing the cache.
     informer_manager: InformerManager,
-    /// Maps (cluster_id, kind) to the informer id for that watcher.
-    watcher_ids: HashMap<(Uuid, String), Uuid>,
+    /// Maps (cluster_id, kind) to the watcher entry (informer id + cancellation token).
+    watcher_ids: HashMap<(Uuid, String), WatcherEntry>,
 }
 
 impl ResourceWatchBridge {
@@ -21,14 +30,17 @@ impl ResourceWatchBridge {
     }
 
     /// Register a watcher (informer) for a specific resource kind on a cluster.
-    /// Returns the informer ID that can be used to reference this watcher.
+    ///
+    /// Returns `(informer_id, CancellationToken)`. The caller should pass the
+    /// token to the corresponding `watch_resources` call so that `stop_watching`
+    /// and `stop_for_cluster` can cancel the loop deterministically.
     pub fn register_watcher(
         &mut self,
         cluster_id: Uuid,
         kind: &str,
         api_version: &str,
         namespace: Option<&str>,
-    ) -> Uuid {
+    ) -> (Uuid, CancellationToken) {
         let config = InformerConfig {
             cluster_id,
             resource_kind: kind.to_string(),
@@ -39,8 +51,13 @@ impl ResourceWatchBridge {
         let id = self.informer_manager.register(config);
         // Mark the informer as Running immediately since this is the "start watching" call.
         self.informer_manager.set_state(&id, InformerState::Running);
-        self.watcher_ids.insert((cluster_id, kind.to_string()), id);
-        id
+        let cancel = CancellationToken::new();
+        self.informer_manager.set_cancel_token(&id, cancel.clone());
+        self.watcher_ids.insert(
+            (cluster_id, kind.to_string()),
+            WatcherEntry { informer_id: id, cancel: cancel.clone() },
+        );
+        (id, cancel)
     }
 
     /// Get cached resources from the informer for a specific kind on a cluster.
@@ -57,19 +74,38 @@ impl ResourceWatchBridge {
         self.informer_manager.update_cache(cluster_id, kind, resources);
     }
 
-    /// Stop watching a specific resource kind on a cluster. Removes the informer
-    /// and clears the corresponding cache entry.
+    /// Stop watching a specific resource kind on a cluster.
+    ///
+    /// Cancels the associated `CancellationToken` (stopping the watcher loop),
+    /// removes the informer, and clears the corresponding cache entry.
     pub fn stop_watching(&mut self, cluster_id: &Uuid, kind: &str) {
         let key = (*cluster_id, kind.to_string());
-        if let Some(informer_id) = self.watcher_ids.remove(&key) {
-            self.informer_manager.set_state(&informer_id, InformerState::Stopped);
-            self.informer_manager.unregister(&informer_id);
+        if let Some(entry) = self.watcher_ids.remove(&key) {
+            entry.cancel.cancel();
+            self.informer_manager.set_state(&entry.informer_id, InformerState::Stopped);
+            self.informer_manager.unregister(&entry.informer_id);
         }
-        // Clear the cache for this specific kind by replacing with empty vec,
-        // then rely on the informer manager's cache cleanup.
-        // We update the cache to empty to signal no resources, then the informer
-        // is already unregistered.
+        // Clear the cache for this specific kind.
         self.informer_manager.update_cache(*cluster_id, kind, Vec::new());
+    }
+
+    /// Stop all watchers for a specific cluster.
+    ///
+    /// Cancels every token for that cluster, removes bridge state, then
+    /// delegates to the manager for cache and informer-state cleanup.
+    pub fn stop_for_cluster(&mut self, cluster_id: &Uuid) {
+        let keys: Vec<_> = self
+            .watcher_ids
+            .keys()
+            .filter(|(cid, _)| cid == cluster_id)
+            .cloned()
+            .collect();
+        for key in keys {
+            if let Some(entry) = self.watcher_ids.remove(&key) {
+                entry.cancel.cancel();
+            }
+        }
+        self.informer_manager.stop_for_cluster(cluster_id);
     }
 
     /// Return a sorted list of resource kinds currently being watched for a cluster.
@@ -137,7 +173,7 @@ mod tests {
     fn test_register_watcher_returns_uuid() {
         let mut bridge = make_bridge();
         let cluster = test_cluster_id();
-        let id = bridge.register_watcher(cluster, "Pod", "v1", Some("default"));
+        let (id, _cancel) = bridge.register_watcher(cluster, "Pod", "v1", Some("default"));
         // UUID should be valid (non-nil)
         assert_ne!(id, Uuid::nil());
     }
@@ -154,7 +190,7 @@ mod tests {
     fn test_register_watcher_sets_state_running() {
         let mut bridge = make_bridge();
         let cluster = test_cluster_id();
-        let id = bridge.register_watcher(cluster, "Pod", "v1", Some("default"));
+        let (id, _cancel) = bridge.register_watcher(cluster, "Pod", "v1", Some("default"));
         assert_eq!(bridge.informer_manager().state(&id), Some(&InformerState::Running));
         assert_eq!(bridge.informer_manager().active_count(), 1);
     }
@@ -163,7 +199,7 @@ mod tests {
     fn test_register_watcher_stores_config_correctly() {
         let mut bridge = make_bridge();
         let cluster = test_cluster_id();
-        let id = bridge.register_watcher(cluster, "Deployment", "apps/v1", Some("kube-system"));
+        let (id, _cancel) = bridge.register_watcher(cluster, "Deployment", "apps/v1", Some("kube-system"));
 
         let config = bridge.informer_manager().config(&id).unwrap();
         assert_eq!(config.cluster_id, cluster);
@@ -176,7 +212,7 @@ mod tests {
     fn test_register_watcher_cluster_scoped() {
         let mut bridge = make_bridge();
         let cluster = test_cluster_id();
-        let id = bridge.register_watcher(cluster, "Node", "v1", None);
+        let (id, _cancel) = bridge.register_watcher(cluster, "Node", "v1", None);
 
         let config = bridge.informer_manager().config(&id).unwrap();
         assert!(config.namespace.is_none());
@@ -187,9 +223,9 @@ mod tests {
         let mut bridge = make_bridge();
         let cluster = test_cluster_id();
 
-        let id1 = bridge.register_watcher(cluster, "Pod", "v1", None);
-        let id2 = bridge.register_watcher(cluster, "Deployment", "apps/v1", None);
-        let id3 = bridge.register_watcher(cluster, "Service", "v1", None);
+        let (id1, _) = bridge.register_watcher(cluster, "Pod", "v1", None);
+        let (id2, _) = bridge.register_watcher(cluster, "Deployment", "apps/v1", None);
+        let (id3, _) = bridge.register_watcher(cluster, "Service", "v1", None);
 
         assert_ne!(id1, id2);
         assert_ne!(id2, id3);
@@ -376,7 +412,7 @@ mod tests {
         let mut bridge = make_bridge();
         let cluster = test_cluster_id();
 
-        let id = bridge.register_watcher(cluster, "Pod", "v1", None);
+        let (id, _cancel) = bridge.register_watcher(cluster, "Pod", "v1", None);
         assert_eq!(bridge.informer_manager().total_count(), 1);
 
         bridge.stop_watching(&cluster, "Pod");
@@ -539,8 +575,8 @@ mod tests {
         let cluster = test_cluster_id();
 
         // 1. Register watchers
-        let pod_id = bridge.register_watcher(cluster, "Pod", "v1", None);
-        let deploy_id = bridge.register_watcher(cluster, "Deployment", "apps/v1", None);
+        let (pod_id, _) = bridge.register_watcher(cluster, "Pod", "v1", None);
+        let (deploy_id, _) = bridge.register_watcher(cluster, "Deployment", "apps/v1", None);
 
         assert_eq!(bridge.informer_manager().active_count(), 2);
         assert_eq!(bridge.watched_kinds(&cluster), vec!["Deployment", "Pod"]);
@@ -631,8 +667,8 @@ mod tests {
         let mut bridge = make_bridge();
         let cluster = test_cluster_id();
 
-        let id1 = bridge.register_watcher(cluster, "Pod", "v1", Some("default"));
-        let id2 = bridge.register_watcher(cluster, "Pod", "v1", Some("kube-system"));
+        let (id1, _) = bridge.register_watcher(cluster, "Pod", "v1", Some("default"));
+        let (id2, _) = bridge.register_watcher(cluster, "Pod", "v1", Some("kube-system"));
 
         // The second registration overwrites the watcher_id mapping
         assert_ne!(id1, id2);
@@ -640,5 +676,46 @@ mod tests {
         assert_eq!(bridge.informer_manager().total_count(), 2);
         // But watched_kinds only shows one entry since the map key is (cluster, kind)
         assert_eq!(bridge.watched_kinds(&cluster), vec!["Pod"]);
+    }
+
+    // ===================================================================
+    // Slice B step 2: cancellation surface tests on bridge
+    // ===================================================================
+
+    #[test]
+    fn test_register_watcher_returns_cancellation_token() {
+        let mut bridge = make_bridge();
+        let cluster = test_cluster_id();
+        let (_id, cancel) = bridge.register_watcher(cluster, "Pod", "v1", None);
+        // Token must be fresh and not yet cancelled.
+        assert!(!cancel.is_cancelled());
+    }
+
+    #[test]
+    fn test_stop_watching_cancels_token() {
+        let mut bridge = make_bridge();
+        let cluster = test_cluster_id();
+        let (_id, cancel) = bridge.register_watcher(cluster, "Pod", "v1", None);
+        assert!(!cancel.is_cancelled());
+
+        bridge.stop_watching(&cluster, "Pod");
+        assert!(cancel.is_cancelled());
+    }
+
+    #[test]
+    fn test_stop_for_cluster_cancels_all_tokens_for_cluster() {
+        let mut bridge = make_bridge();
+        let cluster_a = test_cluster_id();
+        let cluster_b = test_cluster_id();
+
+        let (_, cancel_a_pod) = bridge.register_watcher(cluster_a, "Pod", "v1", None);
+        let (_, cancel_a_dep) = bridge.register_watcher(cluster_a, "Deployment", "apps/v1", None);
+        let (_, cancel_b_pod) = bridge.register_watcher(cluster_b, "Pod", "v1", None);
+
+        bridge.stop_for_cluster(&cluster_a);
+
+        assert!(cancel_a_pod.is_cancelled(), "cluster A Pod token should be cancelled");
+        assert!(cancel_a_dep.is_cancelled(), "cluster A Deployment token should be cancelled");
+        assert!(!cancel_b_pod.is_cancelled(), "cluster B Pod token should not be cancelled");
     }
 }

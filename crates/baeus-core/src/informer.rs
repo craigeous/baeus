@@ -3,6 +3,7 @@
 use crate::resource::Resource;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 /// Configuration for a single informer/watcher.
@@ -28,11 +29,14 @@ pub enum InformerState {
     Error(String),
 }
 
-/// Tracks a registered informer: its config and current state.
+/// Tracks a registered informer: its config, current state, and optional cancellation token.
 #[derive(Debug, Clone)]
 struct InformerEntry {
     config: InformerConfig,
     state: InformerState,
+    /// Cancellation token attached when a watcher task is spawned for this entry.
+    /// `None` until `set_cancel_token` is called by the UI after spawning the task.
+    cancel: Option<CancellationToken>,
 }
 
 /// Key for looking up cached resources: (cluster_id, resource_kind).
@@ -60,13 +64,21 @@ impl InformerManager {
     /// that can be used to reference the informer later.
     pub fn register(&mut self, config: InformerConfig) -> Uuid {
         let id = Uuid::new_v4();
-        self.informers.insert(id, InformerEntry { config, state: InformerState::Idle });
+        self.informers.insert(id, InformerEntry { config, state: InformerState::Idle, cancel: None });
         id
     }
 
-    /// Unregister (remove) an informer by id. Returns `true` if it existed.
+    /// Unregister (remove) an informer by id. Cancels any attached token before removal.
+    /// Returns `true` if it existed.
     pub fn unregister(&mut self, id: &Uuid) -> bool {
-        self.informers.remove(id).is_some()
+        if let Some(entry) = self.informers.remove(id) {
+            if let Some(token) = entry.cancel {
+                token.cancel();
+            }
+            true
+        } else {
+            false
+        }
     }
 
     /// Get the current state of an informer.
@@ -107,6 +119,25 @@ impl InformerManager {
         for entry in self.informers.values_mut() {
             entry.state = InformerState::Stopped;
         }
+    }
+
+    /// Attach a cancellation token to a registered informer.
+    ///
+    /// Called by the UI when it spawns a watcher task for the corresponding entry.
+    /// Returns `true` if the entry exists (and the token was stored), `false` otherwise.
+    pub fn set_cancel_token(&mut self, id: &Uuid, token: CancellationToken) -> bool {
+        if let Some(entry) = self.informers.get_mut(id) {
+            entry.cancel = Some(token);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Read the token for a registered informer (for callers that need to clone
+    /// it into a spawned task).
+    pub fn cancel_token(&self, id: &Uuid) -> Option<&CancellationToken> {
+        self.informers.get(id).and_then(|e| e.cancel.as_ref())
     }
 
     /// Return ids of all informers targeting a given cluster.
@@ -152,9 +183,18 @@ impl InformerManager {
     }
 
     /// Stop all informers targeting a specific cluster and clear its cache.
+    ///
+    /// In addition to transitioning state to `Stopped`, cancels every
+    /// `CancellationToken` attached via `set_cancel_token`, stopping the
+    /// corresponding watcher loops deterministically.
     pub fn stop_for_cluster(&mut self, cluster_id: &Uuid) {
         let ids: Vec<Uuid> = self.informers_for_cluster(cluster_id);
         for id in &ids {
+            if let Some(entry) = self.informers.get(&id) {
+                if let Some(token) = &entry.cancel {
+                    token.cancel();
+                }
+            }
             self.set_state(id, InformerState::Stopped);
         }
         self.clear_cache_for_cluster(cluster_id);
@@ -700,6 +740,62 @@ mod tests {
             let json = serde_json::to_string(state).unwrap();
             let deserialized: InformerState = serde_json::from_str(&json).unwrap();
             assert_eq!(&deserialized, state);
+        }
+    }
+
+    // --- Slice B step 2: cancellation token tests ---
+
+    #[test]
+    fn test_set_cancel_token_stores_on_entry() {
+        let mut mgr = InformerManager::new();
+        let cluster_id = Uuid::new_v4();
+        let id = mgr.register(pod_config(cluster_id));
+
+        // Initially no token.
+        assert!(mgr.cancel_token(&id).is_none());
+
+        let token = CancellationToken::new();
+        assert!(mgr.set_cancel_token(&id, token.clone()));
+
+        // Token is stored and not yet cancelled.
+        let stored = mgr.cancel_token(&id).expect("token should be stored");
+        assert!(!stored.is_cancelled());
+    }
+
+    #[test]
+    fn test_stop_for_cluster_cancels_all_tokens_for_cluster() {
+        let mut mgr = InformerManager::new();
+        let cluster_a = Uuid::new_v4();
+        let cluster_b = Uuid::new_v4();
+
+        let ids_a = mgr.register_standard_watchers(cluster_a);
+        let ids_b = mgr.register_standard_watchers(cluster_b);
+
+        // Attach cancellation tokens to all informers.
+        let tokens_a: Vec<CancellationToken> =
+            ids_a.iter().map(|_| CancellationToken::new()).collect();
+        let tokens_b: Vec<CancellationToken> =
+            ids_b.iter().map(|_| CancellationToken::new()).collect();
+
+        for (id, tok) in ids_a.iter().zip(tokens_a.iter()) {
+            mgr.set_state(id, InformerState::Running);
+            mgr.set_cancel_token(id, tok.clone());
+        }
+        for (id, tok) in ids_b.iter().zip(tokens_b.iter()) {
+            mgr.set_state(id, InformerState::Running);
+            mgr.set_cancel_token(id, tok.clone());
+        }
+
+        // Stop only cluster A.
+        mgr.stop_for_cluster(&cluster_a);
+
+        // Every cluster A token must be cancelled.
+        for tok in &tokens_a {
+            assert!(tok.is_cancelled(), "cluster A token should be cancelled");
+        }
+        // Every cluster B token must NOT be cancelled.
+        for tok in &tokens_b {
+            assert!(!tok.is_cancelled(), "cluster B token should not be cancelled");
         }
     }
 }
