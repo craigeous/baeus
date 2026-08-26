@@ -1,7 +1,5 @@
 use crate::components::search_bar::fuzzy_match;
-use gpui::{
-    div, px, rgb, rgba, prelude::*, Context, ElementId, SharedString, Window,
-};
+use gpui::{Context, ElementId, SharedString, Window, div, prelude::*, px, rgb, rgba};
 
 /// Categories for command palette entries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,10 +80,7 @@ pub struct ScoredCommand {
 impl CommandPaletteState {
     /// Create a new command palette state with the given commands.
     pub fn new(commands: Vec<CommandEntry>) -> Self {
-        Self {
-            commands,
-            ..Default::default()
-        }
+        Self { commands, ..Default::default() }
     }
 
     /// Open the command palette, resetting the query and results.
@@ -146,10 +141,7 @@ impl CommandPaletteState {
     /// Returns the action string of the selected command, or `None` if no
     /// result is selected.
     pub fn execute_selected(&mut self) -> Option<String> {
-        let action = self
-            .results
-            .get(self.selected_index)
-            .map(|sc| sc.entry.action.clone());
+        let action = self.results.get(self.selected_index).map(|sc| sc.entry.action.clone());
         if action.is_some() {
             self.close();
         }
@@ -164,10 +156,7 @@ impl CommandPaletteState {
             return self
                 .commands
                 .iter()
-                .map(|entry| ScoredCommand {
-                    entry: entry.clone(),
-                    score: 0,
-                })
+                .map(|entry| ScoredCommand { entry: entry.clone(), score: 0 })
                 .collect();
         }
 
@@ -186,14 +175,11 @@ impl CommandPaletteState {
             };
 
             if let Some(score) = best_score {
-                scored.push(ScoredCommand {
-                    entry: entry.clone(),
-                    score,
-                });
+                scored.push(ScoredCommand { entry: entry.clone(), score });
             }
         }
 
-        scored.sort_by(|a, b| b.score.cmp(&a.score));
+        scored.sort_by_key(|a| std::cmp::Reverse(a.score));
         scored
     }
 }
@@ -208,9 +194,7 @@ pub struct CommandPaletteView {
 
 impl CommandPaletteView {
     pub fn new(commands: Vec<CommandEntry>) -> Self {
-        Self {
-            state: CommandPaletteState::new(commands),
-        }
+        Self { state: CommandPaletteState::new(commands) }
     }
 
     pub fn state(&self) -> &CommandPaletteState {
@@ -231,22 +215,13 @@ impl Render for CommandPaletteView {
         // Clone results to avoid borrow conflicts
         let results: Vec<ScoredCommand> = self.state.results.clone();
         let query_text = SharedString::from(
-            if self.state.query.is_empty() {
-                "Type a command..."
-            } else {
-                &self.state.query
-            }
-            .to_string(),
+            if self.state.query.is_empty() { "Type a command..." } else { &self.state.query }
+                .to_string(),
         );
         let query_is_empty = self.state.query.is_empty();
 
         // Backdrop: semi-transparent overlay covering the full screen
-        let backdrop = div()
-            .absolute()
-            .top_0()
-            .left_0()
-            .size_full()
-            .bg(rgba(0x00000080));
+        let backdrop = div().absolute().top_0().left_0().size_full().bg(rgba(0x00000080));
 
         // Search input display
         let search_input = div()
@@ -256,11 +231,7 @@ impl Render for CommandPaletteView {
             .border_b_1()
             .border_color(rgb(0x374151))
             .text_sm()
-            .text_color(if query_is_empty {
-                rgb(0x6B7280)
-            } else {
-                rgb(0xF9FAFB)
-            })
+            .text_color(if query_is_empty { rgb(0x6B7280) } else { rgb(0xF9FAFB) })
             .child(query_text);
 
         // Results list (needs id for overflow_y_scroll)
@@ -277,19 +248,12 @@ impl Render for CommandPaletteView {
             let label_text = SharedString::from(result.entry.label.clone());
             let desc_text = SharedString::from(result.entry.description.clone());
 
-            let row_id = ElementId::Name(
-                SharedString::from(format!("command-palette-result-{idx}")),
-            );
+            let row_id =
+                ElementId::Name(SharedString::from(format!("command-palette-result-{idx}")));
 
             let action_idx = idx;
-            let mut row = div()
-                .id(row_id)
-                .flex()
-                .items_center()
-                .px_3()
-                .py_2()
-                .cursor_pointer()
-                .text_sm();
+            let mut row =
+                div().id(row_id).flex().items_center().px_3().py_2().cursor_pointer().text_sm();
 
             if is_selected {
                 row = row.bg(rgb(0x374151));
@@ -306,18 +270,8 @@ impl Render for CommandPaletteView {
                 .flex()
                 .flex_col()
                 .flex_1()
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(rgb(0xF9FAFB))
-                        .child(label_text),
-                )
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(rgb(0x9CA3AF))
-                        .child(desc_text),
-                );
+                .child(div().text_sm().text_color(rgb(0xF9FAFB)).child(label_text))
+                .child(div().text_xs().text_color(rgb(0x9CA3AF)).child(desc_text));
 
             row = row.child(left);
 

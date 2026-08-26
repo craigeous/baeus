@@ -122,11 +122,8 @@ fn test_cluster_list_sync_with_manager() {
         mgr.add_connection(conn);
     }
 
-    let items: Vec<ClusterListItem> = mgr
-        .list_connections()
-        .iter()
-        .map(|c| item_from_connection(c))
-        .collect();
+    let items: Vec<ClusterListItem> =
+        mgr.list_connections().iter().map(|c| item_from_connection(c)).collect();
     let state = ClusterListState::new(items);
 
     assert_eq!(state.items.len(), 3);

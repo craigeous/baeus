@@ -124,10 +124,8 @@ mod tests {
     #[test]
     fn test_namespace_with_labels() {
         let mut ns = Namespace::new("monitoring".to_string(), Uuid::new_v4());
-        ns.labels
-            .insert("team".to_string(), "platform".to_string());
-        ns.labels
-            .insert("env".to_string(), "production".to_string());
+        ns.labels.insert("team".to_string(), "platform".to_string());
+        ns.labels.insert("env".to_string(), "production".to_string());
 
         assert_eq!(ns.labels.len(), 2);
         assert_eq!(ns.labels.get("team").unwrap(), "platform");
@@ -209,13 +207,7 @@ mod tests {
 
     #[test]
     fn test_event_type_serialization() {
-        assert_eq!(
-            serde_json::to_string(&EventType::Normal).unwrap(),
-            "\"Normal\""
-        );
-        assert_eq!(
-            serde_json::to_string(&EventType::Warning).unwrap(),
-            "\"Warning\""
-        );
+        assert_eq!(serde_json::to_string(&EventType::Normal).unwrap(), "\"Normal\"");
+        assert_eq!(serde_json::to_string(&EventType::Warning).unwrap(), "\"Warning\"");
     }
 }

@@ -14,6 +14,14 @@ records, the owner decides.
 4. **Success-criteria re-measurement**: validate SC-001..SC-015 (startup,
    search, list scale, log latency) against the current build.
 
+## Remediation slices (spec 06 highs — 7 slices total)
+
+- ~~**Slice A** — CI & deny-gate hardening (0006-H1, H2, H3, H4)~~
+  **DONE** (code-eval PASS, PR landing on `slice/a-ci-hardening`).
+- **Slice B** — watch cancellation + EKS token refresh (0006-H5 + EKS-auth
+  highs from research 0002) — **next after slice A merges**.
+- **Slices C–G** — remaining spec 06 highs, to be planned in order.
+
 Candidate opportunities noted during the alignment survey (for the owner to
 prioritize, none decided):
 

@@ -85,11 +85,7 @@ pub struct LogBuffer {
 
 impl LogBuffer {
     pub fn new(max_lines: usize) -> Self {
-        Self {
-            lines: Vec::new(),
-            max_lines,
-            search_query: None,
-        }
+        Self { lines: Vec::new(), max_lines, search_query: None }
     }
 
     pub fn push(&mut self, line: LogLine) {
@@ -149,9 +145,7 @@ pub struct LogStreamManager {
 
 impl LogStreamManager {
     pub fn new() -> Self {
-        Self {
-            streams: Vec::new(),
-        }
+        Self { streams: Vec::new() }
     }
 
     /// Adds a new stream and returns its index.
@@ -193,10 +187,7 @@ impl LogStreamManager {
 
     /// Returns the count of streams currently in the `Streaming` state.
     pub fn active_streams(&self) -> usize {
-        self.streams
-            .iter()
-            .filter(|(_, state)| *state == LogStreamState::Streaming)
-            .count()
+        self.streams.iter().filter(|(_, state)| *state == LogStreamState::Streaming).count()
     }
 
     /// Sets all streams to the `Stopped` state.
@@ -295,11 +286,7 @@ impl MultiPodLogState {
 
     /// Returns the indices and references to configs whose `pod_name` matches `pod_name`.
     pub fn configs_for_pod(&self, pod_name: &str) -> Vec<(usize, &LogStreamConfig)> {
-        self.configs
-            .iter()
-            .enumerate()
-            .filter(|(_, config)| config.pod_name == pod_name)
-            .collect()
+        self.configs.iter().enumerate().filter(|(_, config)| config.pod_name == pod_name).collect()
     }
 
     /// Removes a source config by index. Returns true if the index was valid.
@@ -318,9 +305,7 @@ impl MultiPodLogState {
 /// Returns the parsed timestamp if the line starts with a valid RFC3339 timestamp.
 pub fn parse_k8s_log_timestamp(line: &str) -> Option<DateTime<Utc>> {
     let space_idx = line.find(' ')?;
-    DateTime::parse_from_rfc3339(&line[..space_idx])
-        .ok()
-        .map(|dt| dt.with_timezone(&Utc))
+    DateTime::parse_from_rfc3339(&line[..space_idx]).ok().map(|dt| dt.with_timezone(&Utc))
 }
 
 /// Supported formats for exporting log lines.
@@ -337,14 +322,8 @@ pub fn format_logs_for_download(lines: &[LogLine], format: LogDownloadFormat) ->
         LogDownloadFormat::PlainText => lines
             .iter()
             .map(|line| {
-                let ts = line
-                    .timestamp
-                    .map(|t| t.to_rfc3339())
-                    .unwrap_or_default();
-                format!(
-                    "{} [{}] [{}] {}",
-                    ts, line.pod_name, line.container_name, line.content
-                )
+                let ts = line.timestamp.map(|t| t.to_rfc3339()).unwrap_or_default();
+                format!("{} [{}] [{}] {}", ts, line.pod_name, line.container_name, line.content)
             })
             .collect::<Vec<_>>()
             .join("\n"),
@@ -354,10 +333,7 @@ pub fn format_logs_for_download(lines: &[LogLine], format: LogDownloadFormat) ->
         LogDownloadFormat::Csv => {
             let mut output = String::from("timestamp,pod_name,container_name,content\n");
             for line in lines {
-                let ts = line
-                    .timestamp
-                    .map(|t| t.to_rfc3339())
-                    .unwrap_or_default();
+                let ts = line.timestamp.map(|t| t.to_rfc3339()).unwrap_or_default();
                 // Escape CSV fields that may contain commas or quotes
                 let escaped_content = line.content.replace('"', "\"\"");
                 output.push_str(&format!(
@@ -396,11 +372,7 @@ mod tests {
     }
 
     fn make_config(pod_name: &str) -> LogStreamConfig {
-        LogStreamConfig::new(
-            Uuid::new_v4(),
-            "default".to_string(),
-            pod_name.to_string(),
-        )
+        LogStreamConfig::new(Uuid::new_v4(), "default".to_string(), pod_name.to_string())
     }
 
     // ========================================================================
@@ -468,15 +440,12 @@ mod tests {
 
     #[test]
     fn test_log_stream_config_builder() {
-        let config = LogStreamConfig::new(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        )
-        .with_container("app".to_string())
-        .with_tail_lines(500)
-        .with_follow(false)
-        .with_since_seconds(3600);
+        let config =
+            LogStreamConfig::new(Uuid::new_v4(), "default".to_string(), "nginx".to_string())
+                .with_container("app".to_string())
+                .with_tail_lines(500)
+                .with_follow(false)
+                .with_since_seconds(3600);
 
         assert_eq!(config.container_name.as_deref(), Some("app"));
         assert_eq!(config.tail_lines, Some(500));
@@ -1100,9 +1069,7 @@ mod tests {
         let mut state = MultiPodLogState::new(100);
         state.add_source(make_config("pod-1"));
         state.add_source(make_config("pod-2"));
-        state.add_source(
-            make_config("pod-1").with_container("sidecar".to_string()),
-        );
+        state.add_source(make_config("pod-1").with_container("sidecar".to_string()));
 
         let configs = state.configs_for_pod("pod-1");
         assert_eq!(configs.len(), 2);
@@ -1179,10 +1146,7 @@ mod tests {
 
     #[test]
     fn test_format_logs_plain_text_multiple_lines() {
-        let lines = vec![
-            make_log_line("first", "app"),
-            make_log_line("second", "app"),
-        ];
+        let lines = vec![make_log_line("first", "app"), make_log_line("second", "app")];
         let result = format_logs_for_download(&lines, LogDownloadFormat::PlainText);
         let output_lines: Vec<&str> = result.lines().collect();
         assert_eq!(output_lines.len(), 2);

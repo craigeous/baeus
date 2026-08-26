@@ -243,10 +243,7 @@ fn test_enhanced_ns_set_available_namespaces() {
 #[test]
 fn test_enhanced_ns_select_all_available() {
     let mut sel = EnhancedNamespaceSelector::new();
-    sel.set_available_namespaces(vec![
-        "default".to_string(),
-        "kube-system".to_string(),
-    ]);
+    sel.set_available_namespaces(vec!["default".to_string(), "kube-system".to_string()]);
     sel.select_all_available();
     assert_eq!(sel.selected_count(), 2);
     assert!(sel.is_namespace_selected("default"));

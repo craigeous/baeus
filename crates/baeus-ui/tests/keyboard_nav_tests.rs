@@ -1,8 +1,8 @@
 // T086: Keyboard Navigation Tests
 
 use baeus_ui::layout::app_shell::{
-    AppShellState, Direction, FocusMode, KeyAction, KeyModifiers,
-    KeybindingConfig, KeyboardNavigationState,
+    AppShellState, Direction, FocusMode, KeyAction, KeyModifiers, KeybindingConfig,
+    KeyboardNavigationState,
 };
 
 // =========================================================================
@@ -19,10 +19,7 @@ fn test_default_focus_mode_is_normal() {
 fn test_enter_table_navigation_from_normal() {
     let mut state = AppShellState::default();
     state.enter_table_navigation();
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 0, col: 0 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 0, col: 0 });
 }
 
 #[test]
@@ -35,24 +32,21 @@ fn test_exit_focus_mode_from_table_navigation() {
 
 #[test]
 fn test_exit_focus_mode_from_command_palette() {
-    let mut state = AppShellState::default();
-    state.focus_mode = FocusMode::CommandPalette;
+    let mut state = AppShellState { focus_mode: FocusMode::CommandPalette };
     state.exit_focus_mode();
     assert_eq!(state.focus_mode, FocusMode::Normal);
 }
 
 #[test]
 fn test_exit_focus_mode_from_search() {
-    let mut state = AppShellState::default();
-    state.focus_mode = FocusMode::Search;
+    let mut state = AppShellState { focus_mode: FocusMode::Search };
     state.exit_focus_mode();
     assert_eq!(state.focus_mode, FocusMode::Normal);
 }
 
 #[test]
 fn test_exit_focus_mode_from_modal() {
-    let mut state = AppShellState::default();
-    state.focus_mode = FocusMode::Modal;
+    let mut state = AppShellState { focus_mode: FocusMode::Modal };
     state.exit_focus_mode();
     assert_eq!(state.focus_mode, FocusMode::Normal);
 }
@@ -77,8 +71,7 @@ fn test_handle_key_action_toggle_command_palette_opens() {
 
 #[test]
 fn test_handle_key_action_toggle_command_palette_closes() {
-    let mut state = AppShellState::default();
-    state.focus_mode = FocusMode::CommandPalette;
+    let mut state = AppShellState { focus_mode: FocusMode::CommandPalette };
     state.handle_key_action(KeyAction::ToggleCommandPalette);
     assert_eq!(state.focus_mode, FocusMode::Normal);
 }
@@ -92,8 +85,7 @@ fn test_handle_key_action_focus_search_opens() {
 
 #[test]
 fn test_handle_key_action_focus_search_closes() {
-    let mut state = AppShellState::default();
-    state.focus_mode = FocusMode::Search;
+    let mut state = AppShellState { focus_mode: FocusMode::Search };
     state.handle_key_action(KeyAction::FocusSearch);
     assert_eq!(state.focus_mode, FocusMode::Normal);
 }
@@ -128,10 +120,7 @@ fn test_move_table_down() {
     let mut state = AppShellState::default();
     state.enter_table_navigation();
     state.move_table_selection(Direction::Down, 10, 5);
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 1, col: 0 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 1, col: 0 });
 }
 
 #[test]
@@ -139,10 +128,7 @@ fn test_move_table_right() {
     let mut state = AppShellState::default();
     state.enter_table_navigation();
     state.move_table_selection(Direction::Right, 10, 5);
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 0, col: 1 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 0, col: 1 });
 }
 
 #[test]
@@ -150,10 +136,7 @@ fn test_move_table_up_at_zero_stays_at_zero() {
     let mut state = AppShellState::default();
     state.enter_table_navigation();
     state.move_table_selection(Direction::Up, 10, 5);
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 0, col: 0 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 0, col: 0 });
 }
 
 #[test]
@@ -161,32 +144,21 @@ fn test_move_table_left_at_zero_stays_at_zero() {
     let mut state = AppShellState::default();
     state.enter_table_navigation();
     state.move_table_selection(Direction::Left, 10, 5);
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 0, col: 0 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 0, col: 0 });
 }
 
 #[test]
 fn test_move_table_down_clamps_at_max() {
-    let mut state = AppShellState::default();
-    state.focus_mode = FocusMode::TableNavigation { row: 9, col: 0 };
+    let mut state = AppShellState { focus_mode: FocusMode::TableNavigation { row: 9, col: 0 } };
     state.move_table_selection(Direction::Down, 10, 5);
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 9, col: 0 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 9, col: 0 });
 }
 
 #[test]
 fn test_move_table_right_clamps_at_max() {
-    let mut state = AppShellState::default();
-    state.focus_mode = FocusMode::TableNavigation { row: 0, col: 4 };
+    let mut state = AppShellState { focus_mode: FocusMode::TableNavigation { row: 0, col: 4 } };
     state.move_table_selection(Direction::Right, 10, 5);
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 0, col: 4 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 0, col: 4 });
 }
 
 #[test]
@@ -196,10 +168,7 @@ fn test_move_table_multiple_directions() {
     state.move_table_selection(Direction::Down, 10, 5);
     state.move_table_selection(Direction::Down, 10, 5);
     state.move_table_selection(Direction::Right, 10, 5);
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 2, col: 1 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 2, col: 1 });
 }
 
 #[test]
@@ -216,10 +185,7 @@ fn test_move_table_with_zero_max_rows() {
     state.enter_table_navigation();
     // max_rows = 0, Down should not move
     state.move_table_selection(Direction::Down, 0, 5);
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 0, col: 0 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 0, col: 0 });
 }
 
 #[test]
@@ -228,10 +194,7 @@ fn test_move_table_with_zero_max_cols() {
     state.enter_table_navigation();
     // max_cols = 0, Right should not move
     state.move_table_selection(Direction::Right, 10, 0);
-    assert_eq!(
-        state.focus_mode,
-        FocusMode::TableNavigation { row: 0, col: 0 }
-    );
+    assert_eq!(state.focus_mode, FocusMode::TableNavigation { row: 0, col: 0 });
 }
 
 // =========================================================================
@@ -259,17 +222,13 @@ fn test_escape_from_all_focus_modes() {
 
 #[test]
 fn test_is_modal_open_command_palette() {
-    let state = AppShellState {
-        focus_mode: FocusMode::CommandPalette,
-    };
+    let state = AppShellState { focus_mode: FocusMode::CommandPalette };
     assert!(state.is_modal_open());
 }
 
 #[test]
 fn test_is_modal_open_modal() {
-    let state = AppShellState {
-        focus_mode: FocusMode::Modal,
-    };
+    let state = AppShellState { focus_mode: FocusMode::Modal };
     assert!(state.is_modal_open());
 }
 
@@ -281,17 +240,13 @@ fn test_is_modal_not_open_normal() {
 
 #[test]
 fn test_is_modal_not_open_search() {
-    let state = AppShellState {
-        focus_mode: FocusMode::Search,
-    };
+    let state = AppShellState { focus_mode: FocusMode::Search };
     assert!(!state.is_modal_open());
 }
 
 #[test]
 fn test_is_modal_not_open_table_nav() {
-    let state = AppShellState {
-        focus_mode: FocusMode::TableNavigation { row: 0, col: 0 },
-    };
+    let state = AppShellState { focus_mode: FocusMode::TableNavigation { row: 0, col: 0 } };
     assert!(!state.is_modal_open());
 }
 
@@ -413,7 +368,7 @@ fn test_direction_debug() {
 
 #[test]
 fn test_focus_mode_all_variants_distinct() {
-    let modes = vec![
+    let modes = [
         FocusMode::Normal,
         FocusMode::TableNavigation { row: 0, col: 0 },
         FocusMode::CommandPalette,

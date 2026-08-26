@@ -19,11 +19,7 @@ use chrono::Utc;
 use serde_json::json;
 use uuid::Uuid;
 
-fn sample_release(
-    name: &str,
-    namespace: &str,
-    status: HelmReleaseStatus,
-) -> HelmRelease {
+fn sample_release(name: &str, namespace: &str, status: HelmReleaseStatus) -> HelmRelease {
     HelmRelease {
         name: name.to_string(),
         namespace: namespace.to_string(),
@@ -44,11 +40,7 @@ fn sample_releases() -> Vec<HelmRelease> {
         sample_release("redis", "default", HelmReleaseStatus::Deployed),
         sample_release("prometheus", "monitoring", HelmReleaseStatus::Deployed),
         sample_release("broken-app", "staging", HelmReleaseStatus::Failed),
-        sample_release(
-            "upgrading-app",
-            "staging",
-            HelmReleaseStatus::PendingUpgrade,
-        ),
+        sample_release("upgrading-app", "staging", HelmReleaseStatus::PendingUpgrade),
     ]
 }
 
@@ -128,14 +120,8 @@ fn test_status_colors_with_light_theme() {
     let mut state = HelmReleasesViewState::default();
     state.set_releases(sample_releases());
     let comp = HelmReleasesViewComponent::new(state, Theme::light());
-    assert_eq!(
-        comp.status_color(&HelmReleaseStatus::Deployed),
-        Theme::light().colors.success,
-    );
-    assert_eq!(
-        comp.status_color(&HelmReleaseStatus::Failed),
-        Theme::light().colors.error,
-    );
+    assert_eq!(comp.status_color(&HelmReleaseStatus::Deployed), Theme::light().colors.success,);
+    assert_eq!(comp.status_color(&HelmReleaseStatus::Failed), Theme::light().colors.error,);
 }
 
 // ========================================================================
@@ -144,18 +130,12 @@ fn test_status_colors_with_light_theme() {
 
 #[test]
 fn test_status_label_deployed() {
-    assert_eq!(
-        HelmReleasesViewComponent::status_label(&HelmReleaseStatus::Deployed),
-        "Deployed",
-    );
+    assert_eq!(HelmReleasesViewComponent::status_label(&HelmReleaseStatus::Deployed), "Deployed",);
 }
 
 #[test]
 fn test_status_label_failed() {
-    assert_eq!(
-        HelmReleasesViewComponent::status_label(&HelmReleaseStatus::Failed),
-        "Failed",
-    );
+    assert_eq!(HelmReleasesViewComponent::status_label(&HelmReleaseStatus::Failed), "Failed",);
 }
 
 #[test]
@@ -200,10 +180,7 @@ fn test_status_label_superseded() {
 
 #[test]
 fn test_status_label_unknown() {
-    assert_eq!(
-        HelmReleasesViewComponent::status_label(&HelmReleaseStatus::Unknown),
-        "Unknown",
-    );
+    assert_eq!(HelmReleasesViewComponent::status_label(&HelmReleaseStatus::Unknown), "Unknown",);
 }
 
 // ========================================================================
@@ -338,10 +315,7 @@ fn test_error_state() {
     let mut state = HelmReleasesViewState::default();
     state.set_error("cluster unreachable".to_string());
     let comp = HelmReleasesViewComponent::new(state, Theme::dark());
-    assert_eq!(
-        comp.state.error.as_deref(),
-        Some("cluster unreachable"),
-    );
+    assert_eq!(comp.state.error.as_deref(), Some("cluster unreachable"),);
     assert!(!comp.state.loading);
 }
 
@@ -401,7 +375,7 @@ fn test_healthy_count_empty_releases() {
 fn test_releases_have_names_for_action_buttons() {
     let comp = make_component();
     let filtered = comp.state.filtered_releases();
-    assert!(filtered.len() > 0);
+    assert!(!filtered.is_empty());
     for release in &filtered {
         assert!(!release.name.is_empty());
     }
@@ -522,10 +496,7 @@ fn test_full_releases_workflow() {
     comp.state.select_release("broken-app");
     let selected = comp.state.selected().unwrap();
     assert_eq!(selected.name, "broken-app");
-    assert_eq!(
-        comp.status_color(&selected.status),
-        Theme::dark().colors.error,
-    );
+    assert_eq!(comp.status_color(&selected.status), Theme::dark().colors.error,);
 
     // 7. Clear filter
     comp.state.filter_by_namespace(None);

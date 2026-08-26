@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use baeus_core::resource::{self, ResourceRef, ResourceRelationship, RelationshipKind};
 use baeus_core::KubeClient;
-use gpui::*;
+use baeus_core::resource::{self, RelationshipKind, ResourceRef, ResourceRelationship};
 use gpui::prelude::FluentBuilder as _;
+use gpui::*;
 use gpui_component::Sizable as _;
 
 use crate::components::json_extract::json_to_table_row;
-use crate::components::resource_map::{compute_layout_lr, GraphNode, LayoutState};
-use crate::components::resource_table::{columns_for_kind, ResourceTableState};
+use crate::components::resource_map::{GraphNode, LayoutState, compute_layout_lr};
+use crate::components::resource_table::{ResourceTableState, columns_for_kind};
 use crate::icons::ResourceIcon;
 use crate::layout::app_shell::{AppShell, ResourceDetailKey};
 use crate::theme::Theme;
@@ -176,12 +176,7 @@ impl AppShell {
 
         // Container needs .id() for scroll_wheel and mouse events (returns Stateful<Div>).
         // We return Div from the wrapping outer div.
-        let mut inner = div()
-            .id("topology-container")
-            .flex_1()
-            .relative()
-            .overflow_hidden()
-            .bg(bg);
+        let mut inner = div().id("topology-container").flex_1().relative().overflow_hidden().bg(bg);
 
         // Edge canvas layer — paint bezier curves
         let edges = state.layout.edges.clone();
@@ -204,32 +199,20 @@ impl AppShell {
                     };
 
                     // Source right-center → Target left-center (same coords as node divs)
-                    let sx =
-                        ox + px(((src.x - origin_x + NODE_W) * zoom + pan.0) as f32);
-                    let sy =
-                        oy + px(((src.y - origin_y + NODE_H / 2.0) * zoom + pan.1) as f32);
-                    let tx =
-                        ox + px(((tgt.x - origin_x) * zoom + pan.0) as f32);
-                    let ty =
-                        oy + px(((tgt.y - origin_y + NODE_H / 2.0) * zoom + pan.1) as f32);
+                    let sx = ox + px(((src.x - origin_x + NODE_W) * zoom + pan.0) as f32);
+                    let sy = oy + px(((src.y - origin_y + NODE_H / 2.0) * zoom + pan.1) as f32);
+                    let tx = ox + px(((tgt.x - origin_x) * zoom + pan.0) as f32);
+                    let ty = oy + px(((tgt.y - origin_y + NODE_H / 2.0) * zoom + pan.1) as f32);
 
                     let edge_color = kind_color(&src.kind, &theme_for_edges);
-                    let edge_rgba: Rgba = Rgba {
-                        r: edge_color.r,
-                        g: edge_color.g,
-                        b: edge_color.b,
-                        a: 0.6,
-                    };
+                    let edge_rgba: Rgba =
+                        Rgba { r: edge_color.r, g: edge_color.g, b: edge_color.b, a: 0.6 };
 
                     // Cubic bezier: horizontal S-curve
                     let mid_x = (sx + tx) * 0.5;
                     let mut builder = PathBuilder::stroke(px(2.0));
                     builder.move_to(point(sx, sy));
-                    builder.cubic_bezier_to(
-                        point(tx, ty),
-                        point(mid_x, sy),
-                        point(mid_x, ty),
-                    );
+                    builder.cubic_bezier_to(point(tx, ty), point(mid_x, sy), point(mid_x, ty));
                     if let Ok(path) = builder.build() {
                         window.paint_path(path, edge_rgba);
                     }
@@ -285,13 +268,7 @@ impl AppShell {
             // and centers via bounds.size / 2. For cards, we estimate a large container
             // center offset (the container is flex_1 so fills available space).
             // We'll use the same centering trick: add CONTAINER_CENTER_ESTIMATE.
-            inner = inner.child(
-                div()
-                    .absolute()
-                    .left(px(dx))
-                    .top(px(dy))
-                    .child(card),
-            );
+            inner = inner.child(div().absolute().left(px(dx)).top(px(dy)).child(card));
         }
 
         // Zoom controls overlay — bottom right
@@ -371,9 +348,7 @@ impl AppShell {
         let card_label = SharedString::from(format!("{klabel}: {name}"));
 
         div()
-            .id(ElementId::Name(SharedString::from(format!(
-                "topo-node-{node_id}"
-            ))))
+            .id(ElementId::Name(SharedString::from(format!("topo-node-{node_id}"))))
             .w(px(NODE_W as f32 * zoom as f32))
             .h(px(NODE_H as f32 * zoom as f32))
             .rounded(px(8.0))
@@ -387,14 +362,7 @@ impl AppShell {
                 border_color
             })
             .when(is_focus, |d| d.border_2().border_color(accent))
-            .when(is_focus, |d| {
-                d.bg(Rgba {
-                    r: accent.r,
-                    g: accent.g,
-                    b: accent.b,
-                    a: 0.08,
-                })
-            })
+            .when(is_focus, |d| d.bg(Rgba { r: accent.r, g: accent.g, b: accent.b, a: 0.08 }))
             .overflow_hidden()
             .flex()
             .flex_row()
@@ -428,33 +396,31 @@ impl AppShell {
                     .whitespace_nowrap()
                     .child(card_label),
             )
-            .on_click(cx.listener(
-                move |this, event: &ClickEvent, _window, cx| {
-                    // Double-click to navigate to the resource
-                    let click_count = match event {
-                        ClickEvent::Mouse(m) => m.down.click_count,
-                        ClickEvent::Keyboard(_) => 1,
-                    };
-                    if click_count < 2 {
-                        return;
-                    }
-                    let parts: Vec<&str> = node_id_str.splitn(3, '/').collect();
-                    let (nk, nns, nn) = match parts.len() {
-                        3 => (parts[0], Some(parts[1].to_string()), parts[2]),
-                        2 => (parts[0], None, parts[1]),
-                        _ => return,
-                    };
-                    let target = crate::layout::NavigationTarget::ResourceDetail {
-                        cluster_context: cluster_context.clone(),
-                        kind: nk.to_string(),
-                        name: nn.to_string(),
-                        namespace: nns,
-                    };
-                    this.workspace.open_tab(target.clone());
-                    this.push_navigation_history(target);
-                    cx.notify();
-                },
-            ))
+            .on_click(cx.listener(move |this, event: &ClickEvent, _window, cx| {
+                // Double-click to navigate to the resource
+                let click_count = match event {
+                    ClickEvent::Mouse(m) => m.down.click_count,
+                    ClickEvent::Keyboard(_) => 1,
+                };
+                if click_count < 2 {
+                    return;
+                }
+                let parts: Vec<&str> = node_id_str.splitn(3, '/').collect();
+                let (nk, nns, nn) = match parts.len() {
+                    3 => (parts[0], Some(parts[1].to_string()), parts[2]),
+                    2 => (parts[0], None, parts[1]),
+                    _ => return,
+                };
+                let target = crate::layout::NavigationTarget::ResourceDetail {
+                    cluster_context: cluster_context.clone(),
+                    kind: nk.to_string(),
+                    name: nn.to_string(),
+                    namespace: nns,
+                };
+                this.workspace.open_tab(target.clone());
+                this.push_navigation_history(target);
+                cx.notify();
+            }))
     }
 
     /// Render zoom control buttons for the topology view.
@@ -561,8 +527,7 @@ impl AppShell {
             }
         }
 
-        self.topology_data
-            .insert(key.clone(), TopologyState::new_loading());
+        self.topology_data.insert(key.clone(), TopologyState::new_loading());
 
         let cluster_context = key.cluster_context.clone();
         let focus_kind = key.kind.clone();
@@ -580,8 +545,7 @@ impl AppShell {
         };
 
         let ns = focus_namespace.clone();
-        let tokio_handle =
-            cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
+        let tokio_handle = cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
 
         // Clone focus_kind for the update closure (the original moves into the spawn).
         let focus_kind_for_update = focus_kind.clone();
@@ -603,11 +567,8 @@ impl AppShell {
             this.update(cx, |this, cx| {
                 match result {
                     Ok(Ok(resources)) => {
-                        let focus_ref = ResourceRef::new(
-                            &focus_kind_for_update,
-                            &focus_name,
-                            focus_namespace,
-                        );
+                        let focus_ref =
+                            ResourceRef::new(&focus_kind_for_update, &focus_name, focus_namespace);
                         let all_rels = resource::build_relationship_graph(&resources);
                         let (subgraph_rels, focus_key) =
                             resource::build_topology_subgraph(&focus_ref, &all_rels, 3);
@@ -615,8 +576,7 @@ impl AppShell {
 
                         // Center graph in viewport
                         let pan = if !layout.nodes.is_empty() {
-                            let (min_x, max_x, min_y, max_y) =
-                                graph_bounds(&layout.nodes);
+                            let (min_x, max_x, min_y, max_y) = graph_bounds(&layout.nodes);
                             let graph_cx = (min_x + max_x) / 2.0;
                             let graph_cy = (min_y + max_y) / 2.0;
                             (400.0 - graph_cx, 250.0 - graph_cy)
@@ -654,7 +614,8 @@ impl AppShell {
                 cx.notify();
             })
             .ok();
-        }).detach();
+        })
+        .detach();
     }
 }
 
@@ -758,17 +719,12 @@ async fn fetch_focused_topology(
     let mut seen_uids: HashSet<String> = HashSet::new();
 
     // Helper: add a resource if not already seen (by UID).
-    let add_resource =
-        |r: baeus_core::resource::Resource, seen: &mut HashSet<String>| -> bool {
-            r.uid.is_empty() || seen.insert(r.uid.clone())
-        };
+    let add_resource = |r: baeus_core::resource::Resource, seen: &mut HashSet<String>| -> bool {
+        r.uid.is_empty() || seen.insert(r.uid.clone())
+    };
 
     // 1. Fetch the focused resource
-    let focus_ns = if is_cluster_scoped(focus_kind) {
-        None
-    } else {
-        namespace
-    };
+    let focus_ns = if is_cluster_scoped(focus_kind) { None } else { namespace };
     let focus_json =
         baeus_core::client::get_resource(client, focus_kind, focus_name, focus_ns).await?;
     let focus_res = json_to_resource(&focus_json, focus_kind, cluster_id)
@@ -785,18 +741,10 @@ async fn fetch_focused_topology(
             break;
         }
         let owner_ref = &current.owner_references[0];
-        let owner_ns = if is_cluster_scoped(&owner_ref.kind) {
-            None
-        } else {
-            current.namespace.as_deref()
-        };
-        match baeus_core::client::get_resource(
-            client,
-            &owner_ref.kind,
-            &owner_ref.name,
-            owner_ns,
-        )
-        .await
+        let owner_ns =
+            if is_cluster_scoped(&owner_ref.kind) { None } else { current.namespace.as_deref() };
+        match baeus_core::client::get_resource(client, &owner_ref.kind, &owner_ref.name, owner_ns)
+            .await
         {
             Ok(json) => {
                 if let Some(r) = json_to_resource(&json, &owner_ref.kind, cluster_id) {
@@ -830,11 +778,8 @@ async fn fetch_focused_topology(
         }
         let child_kinds = expected_child_kinds(&parent.kind);
         for &child_kind in child_kinds {
-            let child_ns = if is_cluster_scoped(child_kind) {
-                None
-            } else {
-                parent.namespace.as_deref()
-            };
+            let child_ns =
+                if is_cluster_scoped(child_kind) { None } else { parent.namespace.as_deref() };
             match baeus_core::client::list_resources(client, child_kind, child_ns).await {
                 Ok(items) => {
                     let mut count = 0;
@@ -844,10 +789,8 @@ async fn fetch_focused_topology(
                         }
                         if let Some(r) = json_to_resource(item, child_kind, cluster_id) {
                             // Client-side filter: only children owned by this parent
-                            let is_child = r
-                                .owner_references
-                                .iter()
-                                .any(|oref| oref.uid == parent.uid);
+                            let is_child =
+                                r.owner_references.iter().any(|oref| oref.uid == parent.uid);
                             if is_child && add_resource(r.clone(), &mut seen_uids) {
                                 resources.push(r.clone());
                                 walk_queue.push((r, depth + 1));
@@ -869,11 +812,7 @@ async fn fetch_focused_topology(
     // 4. Cross-references
 
     // 4a. Pod → Node (via spec.nodeName)
-    let pod_resources: Vec<_> = resources
-        .iter()
-        .filter(|r| r.kind == "Pod")
-        .cloned()
-        .collect();
+    let pod_resources: Vec<_> = resources.iter().filter(|r| r.kind == "Pod").cloned().collect();
     for pod in &pod_resources {
         if let Some(node_name) = pod.spec.get("nodeName").and_then(|n| n.as_str()) {
             if seen_uids.iter().all(|uid| {
@@ -935,13 +874,10 @@ async fn fetch_focused_topology(
 
     // 4c. Pod/Deployment/RS focus → Services that select our Pods
     if matches!(focus_kind, "Pod" | "Deployment" | "ReplicaSet") {
-        if let Ok(svc_items) = baeus_core::client::list_resources(client, "Service", namespace).await
+        if let Ok(svc_items) =
+            baeus_core::client::list_resources(client, "Service", namespace).await
         {
-            let our_pods: Vec<_> = resources
-                .iter()
-                .filter(|r| r.kind == "Pod")
-                .cloned()
-                .collect();
+            let our_pods: Vec<_> = resources.iter().filter(|r| r.kind == "Pod").cloned().collect();
             for item in &svc_items {
                 if let Some(svc) = json_to_resource(item, "Service", cluster_id) {
                     if seen_uids.contains(&svc.uid) {
@@ -952,7 +888,9 @@ async fn fetch_focused_topology(
                             let matches_any = our_pods.iter().any(|pod| {
                                 selector.iter().all(|(k, v)| {
                                     v.as_str()
-                                        .map(|val| pod.labels.get(k).map(|l| l.as_str()) == Some(val))
+                                        .map(|val| {
+                                            pod.labels.get(k).map(|l| l.as_str()) == Some(val)
+                                        })
                                         .unwrap_or(false)
                                 })
                             });
@@ -970,10 +908,8 @@ async fn fetch_focused_topology(
     if focus_kind == "Ingress" {
         if let Some(rules) = focus_res.spec.get("rules").and_then(|r| r.as_array()) {
             for rule in rules {
-                if let Some(paths) = rule
-                    .get("http")
-                    .and_then(|h| h.get("paths"))
-                    .and_then(|p| p.as_array())
+                if let Some(paths) =
+                    rule.get("http").and_then(|h| h.get("paths")).and_then(|p| p.as_array())
                 {
                     for path in paths {
                         if let Some(svc_name) = path
@@ -983,16 +919,12 @@ async fn fetch_focused_topology(
                             .and_then(|n| n.as_str())
                         {
                             match baeus_core::client::get_resource(
-                                client,
-                                "Service",
-                                svc_name,
-                                namespace,
+                                client, "Service", svc_name, namespace,
                             )
                             .await
                             {
                                 Ok(json) => {
-                                    if let Some(r) =
-                                        json_to_resource(&json, "Service", cluster_id)
+                                    if let Some(r) = json_to_resource(&json, "Service", cluster_id)
                                     {
                                         if add_resource(r.clone(), &mut seen_uids) {
                                             resources.push(r);
@@ -1014,7 +946,8 @@ async fn fetch_focused_topology(
 
     // 4e. Service focus → Ingresses that reference this Service
     if focus_kind == "Service" {
-        if let Ok(ing_items) = baeus_core::client::list_resources(client, "Ingress", namespace).await
+        if let Ok(ing_items) =
+            baeus_core::client::list_resources(client, "Ingress", namespace).await
         {
             for item in &ing_items {
                 if let Some(ing) = json_to_resource(item, "Ingress", cluster_id) {
@@ -1146,11 +1079,8 @@ const CLUSTER_NODE_H: f64 = 60.0;
 /// Build a LayoutState from kind_counts, filtering to kinds with count > 0.
 fn build_cluster_topology_layout(kind_counts: &HashMap<String, usize>) -> LayoutState {
     let all_rels = cluster_topology_relationships();
-    let active_kinds: std::collections::HashSet<&str> = kind_counts
-        .iter()
-        .filter(|(_, count)| **count > 0)
-        .map(|(k, _)| k.as_str())
-        .collect();
+    let active_kinds: std::collections::HashSet<&str> =
+        kind_counts.iter().filter(|(_, count)| **count > 0).map(|(k, _)| k.as_str()).collect();
     let filtered_rels: Vec<ResourceRelationship> = all_rels
         .into_iter()
         .filter(|r| {
@@ -1172,10 +1102,7 @@ fn build_cluster_topology_layout(kind_counts: &HashMap<String, usize>) -> Layout
                 layer: 0,
             })
             .collect();
-        return LayoutState {
-            nodes,
-            edges: Vec::new(),
-        };
+        return LayoutState { nodes, edges: Vec::new() };
     }
     compute_layout_lr(&filtered_rels)
 }
@@ -1266,13 +1193,8 @@ impl AppShell {
         }
 
         // Split: graph panel (resizable) + drag handle + table panel (flex-1)
-        let graph_panel = self.render_cluster_topology_graph(
-            cx,
-            cluster_context,
-            text,
-            text_secondary,
-            bg,
-        );
+        let graph_panel =
+            self.render_cluster_topology_graph(cx, cluster_context, text, text_secondary, bg);
 
         // Drag handle for resizing graph/table split
         let border_color = self.theme.colors.border.to_gpui();
@@ -1301,31 +1223,21 @@ impl AppShell {
                 }),
             );
 
-        let table_panel = self.render_cluster_topology_table(
-            cx,
-            cluster_context,
-            text,
-            text_secondary,
-            bg,
-        );
+        let table_panel =
+            self.render_cluster_topology_table(cx, cluster_context, text, text_secondary, bg);
 
         let ctx_for_dropdown = cluster_context.to_string();
         let ns_dropdown = self.render_cluster_topo_ns_dropdown(cx, &ctx_for_dropdown);
 
-        let mut table_wrapper = div()
-            .flex_1()
-            .flex()
-            .flex_col()
-            .relative()
-            .overflow_hidden()
-            .child(table_panel);
+        let mut table_wrapper =
+            div().flex_1().flex().flex_col().relative().overflow_hidden().child(table_panel);
 
         if let Some(dropdown_panel) = ns_dropdown {
             table_wrapper = table_wrapper.child(
                 dropdown_panel
                     .absolute()
-                    .top(px(36.0))  // Below the header bar
-                    .right(px(8.0))
+                    .top(px(36.0)) // Below the header bar
+                    .right(px(8.0)),
             );
         }
 
@@ -1397,30 +1309,20 @@ impl AppShell {
                     };
 
                     let sx = ox + px(((src.x - origin_x + CLUSTER_NODE_W) * zoom + pan.0) as f32);
-                    let sy = oy + px(
-                        ((src.y - origin_y + CLUSTER_NODE_H / 2.0) * zoom + pan.1) as f32,
-                    );
+                    let sy =
+                        oy + px(((src.y - origin_y + CLUSTER_NODE_H / 2.0) * zoom + pan.1) as f32);
                     let tx = ox + px(((tgt.x - origin_x) * zoom + pan.0) as f32);
-                    let ty = oy + px(
-                        ((tgt.y - origin_y + CLUSTER_NODE_H / 2.0) * zoom + pan.1) as f32,
-                    );
+                    let ty =
+                        oy + px(((tgt.y - origin_y + CLUSTER_NODE_H / 2.0) * zoom + pan.1) as f32);
 
                     let edge_color = kind_color(&src.kind, &theme_for_edges);
-                    let edge_rgba = Rgba {
-                        r: edge_color.r,
-                        g: edge_color.g,
-                        b: edge_color.b,
-                        a: 0.6,
-                    };
+                    let edge_rgba =
+                        Rgba { r: edge_color.r, g: edge_color.g, b: edge_color.b, a: 0.6 };
 
                     let mid_x = (sx + tx) * 0.5;
                     let mut builder = PathBuilder::stroke(px(2.0));
                     builder.move_to(point(sx, sy));
-                    builder.cubic_bezier_to(
-                        point(tx, ty),
-                        point(mid_x, sy),
-                        point(mid_x, ty),
-                    );
+                    builder.cubic_bezier_to(point(tx, ty), point(mid_x, sy), point(mid_x, ty));
                     if let Ok(path) = builder.build() {
                         window.paint_path(path, edge_rgba);
                     }
@@ -1462,9 +1364,7 @@ impl AppShell {
                 zoom,
             );
 
-            inner = inner.child(
-                div().absolute().left(px(dx)).top(px(dy)).child(card),
-            );
+            inner = inner.child(div().absolute().left(px(dx)).top(px(dy)).child(card));
         }
 
         // Zoom controls
@@ -1512,10 +1412,7 @@ impl AppShell {
             }),
         );
 
-        div()
-            .flex_shrink_0()
-            .h(px(graph_height))
-            .child(inner)
+        div().flex_shrink_0().h(px(graph_height)).child(inner)
     }
 
     /// Render the table panel below the graph.
@@ -1562,10 +1459,15 @@ impl AppShell {
 
         // Count after filtering
         let filtered_count = if let Some(ref ts) = state.kind_table_state {
-            ts.rows.iter().filter(|row| {
-                if selected_ns.is_empty() { return true; }
-                row.namespace.as_deref().map(|ns| selected_ns.contains(ns)).unwrap_or(false)
-            }).count()
+            ts.rows
+                .iter()
+                .filter(|row| {
+                    if selected_ns.is_empty() {
+                        return true;
+                    }
+                    row.namespace.as_deref().map(|ns| selected_ns.contains(ns)).unwrap_or(false)
+                })
+                .count()
         } else {
             0
         };
@@ -1585,9 +1487,7 @@ impl AppShell {
                     .text_sm()
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(text)
-                    .child(SharedString::from(format!(
-                        "{kind_label} ({filtered_count})"
-                    ))),
+                    .child(SharedString::from(format!("{kind_label} ({filtered_count})"))),
             )
             .child(div().flex_grow())
             .child(self.render_cluster_topo_ns_button(
@@ -1600,17 +1500,19 @@ impl AppShell {
 
         // Build table rows from kind_data, filtered by namespace
         let table_content = if let Some(ref ts) = state.kind_table_state {
-            let sorted_rows: Vec<&_> = ts.filtered_rows().into_iter().filter(|row| {
-                if selected_ns.is_empty() { return true; }
-                row.namespace.as_deref().map(|ns| selected_ns.contains(ns)).unwrap_or(false)
-            }).collect();
+            let sorted_rows: Vec<&_> = ts
+                .filtered_rows()
+                .into_iter()
+                .filter(|row| {
+                    if selected_ns.is_empty() {
+                        return true;
+                    }
+                    row.namespace.as_deref().map(|ns| selected_ns.contains(ns)).unwrap_or(false)
+                })
+                .collect();
             let cluster_ctx = cluster_context.to_string();
 
-            let mut table = div()
-                .id("cluster-topo-table")
-                .flex_1()
-                .overflow_y_scroll()
-                .bg(bg);
+            let mut table = div().id("cluster-topo-table").flex_1().overflow_y_scroll().bg(bg);
 
             // Column header row
             let mut header_row = div()
@@ -1627,11 +1529,7 @@ impl AppShell {
                 if i < ts.visible_columns.len() && !ts.visible_columns[i] {
                     continue;
                 }
-                let w = if i < ts.column_widths.len() {
-                    ts.column_widths[i]
-                } else {
-                    100.0
-                };
+                let w = if i < ts.column_widths.len() { ts.column_widths[i] } else { 100.0 };
                 header_row = header_row.child(
                     div()
                         .w(px(w))
@@ -1657,8 +1555,7 @@ impl AppShell {
                 let mut row_div = div()
                     .id(ElementId::Name(SharedString::from(format!(
                         "ctopo-row-{}-{}",
-                        row.uid,
-                        row.name,
+                        row.uid, row.name,
                     ))))
                     .h(px(28.0))
                     .flex()
@@ -1674,31 +1571,24 @@ impl AppShell {
                     })
                     .cursor_pointer()
                     .hover(|s| s.bg(Rgba { r: accent.r, g: accent.g, b: accent.b, a: 0.08 }))
-                    .on_click(cx.listener(
-                        move |this, _event: &ClickEvent, _window, cx| {
-                            let target =
-                                crate::layout::NavigationTarget::ResourceDetail {
-                                    cluster_context: ctx_click.clone(),
-                                    kind: row_kind.clone(),
-                                    name: row_name.clone(),
-                                    namespace: row_ns.clone(),
-                                };
-                            this.workspace.open_tab(target.clone());
-                            this.push_navigation_history(target);
-                            this.trigger_data_loading_for_active_tab(cx);
-                            cx.notify();
-                        },
-                    ));
+                    .on_click(cx.listener(move |this, _event: &ClickEvent, _window, cx| {
+                        let target = crate::layout::NavigationTarget::ResourceDetail {
+                            cluster_context: ctx_click.clone(),
+                            kind: row_kind.clone(),
+                            name: row_name.clone(),
+                            namespace: row_ns.clone(),
+                        };
+                        this.workspace.open_tab(target.clone());
+                        this.push_navigation_history(target);
+                        this.trigger_data_loading_for_active_tab(cx);
+                        cx.notify();
+                    }));
 
                 for (i, cell) in row.cells.iter().enumerate() {
                     if i < ts.visible_columns.len() && !ts.visible_columns[i] {
                         continue;
                     }
-                    let w = if i < ts.column_widths.len() {
-                        ts.column_widths[i]
-                    } else {
-                        100.0
-                    };
+                    let w = if i < ts.column_widths.len() { ts.column_widths[i] } else { 100.0 };
                     row_div = row_div.child(
                         div()
                             .w(px(w))
@@ -1729,13 +1619,7 @@ impl AppShell {
                 .child("No data available")
         };
 
-        div()
-            .flex_1()
-            .flex()
-            .flex_col()
-            .overflow_hidden()
-            .child(header)
-            .child(table_content)
+        div().flex_1().flex().flex_col().overflow_hidden().child(header).child(table_content)
     }
 
     /// Render a kind card for the cluster topology graph.
@@ -1761,19 +1645,12 @@ impl AppShell {
         let ctx_owned = cluster_context.to_string();
 
         div()
-            .id(ElementId::Name(SharedString::from(format!(
-                "ctopo-kind-{kind}"
-            ))))
+            .id(ElementId::Name(SharedString::from(format!("ctopo-kind-{kind}"))))
             .w(px(CLUSTER_NODE_W as f32 * zoom as f32))
             .h(px(CLUSTER_NODE_H as f32 * zoom as f32))
             .rounded(px(8.0))
             .bg(if is_selected {
-                Rgba {
-                    r: accent.r,
-                    g: accent.g,
-                    b: accent.b,
-                    a: 0.08,
-                }
+                Rgba { r: accent.r, g: accent.g, b: accent.b, a: 0.08 }
             } else {
                 surface
             })
@@ -1923,28 +1800,31 @@ impl AppShell {
         let ctx = cluster_context.to_string();
 
         // Collect unique namespaces from the selected kind's data
-        let namespaces: Vec<String> = if let Some(state) = self.cluster_topology_states.get(cluster_context) {
-            if let Some(ref ts) = state.kind_table_state {
-                let mut ns_set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-                for row in &ts.rows {
-                    if let Some(ref ns) = row.namespace {
-                        ns_set.insert(ns.clone());
+        let namespaces: Vec<String> =
+            if let Some(state) = self.cluster_topology_states.get(cluster_context) {
+                if let Some(ref ts) = state.kind_table_state {
+                    let mut ns_set: std::collections::BTreeSet<String> =
+                        std::collections::BTreeSet::new();
+                    for row in &ts.rows {
+                        if let Some(ref ns) = row.namespace {
+                            ns_set.insert(ns.clone());
+                        }
                     }
+                    ns_set.into_iter().collect()
+                } else {
+                    Vec::new()
                 }
-                ns_set.into_iter().collect()
             } else {
                 Vec::new()
-            }
-        } else {
-            Vec::new()
-        };
+            };
 
         // If no namespaces (cluster-scoped resources), return empty
         if namespaces.is_empty() {
             return div().id("ctopo-ns-btn-empty");
         }
 
-        let is_open = self.cluster_topology_states
+        let is_open = self
+            .cluster_topology_states
             .get(cluster_context)
             .map(|s| s.ns_dropdown_open)
             .unwrap_or(false);
@@ -1954,8 +1834,11 @@ impl AppShell {
 
         div()
             .id(ElementId::Name(SharedString::from(format!("ctopo-ns-btn-{}", cluster_context))))
-            .flex().items_center().gap(px(4.0))
-            .px_3().py_1()
+            .flex()
+            .items_center()
+            .gap(px(4.0))
+            .px_3()
+            .py_1()
             .rounded(px(6.0))
             .bg(gpui::rgb(0x374151))
             .text_sm()
@@ -1971,15 +1854,23 @@ impl AppShell {
                             gpui_component::input::InputState::new(window, cx)
                                 .placeholder("Filter namespaces...")
                         });
-                        let sub = cx.subscribe(&input, move |this: &mut AppShell, entity, event: &gpui_component::input::InputEvent, cx| {
-                            if matches!(event, gpui_component::input::InputEvent::Change) {
-                                let val = entity.read(cx).value().to_string();
-                                if let Some(st) = this.cluster_topology_states.get_mut(&ctx_for_sub) {
-                                    st.ns_search_query = val;
+                        let sub = cx.subscribe(
+                            &input,
+                            move |this: &mut AppShell,
+                                  entity,
+                                  event: &gpui_component::input::InputEvent,
+                                  cx| {
+                                if matches!(event, gpui_component::input::InputEvent::Change) {
+                                    let val = entity.read(cx).value().to_string();
+                                    if let Some(st) =
+                                        this.cluster_topology_states.get_mut(&ctx_for_sub)
+                                    {
+                                        st.ns_search_query = val;
+                                    }
+                                    cx.notify();
                                 }
-                                cx.notify();
-                            }
-                        });
+                            },
+                        );
                         let fh = input.read(cx).focus_handle(cx);
                         fh.focus(window);
                         this.topo_ns_search_input = Some(input);
@@ -1993,9 +1884,7 @@ impl AppShell {
                 cx.notify();
             }))
             .child(display)
-            .child(
-                div().text_xs().text_color(gpui::rgb(0x9CA3AF)).child(arrow),
-            )
+            .child(div().text_xs().text_color(gpui::rgb(0x9CA3AF)).child(arrow))
     }
 
     /// Render the topology namespace dropdown overlay panel (appears below the button).
@@ -2018,9 +1907,10 @@ impl AppShell {
                 }
             }
             let query = state.ns_search_query.to_lowercase();
-            ns_set.into_iter().filter(|ns| {
-                query.is_empty() || ns.to_lowercase().contains(&query)
-            }).collect()
+            ns_set
+                .into_iter()
+                .filter(|ns| query.is_empty() || ns.to_lowercase().contains(&query))
+                .collect()
         } else {
             Vec::new()
         };
@@ -2030,13 +1920,18 @@ impl AppShell {
         let all_selected = state.selected_namespaces.is_empty();
 
         let mut panel = div()
-            .id(ElementId::Name(SharedString::from(format!("ctopo-ns-dropdown-{}", cluster_context))))
+            .id(ElementId::Name(SharedString::from(format!(
+                "ctopo-ns-dropdown-{}",
+                cluster_context
+            ))))
             .occlude()
             .w(px(260.0))
             .max_h(px(360.0))
-            .flex().flex_col()
+            .flex()
+            .flex_col()
             .bg(gpui::rgb(0x1F2937))
-            .border_1().border_color(gpui::rgb(0x4B5563))
+            .border_1()
+            .border_color(gpui::rgb(0x4B5563))
             .rounded(px(6.0))
             .shadow_lg()
             .overflow_hidden();
@@ -2044,15 +1939,15 @@ impl AppShell {
         // Search input
         if let Some(input_entity) = &self.topo_ns_search_input {
             panel = panel.child(
-                div()
-                    .border_b_1().border_color(gpui::rgb(0x4B5563))
-                    .px_1().py_1()
-                    .child(
-                        gpui_component::input::Input::new(input_entity)
-                            .prefix(gpui_component::Icon::new(gpui_component::IconName::Search).size(px(14.0)))
-                            .cleanable(true)
-                            .with_size(gpui_component::Size::Small)
-                    ),
+                div().border_b_1().border_color(gpui::rgb(0x4B5563)).px_1().py_1().child(
+                    gpui_component::input::Input::new(input_entity)
+                        .prefix(
+                            gpui_component::Icon::new(gpui_component::IconName::Search)
+                                .size(px(14.0)),
+                        )
+                        .cleanable(true)
+                        .with_size(gpui_component::Size::Small),
+                ),
             );
         }
 
@@ -2060,9 +1955,14 @@ impl AppShell {
         panel = panel.child(
             div()
                 .id(ElementId::Name(SharedString::from("ctopo-ns-row-all")))
-                .flex().items_center().gap(px(8.0))
-                .w_full().px_3().py(px(6.0))
-                .border_b_1().border_color(gpui::rgb(0x374151))
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .w_full()
+                .px_3()
+                .py(px(6.0))
+                .border_b_1()
+                .border_color(gpui::rgb(0x374151))
                 .cursor_pointer()
                 .hover(|s| s.bg(gpui::rgb(0x374151)))
                 .when(all_selected, |el| el.bg(Rgba { r: 0.118, g: 0.227, b: 0.373, a: 0.3 }))
@@ -2072,23 +1972,25 @@ impl AppShell {
                     }
                 }))
                 .child(
-                    div().text_sm().text_color(gpui::rgb(0xD1D5DB))
+                    div()
+                        .text_sm()
+                        .text_color(gpui::rgb(0xD1D5DB))
                         .font_weight(FontWeight::MEDIUM)
                         .child("All Namespaces"),
                 )
                 .child(div().flex_grow())
                 .when(all_selected, |el| {
-                    el.child(
-                        div().text_color(gpui::rgb(0x60A5FA))
-                            .child(gpui_component::Icon::new(gpui_component::IconName::Check).size(px(14.0))),
-                    )
+                    el.child(div().text_color(gpui::rgb(0x60A5FA)).child(
+                        gpui_component::Icon::new(gpui_component::IconName::Check).size(px(14.0)),
+                    ))
                 }),
         );
 
         // Scrollable namespace rows
         let mut rows_container = div()
             .id(ElementId::Name(SharedString::from("ctopo-ns-rows-scroll")))
-            .flex().flex_col()
+            .flex()
+            .flex_col()
             .overflow_y_scroll()
             .max_h(px(260.0));
 
@@ -2101,8 +2003,12 @@ impl AppShell {
 
             let row = div()
                 .id(row_id)
-                .flex().items_center().gap(px(8.0))
-                .w_full().px_3().py(px(5.0))
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .w_full()
+                .px_3()
+                .py(px(5.0))
                 .cursor_pointer()
                 .hover(|s| s.bg(gpui::rgb(0x374151)))
                 .on_click(cx.listener(move |this, _evt, _window, _cx| {
@@ -2114,33 +2020,30 @@ impl AppShell {
                         }
                     }
                 }))
-                .child(
-                    div().flex_none().text_color(gpui::rgb(0x6B7280))
-                        .child(gpui_component::Icon::new(gpui_component::IconName::Folder).size(px(14.0))),
-                )
-                .child(
-                    div().flex_1().text_sm().text_color(gpui::rgb(0xD1D5DB))
-                        .child(ns_label),
-                )
+                .child(div().flex_none().text_color(gpui::rgb(0x6B7280)).child(
+                    gpui_component::Icon::new(gpui_component::IconName::Folder).size(px(14.0)),
+                ))
+                .child(div().flex_1().text_sm().text_color(gpui::rgb(0xD1D5DB)).child(ns_label))
                 .when(is_selected, |el| {
-                    el.child(
-                        div().flex_none().text_color(gpui::rgb(0x60A5FA))
-                            .child(gpui_component::Icon::new(gpui_component::IconName::Check).size(px(14.0))),
-                    )
+                    el.child(div().flex_none().text_color(gpui::rgb(0x60A5FA)).child(
+                        gpui_component::Icon::new(gpui_component::IconName::Check).size(px(14.0)),
+                    ))
                 });
 
             rows_container = rows_container.child(row);
         }
 
         panel = panel.child(rows_container);
-        Some(panel.on_mouse_down_out(cx.listener(move |this, _evt: &MouseDownEvent, _window, _cx| {
-            if let Some(st) = this.cluster_topology_states.get_mut(&ctx_dismiss) {
-                st.ns_dropdown_open = false;
-                st.ns_search_query.clear();
-            }
-            this.topo_ns_search_input = None;
-            this._topo_ns_search_subscription = None;
-        })))
+        Some(panel.on_mouse_down_out(cx.listener(
+            move |this, _evt: &MouseDownEvent, _window, _cx| {
+                if let Some(st) = this.cluster_topology_states.get_mut(&ctx_dismiss) {
+                    st.ns_dropdown_open = false;
+                    st.ns_search_query.clear();
+                }
+                this.topo_ns_search_input = None;
+                this._topo_ns_search_subscription = None;
+            },
+        )))
     }
 
     /// Start async loading of cluster topology data.
@@ -2155,20 +2058,21 @@ impl AppShell {
         let Some(client) = self.active_clients.get(cluster_context).cloned() else {
             if let Some(state) = self.cluster_topology_states.get_mut(cluster_context) {
                 state.loading = false;
-                state.error = Some("No active client for this cluster — click Connect in the sidebar first".to_string());
+                state.error = Some(
+                    "No active client for this cluster — click Connect in the sidebar first"
+                        .to_string(),
+                );
             }
             cx.notify();
             return;
         };
 
         let ctx_key = cluster_context.to_string();
-        let tokio_handle =
-            cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
+        let tokio_handle = cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle
-                .spawn(async move { fetch_cluster_topology_data(&client).await })
-                .await;
+            let result =
+                tokio_handle.spawn(async move { fetch_cluster_topology_data(&client).await }).await;
 
             this.update(cx, |this, cx| {
                 match result {
@@ -2177,8 +2081,7 @@ impl AppShell {
 
                         // Center graph in viewport
                         let pan = if !layout.nodes.is_empty() {
-                            let (min_x, max_x, min_y, max_y) =
-                                cluster_graph_bounds(&layout.nodes);
+                            let (min_x, max_x, min_y, max_y) = cluster_graph_bounds(&layout.nodes);
                             let graph_cx = (min_x + max_x) / 2.0;
                             let graph_cy = (min_y + max_y) / 2.0;
                             (400.0 - graph_cx, 150.0 - graph_cy)

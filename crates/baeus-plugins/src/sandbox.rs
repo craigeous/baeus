@@ -84,11 +84,8 @@ impl SandboxedLoader {
 
     /// Validate that a library path is within the sandboxed directory.
     pub fn validate_library_path(&self, path: &Path) -> Result<PathBuf, PluginError> {
-        let full_path = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            self.config.plugin_dir.join(path)
-        };
+        let full_path =
+            if path.is_absolute() { path.to_path_buf() } else { self.config.plugin_dir.join(path) };
 
         // Normalize the path to resolve ".." components (without requiring the path to exist)
         let normalized = normalize_path(&full_path);
@@ -185,10 +182,7 @@ mod tests {
             description: "A sandboxed plugin".to_string(),
             author: "Test".to_string(),
             min_app_version: "0.1.0".to_string(),
-            permissions: vec![
-                PluginPermission::ReadResources,
-                PluginPermission::RegisterViews,
-            ],
+            permissions: vec![PluginPermission::ReadResources, PluginPermission::RegisterViews],
         }
     }
 
@@ -258,10 +252,7 @@ mod tests {
 
         let result = loader.validate_library_path(Path::new("my-plugin.dylib"));
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            PathBuf::from("/tmp/plugins/my-plugin.dylib")
-        );
+        assert_eq!(result.unwrap(), PathBuf::from("/tmp/plugins/my-plugin.dylib"));
     }
 
     #[test]
@@ -305,9 +296,7 @@ mod tests {
         let manifest = sample_manifest();
         // Create sandbox that only allows ReadResources
         let mut config = SandboxConfig::new(PathBuf::from("/tmp/plugins"));
-        config
-            .allowed_permissions
-            .push(PluginPermission::ReadResources);
+        config.allowed_permissions.push(PluginPermission::ReadResources);
         let loader = SandboxedLoader::new(config);
 
         // Manifest requests RegisterViews which is not allowed
@@ -327,15 +316,9 @@ mod tests {
         let config = SandboxConfig::from_manifest(&manifest, PathBuf::from("/tmp/plugins"));
         let loader = SandboxedLoader::new(config);
 
-        assert!(loader
-            .check_permission(&PluginPermission::ReadResources)
-            .is_ok());
-        assert!(loader
-            .check_permission(&PluginPermission::RegisterViews)
-            .is_ok());
-        assert!(loader
-            .check_permission(&PluginPermission::WriteResources)
-            .is_err());
+        assert!(loader.check_permission(&PluginPermission::ReadResources).is_ok());
+        assert!(loader.check_permission(&PluginPermission::RegisterViews).is_ok());
+        assert!(loader.check_permission(&PluginPermission::WriteResources).is_err());
     }
 
     #[test]
@@ -344,9 +327,7 @@ mod tests {
         let config = SandboxConfig::new(dir);
         let loader = SandboxedLoader::new(config);
 
-        assert!(loader
-            .check_path_access(Path::new("/tmp/plugins/file.dylib"))
-            .is_ok());
+        assert!(loader.check_path_access(Path::new("/tmp/plugins/file.dylib")).is_ok());
         assert!(loader.check_path_access(Path::new("/etc/passwd")).is_err());
     }
 

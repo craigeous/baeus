@@ -43,11 +43,7 @@ pub enum AuthDetails {
 impl Drop for AuthDetails {
     fn drop(&mut self) {
         match self {
-            AuthDetails::Certificate {
-                client_cert_data,
-                client_key_data,
-                ..
-            } => {
+            AuthDetails::Certificate { client_cert_data, client_key_data, .. } => {
                 if let Some(d) = client_cert_data {
                     d.zeroize();
                 }
@@ -55,9 +51,7 @@ impl Drop for AuthDetails {
                     d.zeroize();
                 }
             }
-            AuthDetails::Token {
-                token: Some(t), ..
-            } => {
+            AuthDetails::Token { token: Some(t), .. } => {
                 t.zeroize();
             }
             _ => {}
@@ -70,11 +64,7 @@ impl Drop for AuthDetails {
 impl fmt::Debug for AuthDetails {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AuthDetails::Certificate {
-                client_cert_path,
-                client_key_path,
-                ..
-            } => f
+            AuthDetails::Certificate { client_cert_path, client_key_path, .. } => f
                 .debug_struct("Certificate")
                 .field("client_cert_data", &"<redacted>")
                 .field("client_cert_path", client_cert_path)
@@ -86,19 +76,12 @@ impl fmt::Debug for AuthDetails {
                 .field("token", &"<redacted>")
                 .field("token_file", token_file)
                 .finish(),
-            AuthDetails::Oidc {
-                issuer_url,
-                client_id,
-            } => f
+            AuthDetails::Oidc { issuer_url, client_id } => f
                 .debug_struct("Oidc")
                 .field("issuer_url", issuer_url)
                 .field("client_id", client_id)
                 .finish(),
-            AuthDetails::ExecPlugin {
-                command,
-                args,
-                api_version,
-            } => f
+            AuthDetails::ExecPlugin { command, args, api_version } => f
                 .debug_struct("ExecPlugin")
                 .field("command", command)
                 .field("args", args)
@@ -127,30 +110,17 @@ impl AuthConfig {
     }
 
     pub fn from_token(token: Option<String>, token_file: Option<String>) -> Self {
-        Self {
-            method: AuthMethod::Token,
-            details: AuthDetails::Token { token, token_file },
-        }
+        Self { method: AuthMethod::Token, details: AuthDetails::Token { token, token_file } }
     }
 
     pub fn from_oidc(issuer_url: String, client_id: Option<String>) -> Self {
-        Self {
-            method: AuthMethod::OIDC,
-            details: AuthDetails::Oidc {
-                issuer_url,
-                client_id,
-            },
-        }
+        Self { method: AuthMethod::OIDC, details: AuthDetails::Oidc { issuer_url, client_id } }
     }
 
     pub fn from_exec(command: String, args: Vec<String>, api_version: Option<String>) -> Self {
         Self {
             method: AuthMethod::ExecPlugin,
-            details: AuthDetails::ExecPlugin {
-                command,
-                args,
-                api_version,
-            },
+            details: AuthDetails::ExecPlugin { command, args, api_version },
         }
     }
 }
@@ -165,17 +135,9 @@ pub fn detect_auth_from_user_config(user_config: &serde_json::Value) -> Result<A
         let args = exec
             .get("args")
             .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .collect()
-            })
+            .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect())
             .unwrap_or_default();
-        let api_version = exec
-            .get("apiVersion")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+        let api_version = exec.get("apiVersion").and_then(|v| v.as_str()).map(|s| s.to_string());
 
         return Ok(AuthConfig::from_exec(command, args, api_version));
     }
@@ -203,32 +165,18 @@ pub fn detect_auth_from_user_config(user_config: &serde_json::Value) -> Result<A
             .get("client-certificate-data")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
-        let cert_path = user_config
-            .get("client-certificate")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-        let key_data = user_config
-            .get("client-key-data")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
-        let key_path = user_config
-            .get("client-key")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+        let cert_path =
+            user_config.get("client-certificate").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let key_data =
+            user_config.get("client-key-data").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let key_path =
+            user_config.get("client-key").and_then(|v| v.as_str()).map(|s| s.to_string());
 
-        return Ok(AuthConfig::from_certificate(
-            cert_data, cert_path, key_data, key_path,
-        ));
+        return Ok(AuthConfig::from_certificate(cert_data, cert_path, key_data, key_path));
     }
 
-    let token = user_config
-        .get("token")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-    let token_file = user_config
-        .get("tokenFile")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+    let token = user_config.get("token").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let token_file = user_config.get("tokenFile").and_then(|v| v.as_str()).map(|s| s.to_string());
 
     Ok(AuthConfig::from_token(token, token_file))
 }
@@ -248,12 +196,7 @@ mod tests {
         let auth = detect_auth_from_user_config(&user_config).unwrap();
         assert_eq!(auth.method, AuthMethod::Certificate);
 
-        if let AuthDetails::Certificate {
-            client_cert_data,
-            client_key_data,
-            ..
-        } = &auth.details
-        {
+        if let AuthDetails::Certificate { client_cert_data, client_key_data, .. } = &auth.details {
             assert_eq!(client_cert_data.as_deref(), Some("base64cert"));
             assert_eq!(client_key_data.as_deref(), Some("base64key"));
         } else {
@@ -271,12 +214,7 @@ mod tests {
         let auth = detect_auth_from_user_config(&user_config).unwrap();
         assert_eq!(auth.method, AuthMethod::Certificate);
 
-        if let AuthDetails::Certificate {
-            client_cert_path,
-            client_key_path,
-            ..
-        } = &auth.details
-        {
+        if let AuthDetails::Certificate { client_cert_path, client_key_path, .. } = &auth.details {
             assert_eq!(client_cert_path.as_deref(), Some("/path/to/cert.pem"));
             assert_eq!(client_key_path.as_deref(), Some("/path/to/key.pem"));
         } else {
@@ -331,11 +269,7 @@ mod tests {
         let auth = detect_auth_from_user_config(&user_config).unwrap();
         assert_eq!(auth.method, AuthMethod::OIDC);
 
-        if let AuthDetails::Oidc {
-            issuer_url,
-            client_id,
-        } = &auth.details
-        {
+        if let AuthDetails::Oidc { issuer_url, client_id } = &auth.details {
             assert_eq!(issuer_url, "https://accounts.google.com");
             assert_eq!(client_id.as_deref(), Some("my-client-id"));
         } else {
@@ -356,18 +290,10 @@ mod tests {
         let auth = detect_auth_from_user_config(&user_config).unwrap();
         assert_eq!(auth.method, AuthMethod::ExecPlugin);
 
-        if let AuthDetails::ExecPlugin {
-            command,
-            args,
-            api_version,
-        } = &auth.details
-        {
+        if let AuthDetails::ExecPlugin { command, args, api_version } = &auth.details {
             assert_eq!(command, "aws-iam-authenticator");
             assert_eq!(args, &["token", "-i", "my-cluster"]);
-            assert_eq!(
-                api_version.as_deref(),
-                Some("client.authentication.k8s.io/v1beta1")
-            );
+            assert_eq!(api_version.as_deref(), Some("client.authentication.k8s.io/v1beta1"));
         } else {
             panic!("Expected ExecPlugin auth details");
         }

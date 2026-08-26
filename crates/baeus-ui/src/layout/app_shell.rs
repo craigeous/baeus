@@ -3,33 +3,33 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use gpui::*;
 use gpui::prelude::FluentBuilder as _;
+use gpui::*;
+use gpui_component::input::{Input, InputEvent, InputState};
 use gpui_component::{Icon, IconName, Sizable};
-use gpui_component::input::{Input, InputState, InputEvent};
 
-use baeus_core::cluster::{ClusterConnection, ClusterManager, AuthMethod};
-use baeus_core::informer::{InformerManager, InformerState};
 use baeus_core::KubeClient;
+use baeus_core::cluster::{AuthMethod, ClusterConnection, ClusterManager};
+use baeus_core::informer::{InformerManager, InformerState};
 
-use crate::components::log_viewer::{LogViewerState, LogViewerView};
 use crate::components::json_extract;
-use crate::components::resource_table::{columns_for_kind, ResourceTableState, TableRow};
+use crate::components::log_viewer::{LogViewerState, LogViewerView};
+use crate::components::resource_table::{ResourceTableState, TableRow, columns_for_kind};
 use crate::components::terminal_view::TerminalViewState;
 use crate::components::terminal_view_component::TerminalViewComponent;
 use crate::icons::{ResourceIcon, SectionIcon};
 
-use baeus_terminal::pty_process::PtyProcess;
-use crate::layout::{AppLayout, NavigationTarget};
 use crate::layout::dock::{DockState, DockTabKind};
-use crate::layout::indent_guides::{NavigatorIndentGuideDecoration, INDENT_OFFSET, INDENT_STEP};
-use crate::layout::sidebar::{ClusterStatus, NavigatorFlatEntry, SidebarState};
 use crate::layout::header::{EnhancedNamespaceSelector, HeaderState};
+use crate::layout::indent_guides::{INDENT_OFFSET, INDENT_STEP, NavigatorIndentGuideDecoration};
+use crate::layout::sidebar::{ClusterStatus, NavigatorFlatEntry, SidebarState};
 use crate::layout::workspace::WorkspaceState;
+use crate::layout::{AppLayout, NavigationTarget};
 use crate::theme::{Theme, ThemeMode};
 use crate::views::dashboard::{DashboardEvent, DashboardState, ResourceCounts};
 use crate::views::preferences::{PreferencesSection, PreferencesState};
-use crate::views::resource_detail::{ResourceDetailState, ConditionDisplay};
+use crate::views::resource_detail::{ConditionDisplay, ResourceDetailState};
+use baeus_terminal::pty_process::PtyProcess;
 
 /// Per-cluster appearance overrides (custom icon color, custom icon image).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -219,10 +219,7 @@ impl Default for KeybindingConfig {
 impl KeybindingConfig {
     /// Look up the action for a given key and modifier combination.
     pub fn find_action(&self, key: &str, modifiers: &KeyModifiers) -> Option<KeyAction> {
-        self.bindings
-            .iter()
-            .find(|b| b.key == key && b.modifiers == *modifiers)
-            .map(|b| b.action)
+        self.bindings.iter().find(|b| b.key == key && b.modifiers == *modifiers).map(|b| b.action)
     }
 
     /// Return the default set of keybindings for the application.
@@ -354,7 +351,10 @@ pub enum Direction {
 pub enum FocusMode {
     #[default]
     Normal,
-    TableNavigation { row: usize, col: usize },
+    TableNavigation {
+        row: usize,
+        col: usize,
+    },
     CommandPalette,
     Search,
     Modal,
@@ -554,7 +554,8 @@ pub struct AppShell {
     /// Overview vs YAML tab per resource detail.
     detail_active_tab: HashMap<ResourceDetailKey, DetailTabMode>,
     /// YAML editor states, lazily created when YAML tab opens.
-    pub(crate) yaml_editors: HashMap<ResourceDetailKey, crate::components::editor_view::EditorViewState>,
+    pub(crate) yaml_editors:
+        HashMap<ResourceDetailKey, crate::components::editor_view::EditorViewState>,
     /// Focus handles for YAML editors, keyed by resource detail key.
     pub(crate) yaml_editor_focus_handles: HashMap<ResourceDetailKey, FocusHandle>,
     /// Confirm dialog for destructive actions (delete, scale).
@@ -624,7 +625,10 @@ pub struct AppShell {
     /// Stored EKS cluster metadata + credentials + optional role ARN for clusters connected via the wizard.
     /// Keyed by context name (e.g. "eks:us-east-1:obelix-prod").
     /// Tuple: (cluster, credentials, optional role ARN for terminal kubeconfig)
-    pub(crate) eks_cluster_data: HashMap<String, (baeus_core::aws_eks::EksCluster, aws_credential_types::Credentials, Option<String>)>,
+    pub(crate) eks_cluster_data: HashMap<
+        String,
+        (baeus_core::aws_eks::EksCluster, aws_credential_types::Credentials, Option<String>),
+    >,
     /// Input entity for the default AWS profile in Kubernetes preferences.
     aws_profile_input: Option<Entity<InputState>>,
     /// Subscription for the default AWS profile input change events.
@@ -649,7 +653,8 @@ impl AppShell {
         let mut kubeconfig_paths = HashMap::new();
 
         // Load cluster appearances from persisted user preferences.
-        let cluster_appearances: HashMap<String, ClusterAppearance> = Self::load_cluster_appearances();
+        let cluster_appearances: HashMap<String, ClusterAppearance> =
+            Self::load_cluster_appearances();
 
         // Map from effective (disambiguated) context name → original kubeconfig context name.
         let mut original_context_names: HashMap<String, String> = HashMap::new();
@@ -660,15 +665,15 @@ impl AppShell {
             // Apply persisted custom color override if present.
             if let Some(appearance) = cluster_appearances.get(context_name) {
                 if let Some(color) = appearance.custom_color {
-                    if let Some(entry) = sidebar.clusters.iter_mut()
-                        .find(|c| c.context_name == *context_name)
+                    if let Some(entry) =
+                        sidebar.clusters.iter_mut().find(|c| c.context_name == *context_name)
                     {
                         entry.color = color;
                     }
                 }
                 if let Some(ref icon_path) = appearance.custom_icon_path {
-                    if let Some(entry) = sidebar.clusters.iter_mut()
-                        .find(|c| c.context_name == *context_name)
+                    if let Some(entry) =
+                        sidebar.clusters.iter_mut().find(|c| c.context_name == *context_name)
                     {
                         entry.custom_icon_path = Some(icon_path.clone());
                     }
@@ -684,7 +689,7 @@ impl AppShell {
             let conn = ClusterConnection::new(
                 display_name.clone(),
                 context_name.clone(),
-                String::new(), // API server URL not yet known
+                String::new(),     // API server URL not yet known
                 AuthMethod::Token, // Default; will be resolved on connect
             );
             cluster_manager.add_connection(conn);
@@ -815,8 +820,10 @@ impl AppShell {
     /// Restore persisted EKS connections on app startup.
     /// Creates sidebar entries, writes kubeconfig files. Returns context names for auto-connect.
     fn restore_saved_eks_connections(&mut self) -> Vec<String> {
+        use crate::layout::sidebar::{
+            ClusterEntry, ClusterSource, generate_cluster_color, generate_initials,
+        };
         use baeus_core::aws_eks::{self, EksCluster};
-        use crate::layout::sidebar::{ClusterEntry, ClusterSource, generate_initials, generate_cluster_color};
 
         let saved = self.preferences.saved_eks_connections.clone();
         if saved.is_empty() {
@@ -840,23 +847,32 @@ impl AppShell {
 
             // Skip if this cluster is already in the sidebar (from kubeconfig discovery)
             if self.sidebar.clusters.iter().any(|c| c.context_name == context_name) {
-                tracing::info!("EKS cluster '{}' already discovered, skipping restore", context_name);
+                tracing::info!(
+                    "EKS cluster '{}' already discovered, skipping restore",
+                    context_name
+                );
                 continue;
             }
 
             let display_name = format!("{} ({})", cluster.name, cluster.region);
             let cluster_conn = ClusterConnection::new(
-                cluster.name.clone(), context_name.clone(),
-                cluster.endpoint.clone(), AuthMethod::AwsEks,
+                cluster.name.clone(),
+                context_name.clone(),
+                cluster.endpoint.clone(),
+                AuthMethod::AwsEks,
             );
             let cluster_id = self.cluster_manager.add_connection(cluster_conn);
 
             let entry = ClusterEntry {
-                id: cluster_id, context_name: context_name.clone(), display_name,
+                id: cluster_id,
+                context_name: context_name.clone(),
+                display_name,
                 initials: generate_initials(&cluster.name),
                 color: generate_cluster_color(&context_name),
-                status: ClusterStatus::Disconnected, expanded: false,
-                sections: Vec::new(), expanded_categories: std::collections::HashSet::new(),
+                status: ClusterStatus::Disconnected,
+                expanded: false,
+                sections: Vec::new(),
+                expanded_categories: std::collections::HashSet::new(),
                 custom_icon_path: None,
                 source: ClusterSource::AwsEks { region: cluster.region.clone(), account_id: None },
             };
@@ -882,35 +898,40 @@ impl AppShell {
     fn check_for_updates(&self, cx: &mut Context<Self>) {
         let tokio_handle = cx.global::<GpuiTokioHandle>().0.clone();
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async {
-                let output = tokio::process::Command::new("curl")
-                    .args([
-                        "-sf",
-                        "-H", "Accept: application/vnd.github.v3+json",
-                        "https://api.github.com/repos/Craigeous/baeus/releases/latest",
-                    ])
-                    .output()
-                    .await
-                    .map_err(|e| format!("curl failed: {e}"))?;
+            let result = tokio_handle
+                .spawn(async {
+                    let output = tokio::process::Command::new("curl")
+                        .args([
+                            "-sf",
+                            "-H",
+                            "Accept: application/vnd.github.v3+json",
+                            "https://api.github.com/repos/Craigeous/baeus/releases/latest",
+                        ])
+                        .output()
+                        .await
+                        .map_err(|e| format!("curl failed: {e}"))?;
 
-                if !output.status.success() {
-                    return Err("GitHub API request failed".to_string());
-                }
+                    if !output.status.success() {
+                        return Err("GitHub API request failed".to_string());
+                    }
 
-                let body: serde_json::Value = serde_json::from_slice(&output.stdout)
-                    .map_err(|e| format!("Failed to parse response: {e}"))?;
+                    let body: serde_json::Value = serde_json::from_slice(&output.stdout)
+                        .map_err(|e| format!("Failed to parse response: {e}"))?;
 
-                let tag = body.get("tag_name")
-                    .and_then(|v| v.as_str())
-                    .ok_or("No tag_name in response")?
-                    .to_string();
-                let url = body.get("html_url")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("https://github.com/Craigeous/baeus/releases")
-                    .to_string();
+                    let tag = body
+                        .get("tag_name")
+                        .and_then(|v| v.as_str())
+                        .ok_or("No tag_name in response")?
+                        .to_string();
+                    let url = body
+                        .get("html_url")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("https://github.com/Craigeous/baeus/releases")
+                        .to_string();
 
-                Ok::<(String, String), String>((tag, url))
-            }).await;
+                    Ok::<(String, String), String>((tag, url))
+                })
+                .await;
 
             if let Ok(Ok((tag, url))) = result {
                 let current = env!("CARGO_PKG_VERSION");
@@ -920,12 +941,14 @@ impl AppShell {
                     this.update(cx, |this, cx| {
                         this.update_available = Some((latest.to_string(), url));
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 } else {
                     tracing::info!("App is up to date ({current})");
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// T323: Retrieve a previously-stored kube client for the given context name.
@@ -967,11 +990,7 @@ fn redact_secret_data(json: &mut serde_json::Value) {
 impl AppShell {
     /// Apply the current YAML editor content to the cluster.
     /// Follows the `start_dashboard_loading` async pattern.
-    pub(crate) fn handle_yaml_apply(
-        &mut self,
-        cx: &mut Context<Self>,
-        key: ResourceDetailKey,
-    ) {
+    pub(crate) fn handle_yaml_apply(&mut self, cx: &mut Context<Self>, key: ResourceDetailKey) {
         let Some(editor) = self.yaml_editors.get_mut(&key) else { return };
         if !editor.can_apply() {
             return;
@@ -996,18 +1015,20 @@ impl AppShell {
         let ns_ref = namespace.as_deref().map(|s| s.to_string());
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                baeus_core::client::update_resource(
-                    &client,
-                    &kind,
-                    &name,
-                    ns_ref.as_deref(),
-                    &yaml_text,
-                    &resource_version,
-                )
-                .await
-                .map_err(|e| (e.to_string(), baeus_core::client::is_conflict_error(&e)))
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    baeus_core::client::update_resource(
+                        &client,
+                        &kind,
+                        &name,
+                        ns_ref.as_deref(),
+                        &yaml_text,
+                        &resource_version,
+                    )
+                    .await
+                    .map_err(|e| (e.to_string(), baeus_core::client::is_conflict_error(&e)))
+                })
+                .await;
 
             let detail_key = key.clone();
             match result {
@@ -1018,8 +1039,7 @@ impl AppShell {
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    let new_yaml = serde_yaml_ng::to_string(&updated_json)
-                        .unwrap_or_default();
+                    let new_yaml = serde_yaml_ng::to_string(&updated_json).unwrap_or_default();
                     this.update(cx, |this, cx| {
                         if let Some(editor) = this.yaml_editors.get_mut(&detail_key) {
                             editor.apply_success(&new_rv);
@@ -1031,7 +1051,8 @@ impl AppShell {
                         this.resource_detail_data.insert(detail_key, updated_json);
                         this.evict_data_caches();
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Ok(Err((err_msg, is_conflict))) => {
                     this.update(cx, |this, cx| {
@@ -1042,7 +1063,8 @@ impl AppShell {
                             editor.apply_failure(err_msg);
                         }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Err(join_err) => {
                     let msg = format!("Apply task panicked: {join_err}");
@@ -1051,10 +1073,12 @@ impl AppShell {
                             editor.apply_failure(msg);
                         }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
             }
-        }).detach();
+        })
+        .detach();
         cx.notify();
     }
 
@@ -1075,9 +1099,11 @@ impl AppShell {
         let ns_ref = ns.as_deref().map(|s| s.to_string());
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                baeus_core::client::get_resource(&client, &kind, &name, ns_ref.as_deref()).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    baeus_core::client::get_resource(&client, &kind, &name, ns_ref.as_deref()).await
+                })
+                .await;
 
             match result {
                 Ok(Ok(server_json)) => {
@@ -1087,7 +1113,8 @@ impl AppShell {
                             editor.apply_conflict(server_yaml);
                         }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
                 _ => {
                     this.update(cx, |this, cx| {
@@ -1097,10 +1124,12 @@ impl AppShell {
                             );
                         }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// Accept the server version during conflict resolution.
@@ -1119,9 +1148,11 @@ impl AppShell {
         let ns_ref = ns.as_deref().map(|s| s.to_string());
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                baeus_core::client::get_resource(&client, &kind, &name, ns_ref.as_deref()).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    baeus_core::client::get_resource(&client, &kind, &name, ns_ref.as_deref()).await
+                })
+                .await;
 
             match result {
                 Ok(Ok(server_json)) => {
@@ -1139,20 +1170,21 @@ impl AppShell {
                         this.resource_detail_data.insert(key, server_json);
                         this.evict_data_caches();
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
                 _ => {
                     this.update(cx, |this, cx| {
                         if let Some(editor) = this.yaml_editors.get_mut(&key) {
-                            editor.apply_failure(
-                                "Failed to fetch server version".to_string(),
-                            );
+                            editor.apply_failure("Failed to fetch server version".to_string());
                         }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// Handle delete resource action after confirmation.
@@ -1175,14 +1207,12 @@ impl AppShell {
         let ns_clone = namespace.clone();
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                baeus_core::client::delete_resource(
-                    &client,
-                    &kind,
-                    &name,
-                    ns_ref.as_deref(),
-                ).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    baeus_core::client::delete_resource(&client, &kind, &name, ns_ref.as_deref())
+                        .await
+                })
+                .await;
 
             this.update(cx, |this, cx| {
                 match result {
@@ -1207,10 +1237,8 @@ impl AppShell {
                             namespace: ns_clone,
                         };
                         // Find tab by target and close it
-                        if let Some(tab_id) = this.workspace.tabs
-                            .iter()
-                            .find(|t| t.target == target)
-                            .map(|t| t.id)
+                        if let Some(tab_id) =
+                            this.workspace.tabs.iter().find(|t| t.target == target).map(|t| t.id)
                         {
                             this.workspace.close_tab(tab_id);
                         }
@@ -1223,8 +1251,10 @@ impl AppShell {
                     }
                 }
                 cx.notify();
-            }).ok();
-        }).detach();
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// Handle scale resource action after confirmation.
@@ -1244,15 +1274,18 @@ impl AppShell {
         let ns_ref = namespace.as_deref().map(|s| s.to_string());
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                baeus_core::client::scale_resource(
-                    &client,
-                    &kind,
-                    &name,
-                    ns_ref.as_deref(),
-                    replicas,
-                ).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    baeus_core::client::scale_resource(
+                        &client,
+                        &kind,
+                        &name,
+                        ns_ref.as_deref(),
+                        replicas,
+                    )
+                    .await
+                })
+                .await;
 
             this.update(cx, |_this, cx| {
                 match result {
@@ -1267,8 +1300,10 @@ impl AppShell {
                     }
                 }
                 cx.notify();
-            }).ok();
-        }).detach();
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// Handle restart resource action after confirmation.
@@ -1287,14 +1322,12 @@ impl AppShell {
         let ns_ref = namespace.as_deref().map(|s| s.to_string());
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                baeus_core::client::restart_resource(
-                    &client,
-                    &kind,
-                    &name,
-                    ns_ref.as_deref(),
-                ).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    baeus_core::client::restart_resource(&client, &kind, &name, ns_ref.as_deref())
+                        .await
+                })
+                .await;
 
             this.update(cx, |_this, cx| {
                 match result {
@@ -1309,8 +1342,10 @@ impl AppShell {
                     }
                 }
                 cx.notify();
-            }).ok();
-        }).detach();
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// Handle cordon/uncordon node action after confirmation.
@@ -1327,13 +1362,15 @@ impl AppShell {
         let tokio_handle = cx.global::<GpuiTokioHandle>().0.clone();
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                if cordon {
-                    baeus_core::client::cordon_node(&client, &name).await
-                } else {
-                    baeus_core::client::uncordon_node(&client, &name).await
-                }
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    if cordon {
+                        baeus_core::client::cordon_node(&client, &name).await
+                    } else {
+                        baeus_core::client::uncordon_node(&client, &name).await
+                    }
+                })
+                .await;
 
             this.update(cx, |_this, cx| {
                 let action_name = if cordon { "Cordon" } else { "Uncordon" };
@@ -1349,8 +1386,10 @@ impl AppShell {
                     }
                 }
                 cx.notify();
-            }).ok();
-        }).detach();
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// Render the confirm dialog overlay (backdrop + dialog box).
@@ -1421,24 +1460,20 @@ impl AppShell {
                     .overflow_hidden()
                     // Header
                     .child(
-                        div()
-                            .px_4()
-                            .py_3()
-                            .border_b_1()
-                            .border_color(border)
-                            .child(
-                                div().text_base().font_weight(FontWeight::BOLD)
-                                    .text_color(text_primary).child(title),
-                            ),
+                        div().px_4().py_3().border_b_1().border_color(border).child(
+                            div()
+                                .text_base()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(text_primary)
+                                .child(title),
+                        ),
                     )
                     // Body
                     .child(
                         div()
                             .px_4()
                             .py_3()
-                            .child(
-                                div().text_sm().text_color(text_secondary).child(message),
-                            ),
+                            .child(div().text_sm().text_color(text_secondary).child(message)),
                     )
                     // Footer buttons
                     .child(
@@ -1486,38 +1521,66 @@ impl AppShell {
                                         this.confirm_dialog = None;
                                         match action {
                                             PendingAction::DeleteResource {
-                                                cluster_context, kind, name, namespace,
+                                                cluster_context,
+                                                kind,
+                                                name,
+                                                namespace,
                                             } => {
                                                 this.handle_delete_resource(
-                                                    cx, cluster_context, kind, name, namespace,
+                                                    cx,
+                                                    cluster_context,
+                                                    kind,
+                                                    name,
+                                                    namespace,
                                                 );
                                             }
                                             PendingAction::ScaleResource {
-                                                cluster_context, kind, name, namespace, replicas,
+                                                cluster_context,
+                                                kind,
+                                                name,
+                                                namespace,
+                                                replicas,
                                             } => {
                                                 this.handle_scale_resource(
-                                                    cx, cluster_context, kind, name, namespace, replicas,
+                                                    cx,
+                                                    cluster_context,
+                                                    kind,
+                                                    name,
+                                                    namespace,
+                                                    replicas,
                                                 );
                                             }
                                             PendingAction::RestartResource {
-                                                cluster_context, kind, name, namespace,
+                                                cluster_context,
+                                                kind,
+                                                name,
+                                                namespace,
                                             } => {
                                                 this.handle_restart_resource(
-                                                    cx, cluster_context, kind, name, namespace,
+                                                    cx,
+                                                    cluster_context,
+                                                    kind,
+                                                    name,
+                                                    namespace,
                                                 );
                                             }
-                                            PendingAction::CordonNode {
-                                                cluster_context, name,
-                                            } => {
+                                            PendingAction::CordonNode { cluster_context, name } => {
                                                 this.handle_cordon_node(
-                                                    cx, cluster_context, name, true,
+                                                    cx,
+                                                    cluster_context,
+                                                    name,
+                                                    true,
                                                 );
                                             }
                                             PendingAction::UncordonNode {
-                                                cluster_context, name,
+                                                cluster_context,
+                                                name,
                                             } => {
                                                 this.handle_cordon_node(
-                                                    cx, cluster_context, name, false,
+                                                    cx,
+                                                    cluster_context,
+                                                    name,
+                                                    false,
                                                 );
                                             }
                                         }
@@ -1543,11 +1606,7 @@ impl AppShell {
     /// 2. Retrieve the Tokio handle from the GPUI global context.
     /// 3. Spawn an async task that creates a real kube::Client via baeus_core::client.
     /// 4. On success, store the client and navigate to the dashboard.
-    pub(crate) fn handle_connect_cluster(
-        &mut self,
-        context_name: &str,
-        cx: &mut Context<Self>,
-    ) {
+    pub(crate) fn handle_connect_cluster(&mut self, context_name: &str, cx: &mut Context<Self>) {
         let context = context_name.to_string();
         tracing::info!("Connecting to cluster: {}", context);
 
@@ -1586,26 +1645,38 @@ impl AppShell {
         if let Some((cluster, creds, role_arn)) = self.eks_cluster_data.get(&context).cloned() {
             tracing::info!(
                 "EKS connect via kubeconfig exec: cluster '{}', role={:?}",
-                context, role_arn,
+                context,
+                role_arn,
             );
 
             // Generate temp kubeconfig with aws eks get-token exec plugin
             let kubeconfig_path = match self.generate_eks_kubeconfig_file_with_role(
-                &context, &cluster, role_arn.as_deref(),
+                &context,
+                &cluster,
+                role_arn.as_deref(),
             ) {
                 Ok(path) => {
                     self.kubeconfig_paths.insert(context.clone(), path.clone());
                     path
                 }
                 Err(e) => {
-                    self.connection_errors.insert(context.clone(), format!("Failed to write EKS kubeconfig: {e}"));
-                    Self::set_sidebar_cluster_status(&mut self.sidebar, &context, ClusterStatus::Error);
+                    self.connection_errors
+                        .insert(context.clone(), format!("Failed to write EKS kubeconfig: {e}"));
+                    Self::set_sidebar_cluster_status(
+                        &mut self.sidebar,
+                        &context,
+                        ClusterStatus::Error,
+                    );
                     cx.notify();
                     return;
                 }
             };
 
-            Self::set_sidebar_cluster_status(&mut self.sidebar, &context, ClusterStatus::Connecting);
+            Self::set_sidebar_cluster_status(
+                &mut self.sidebar,
+                &context,
+                ClusterStatus::Connecting,
+            );
             Self::set_manager_connecting(&mut self.cluster_manager, &context);
 
             // Extract credentials for in-memory injection (never written to disk)
@@ -1621,24 +1692,37 @@ impl AppShell {
             let kube_ctx = context.clone();
             let saved_connections = self.preferences.saved_eks_connections.clone();
             cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-                let result = tokio_handle.spawn(async move {
-                    // Inject wizard's in-memory credentials into the exec env
-                    // so aws eks get-token can authenticate without system AWS CLI creds.
-                    let client = baeus_core::client::create_client_from_path_with_aws_creds(
-                        &kube_ctx, &kubeconfig_path,
-                        &ak, &sk, st.as_deref(),
-                    ).await.map_err(|e| format!("{e:#}"))?;
-                    let version = baeus_core::client::verify_connection(&client)
-                        .await.map_err(|e| format!("{e:#}"))?;
-                    Ok::<(KubeClient, String), String>((client, version))
-                }).await;
+                let result = tokio_handle
+                    .spawn(async move {
+                        // Inject wizard's in-memory credentials into the exec env
+                        // so aws eks get-token can authenticate without system AWS CLI creds.
+                        let client = baeus_core::client::create_client_from_path_with_aws_creds(
+                            &kube_ctx,
+                            &kubeconfig_path,
+                            &ak,
+                            &sk,
+                            st.as_deref(),
+                        )
+                        .await
+                        .map_err(|e| format!("{e:#}"))?;
+                        let version = baeus_core::client::verify_connection(&client)
+                            .await
+                            .map_err(|e| format!("{e:#}"))?;
+                        Ok::<(KubeClient, String), String>((client, version))
+                    })
+                    .await;
                 match result {
                     Ok(Ok((client, version))) => {
                         tracing::info!("EKS cluster {ctx} connected, k8s {version}");
                         this.update(cx, |this, cx| {
                             this.active_clients.insert(ctx.clone(), client);
-                            Self::set_sidebar_cluster_status(&mut this.sidebar, &ctx, ClusterStatus::Connected);
-                            if let Some(id) = Self::find_connection_id(&this.cluster_manager, &ctx) {
+                            Self::set_sidebar_cluster_status(
+                                &mut this.sidebar,
+                                &ctx,
+                                ClusterStatus::Connected,
+                            );
+                            if let Some(id) = Self::find_connection_id(&this.cluster_manager, &ctx)
+                            {
                                 if let Some(c) = this.cluster_manager.get_connection_mut(&id) {
                                     c.set_connected();
                                     c.reset_reconnect_attempts();
@@ -1646,28 +1730,40 @@ impl AppShell {
                             }
                             this.k8s_version = Some(version);
                             cx.notify();
-                        }).ok();
+                        })
+                        .ok();
                     }
                     Ok(Err(msg)) => {
                         let enriched = Self::enrich_eks_error(&msg, &ctx, &saved_connections);
                         tracing::error!("EKS connection failed: {enriched}");
                         this.update(cx, |this, cx| {
-                            Self::set_sidebar_cluster_status(&mut this.sidebar, &ctx, ClusterStatus::Error);
+                            Self::set_sidebar_cluster_status(
+                                &mut this.sidebar,
+                                &ctx,
+                                ClusterStatus::Error,
+                            );
                             this.connection_errors.insert(ctx.clone(), enriched);
                             cx.notify();
-                        }).ok();
+                        })
+                        .ok();
                     }
                     Err(e) => {
                         let msg = format!("EKS connection task failed: {e}");
                         tracing::error!("{msg}");
                         this.update(cx, |this, cx| {
-                            Self::set_sidebar_cluster_status(&mut this.sidebar, &ctx, ClusterStatus::Error);
+                            Self::set_sidebar_cluster_status(
+                                &mut this.sidebar,
+                                &ctx,
+                                ClusterStatus::Error,
+                            );
                             this.connection_errors.insert(ctx.clone(), msg);
                             cx.notify();
-                        }).ok();
+                        })
+                        .ok();
                     }
                 }
-            }).detach();
+            })
+            .detach();
             return;
         }
 
@@ -1716,11 +1812,7 @@ impl AppShell {
         enriched
     }
 
-    fn connect_cluster_via_kubeconfig(
-        &mut self,
-        context: String,
-        cx: &mut Context<Self>,
-    ) {
+    fn connect_cluster_via_kubeconfig(&mut self, context: String, cx: &mut Context<Self>) {
         // 2. Update core cluster manager to Connecting.
         Self::set_manager_connecting(&mut self.cluster_manager, &context);
 
@@ -1732,44 +1824,40 @@ impl AppShell {
         let kubeconfig_path = self.kubeconfig_paths.get(&context).cloned();
 
         // Use the original kubeconfig context name (before disambiguation) for kube-rs.
-        let kube_context_name = self
-            .original_context_names
-            .get(&context)
-            .cloned()
-            .unwrap_or_else(|| context.clone());
+        let kube_context_name =
+            self.original_context_names.get(&context).cloned().unwrap_or_else(|| context.clone());
 
         // Look up AWS profile: cluster-specific first, then default.
         // Passed to create_client_from_path which injects it into kubeconfig exec env.
-        let aws_profile = self
-            .cluster_aws_profiles
-            .get(&context)
-            .or(self.default_aws_profile.as_ref())
-            .cloned();
+        let aws_profile =
+            self.cluster_aws_profiles.get(&context).or(self.default_aws_profile.as_ref()).cloned();
 
         // 4. Spawn an async task that creates a real kube::Client (T324).
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                // T324: Real kube-rs connection via baeus_core::client.
-                // Use path-specific loader when we know the kubeconfig file,
-                // otherwise fall back to default resolution.
-                let client = if let Some(path) = kubeconfig_path {
-                    baeus_core::client::create_client_from_path(
-                        &kube_context_name,
-                        &path,
-                        aws_profile.as_deref(),
-                    )
+            let result = tokio_handle
+                .spawn(async move {
+                    // T324: Real kube-rs connection via baeus_core::client.
+                    // Use path-specific loader when we know the kubeconfig file,
+                    // otherwise fall back to default resolution.
+                    let client = if let Some(path) = kubeconfig_path {
+                        baeus_core::client::create_client_from_path(
+                            &kube_context_name,
+                            &path,
+                            aws_profile.as_deref(),
+                        )
                         .await
                         .map_err(|e| format!("{e:#}"))?
-                } else {
-                    baeus_core::client::create_client(&kube_context_name)
+                    } else {
+                        baeus_core::client::create_client(&kube_context_name)
+                            .await
+                            .map_err(|e| format!("{e:#}"))?
+                    };
+                    baeus_core::client::verify_connection(&client)
                         .await
-                        .map_err(|e| format!("{e:#}"))?
-                };
-                baeus_core::client::verify_connection(&client)
-                    .await
-                    .map_err(|e| format!("{e:#}"))?;
-                Ok::<KubeClient, String>(client)
-            }).await;
+                        .map_err(|e| format!("{e:#}"))?;
+                    Ok::<KubeClient, String>(client)
+                })
+                .await;
 
             // Post the result back to the GPUI main thread.
             let context_for_update = context.clone();
@@ -1779,29 +1867,29 @@ impl AppShell {
                         // T324: Store the client so views can reuse it.
                         this.active_clients.insert(context_for_update.clone(), client);
                         this.on_cluster_connected(&context_for_update, cx);
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Ok(Err(err)) => {
                     this.update(cx, |this, cx| {
                         this.on_cluster_connection_error(&context_for_update, &err, cx);
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Err(join_err) => {
                     let msg = format!("Connection task panicked: {join_err}");
                     this.update(cx, |this, cx| {
                         this.on_cluster_connection_error(&context_for_update, &msg, cx);
-                    }).ok();
+                    })
+                    .ok();
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// Called on the main thread after a cluster connection succeeds.
-    fn on_cluster_connected(
-        &mut self,
-        context_name: &str,
-        cx: &mut Context<Self>,
-    ) {
+    fn on_cluster_connected(&mut self, context_name: &str, cx: &mut Context<Self>) {
         tracing::info!("Cluster connected: {}", context_name);
 
         // Update sidebar status.
@@ -1814,24 +1902,23 @@ impl AppShell {
         self.connection_errors.remove(context_name);
 
         // Navigate to the dashboard and start loading data.
-        let dashboard_target = NavigationTarget::Dashboard {
-            cluster_context: context_name.to_string(),
-        };
+        let dashboard_target =
+            NavigationTarget::Dashboard { cluster_context: context_name.to_string() };
         self.layout.navigate(dashboard_target.clone());
         self.workspace.open_tab(dashboard_target);
         self.start_dashboard_loading(context_name, cx);
     }
 
     /// Handle a disconnect action for a cluster.
-    fn handle_disconnect_cluster(
-        &mut self,
-        context_name: &str,
-        _cx: &mut Context<Self>,
-    ) {
+    fn handle_disconnect_cluster(&mut self, context_name: &str, _cx: &mut Context<Self>) {
         tracing::info!("Disconnecting cluster: {}", context_name);
 
         // Update sidebar status.
-        Self::set_sidebar_cluster_status(&mut self.sidebar, context_name, ClusterStatus::Disconnected);
+        Self::set_sidebar_cluster_status(
+            &mut self.sidebar,
+            context_name,
+            ClusterStatus::Disconnected,
+        );
 
         // Update core cluster manager.
         Self::set_manager_disconnected(&mut self.cluster_manager, context_name);
@@ -1871,13 +1958,11 @@ impl AppShell {
         }
 
         // Store the error so the dashboard can display it.
-        self.connection_errors
-            .insert(context_name.to_string(), sanitized);
+        self.connection_errors.insert(context_name.to_string(), sanitized);
 
         // Open a Dashboard tab so the user sees the error.
-        let dashboard_target = NavigationTarget::Dashboard {
-            cluster_context: context_name.to_string(),
-        };
+        let dashboard_target =
+            NavigationTarget::Dashboard { cluster_context: context_name.to_string() };
         self.workspace.open_tab(dashboard_target);
 
         // Check if this is an AWS SSO token expiry and surface a login banner.
@@ -1888,10 +1973,8 @@ impl AppShell {
                 .or(self.default_aws_profile.as_ref())
                 .cloned()
                 .unwrap_or_else(|| "default".to_string());
-            self.pending_sso_login = Some(PendingSsoLogin {
-                profile,
-                cluster_context: context_name.to_string(),
-            });
+            self.pending_sso_login =
+                Some(PendingSsoLogin { profile, cluster_context: context_name.to_string() });
         }
 
         cx.notify();
@@ -1908,19 +1991,12 @@ impl AppShell {
     /// - Recent events
     ///
     /// For now, the task simulates completion with placeholder data.
-    fn start_dashboard_loading(
-        &mut self,
-        context_name: &str,
-        cx: &mut Context<Self>,
-    ) {
+    fn start_dashboard_loading(&mut self, context_name: &str, cx: &mut Context<Self>) {
         let context = context_name.to_string();
         tracing::info!("Loading dashboard data for cluster: {}", context);
 
         // Set loading state.
-        let loading_state = DashboardState::loading(
-            context_name,
-            uuid::Uuid::new_v4(),
-        );
+        let loading_state = DashboardState::loading(context_name, uuid::Uuid::new_v4());
         self.dashboard_state = Some(loading_state);
         self.active_dashboard_cluster = Some(context.clone());
 
@@ -1938,19 +2014,22 @@ impl AppShell {
 
         // Spawn a GPUI task that runs real kube-rs data fetching on Tokio.
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                // T325: Real dashboard data via baeus_core::client.
-                baeus_core::client::fetch_dashboard_data(&client)
-                    .await
-                    .map_err(|e| e.to_string())
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    // T325: Real dashboard data via baeus_core::client.
+                    baeus_core::client::fetch_dashboard_data(&client)
+                        .await
+                        .map_err(|e| e.to_string())
+                })
+                .await;
 
             let context_for_update = context.clone();
             match result {
                 Ok(Ok(data)) => {
                     this.update(cx, |this, cx| {
                         this.on_dashboard_data_loaded(&context_for_update, data, cx);
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Ok(Err(err)) => {
                     this.update(cx, |this, cx| {
@@ -1960,11 +2039,7 @@ impl AppShell {
                         }
                         // T364: Check for 403 Forbidden and format RBAC error.
                         let display_err = if baeus_core::client::is_forbidden_error_string(&err) {
-                            baeus_core::client::format_rbac_error(
-                                "access",
-                                "dashboard data",
-                                None,
-                            )
+                            baeus_core::client::format_rbac_error("access", "dashboard data", None)
                         } else {
                             err
                         };
@@ -1974,7 +2049,8 @@ impl AppShell {
                         if let Some(ref mut state) = this.dashboard_state {
                             state.set_error(display_err);
                         }
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Err(join_err) => {
                     let msg = format!("Dashboard load task panicked: {join_err}");
@@ -1989,10 +2065,12 @@ impl AppShell {
                         if let Some(ref mut state) = this.dashboard_state {
                             state.set_error(msg);
                         }
-                    }).ok();
+                    })
+                    .ok();
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// Called on the main thread when dashboard data has been fetched.
@@ -2024,16 +2102,18 @@ impl AppShell {
         if let Some(ref mut state) = self.dashboard_state {
             // T325: Populate dashboard from real API response.
             state.node_count = data.nodes.len() as u32;
-            state.nodes = data.nodes.iter().map(|n| {
-                let mut node = crate::views::dashboard::NodeHealth::new(
-                    n.name.clone(),
-                    n.ready,
-                );
-                for role in &n.roles {
-                    node = node.with_role(role.clone());
-                }
-                node
-            }).collect();
+            state.nodes = data
+                .nodes
+                .iter()
+                .map(|n| {
+                    let mut node =
+                        crate::views::dashboard::NodeHealth::new(n.name.clone(), n.ready);
+                    for role in &n.roles {
+                        node = node.with_role(role.clone());
+                    }
+                    node
+                })
+                .collect();
             state.pod_summary = crate::views::dashboard::PodSummary::new(
                 data.pod_counts.running,
                 data.pod_counts.pending,
@@ -2047,20 +2127,24 @@ impl AppShell {
             ns_sel.set_available_namespaces(state.namespaces.clone());
             self.namespace_selectors.insert(context_name.to_string(), ns_sel);
 
-            state.recent_events = data.events.iter().map(|e| {
-                DashboardEvent::with_details(
-                    e.reason.clone(),
-                    e.message.clone(),
-                    e.timestamp,
-                    e.is_warning,
-                    e.namespace.clone(),
-                    e.involved_object_kind.clone(),
-                    e.involved_object_name.clone(),
-                    e.source.clone(),
-                    e.count,
-                    e.last_seen,
-                )
-            }).collect();
+            state.recent_events = data
+                .events
+                .iter()
+                .map(|e| {
+                    DashboardEvent::with_details(
+                        e.reason.clone(),
+                        e.message.clone(),
+                        e.timestamp,
+                        e.is_warning,
+                        e.namespace.clone(),
+                        e.involved_object_kind.clone(),
+                        e.involved_object_name.clone(),
+                        e.source.clone(),
+                        e.count,
+                        e.last_seen,
+                    )
+                })
+                .collect();
 
             // Populate resource counts from API.
             state.resource_counts = ResourceCounts {
@@ -2074,12 +2158,10 @@ impl AppShell {
             };
 
             // Compute aggregate CPU and memory capacity from node allocatable resources.
-            let total_cpu_millis: u64 = data.nodes.iter()
-                .filter_map(|n| n.allocatable_cpu_millis)
-                .sum();
-            let total_memory_bytes: u64 = data.nodes.iter()
-                .filter_map(|n| n.allocatable_memory_bytes)
-                .sum();
+            let total_cpu_millis: u64 =
+                data.nodes.iter().filter_map(|n| n.allocatable_cpu_millis).sum();
+            let total_memory_bytes: u64 =
+                data.nodes.iter().filter_map(|n| n.allocatable_memory_bytes).sum();
 
             if total_cpu_millis > 0 {
                 let cpu_cores = total_cpu_millis as f64 / 1000.0;
@@ -2112,24 +2194,26 @@ impl AppShell {
     /// stream for `core/v1/Event` resources. Each incoming event is pushed to
     /// `DashboardState.recent_events` via `WeakEntity::update` on the GPUI
     /// main thread.
-    fn start_event_watcher(
-        &mut self,
-        context_name: &str,
-        cx: &mut Context<Self>,
-    ) {
+    fn start_event_watcher(&mut self, context_name: &str, cx: &mut Context<Self>) {
         tracing::info!("T326: Starting real event watcher for cluster: {}", context_name);
 
         // Find the cluster ID for this context.
         let cluster_id = Self::find_connection_id(&self.cluster_manager, context_name);
 
         let Some(cluster_id) = cluster_id else {
-            tracing::warn!("Cannot start event watcher: cluster {} not found in manager", context_name);
+            tracing::warn!(
+                "Cannot start event watcher: cluster {} not found in manager",
+                context_name
+            );
             return;
         };
 
         // Get the stored kube::Client for this cluster.
         let Some(client) = self.active_clients.get(context_name).cloned() else {
-            tracing::warn!("No active client for cluster {}; cannot start event watcher", context_name);
+            tracing::warn!(
+                "No active client for cluster {}; cannot start event watcher",
+                context_name
+            );
             return;
         };
 
@@ -2169,7 +2253,8 @@ impl AppShell {
                 // Send to the GPUI-side receiver; ignore errors if the receiver
                 // has been dropped (cluster disconnected).
                 let _ = tx.send(dashboard_event);
-            }).await;
+            })
+            .await;
 
             if let Err(e) = result {
                 tracing::warn!("Event watcher for {} ended with error: {}", context, e);
@@ -2211,7 +2296,8 @@ impl AppShell {
                     }
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// Stop the event watcher for a cluster by stopping its informers.
@@ -2231,11 +2317,7 @@ impl AppShell {
     ///
     /// Fetches node and pod metrics every 30 seconds, updating `self.cluster_metrics`
     /// and the dashboard donut chart values.
-    fn start_metrics_polling(
-        &mut self,
-        context_name: &str,
-        cx: &mut Context<Self>,
-    ) {
+    fn start_metrics_polling(&mut self, context_name: &str, cx: &mut Context<Self>) {
         tracing::info!("Starting metrics polling for cluster: {}", context_name);
 
         let Some(client) = self.active_clients.get(context_name).cloned() else {
@@ -2257,10 +2339,7 @@ impl AppShell {
                     baeus_core::client::fetch_pod_metrics(&client, None),
                 );
 
-                let payload = MetricsPayload {
-                    nodes: node_result.ok(),
-                    pods: pod_result.ok(),
-                };
+                let payload = MetricsPayload { nodes: node_result.ok(), pods: pod_result.ok() };
 
                 if tx.send(payload).is_err() {
                     break; // Receiver dropped (view destroyed)
@@ -2282,7 +2361,8 @@ impl AppShell {
                     break; // Entity dropped
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// Handle incoming metrics data from the polling loop.
@@ -2292,9 +2372,7 @@ impl AppShell {
         payload: MetricsPayload,
         cx: &mut Context<Self>,
     ) {
-        let state = self.cluster_metrics
-            .entry(context_name.to_string())
-            .or_default();
+        let state = self.cluster_metrics.entry(context_name.to_string()).or_default();
 
         match (&payload.nodes, &payload.pods) {
             (Some(nodes), Some(pods)) => {
@@ -2386,7 +2464,10 @@ impl AppShell {
 
         // Get the stored kube::Client for this cluster.
         let Some(client) = self.active_clients.get(cluster_context).cloned() else {
-            tracing::warn!("No active client for cluster {}; cannot load resources", cluster_context);
+            tracing::warn!(
+                "No active client for cluster {}; cannot load resources",
+                cluster_context
+            );
             return;
         };
 
@@ -2399,13 +2480,17 @@ impl AppShell {
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
             let kind_for_fetch = kind_owned.clone();
             let ns_for_fetch = ns_owned.clone();
-            let result = tokio_handle.spawn(async move {
-                baeus_core::client::list_resources(
-                    &client,
-                    &kind_for_fetch,
-                    ns_for_fetch.as_deref(),
-                ).await.map_err(|e| e.to_string())
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    baeus_core::client::list_resources(
+                        &client,
+                        &kind_for_fetch,
+                        ns_for_fetch.as_deref(),
+                    )
+                    .await
+                    .map_err(|e| e.to_string())
+                })
+                .await;
 
             match result {
                 Ok(Ok(items)) => {
@@ -2424,12 +2509,12 @@ impl AppShell {
                         // T362: Clear any previous error for this resource list view.
                         let error_key = format!(
                             "resources:{}:{}",
-                            key_for_update.cluster_context,
-                            key_for_update.kind,
+                            key_for_update.cluster_context, key_for_update.kind,
                         );
                         this.view_errors.remove(&error_key);
                         // Build table rows from JSON via json_extract
-                        let rows: Vec<TableRow> = items.iter()
+                        let rows: Vec<TableRow> = items
+                            .iter()
                             .map(|item| json_extract::json_to_table_row(&key_for_update.kind, item))
                             .collect();
                         let columns = columns_for_kind(&key_for_update.kind);
@@ -2444,7 +2529,8 @@ impl AppShell {
                             ns_owned.as_deref(),
                             cx,
                         );
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Ok(Err(err)) => {
                     tracing::warn!("T327: Failed to list resources: {}", err);
@@ -2469,11 +2555,11 @@ impl AppShell {
                         };
                         let error_key = format!(
                             "resources:{}:{}",
-                            key_for_err.cluster_context,
-                            key_for_err.kind,
+                            key_for_err.cluster_context, key_for_err.kind,
                         );
                         this.view_errors.insert(error_key, display_err);
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Err(join_err) => {
                     tracing::warn!("T327: Resource list task panicked: {}", join_err);
@@ -2488,14 +2574,15 @@ impl AppShell {
                         }
                         let error_key = format!(
                             "resources:{}:{}",
-                            key_for_err.cluster_context,
-                            key_for_err.kind,
+                            key_for_err.cluster_context, key_for_err.kind,
                         );
                         this.view_errors.insert(error_key, msg);
-                    }).ok();
+                    })
+                    .ok();
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// T327: Public accessor for resource list data.
@@ -2538,11 +2625,7 @@ impl AppShell {
 
         // Don't start a duplicate watcher.
         if self.active_resource_watchers.contains(&key) {
-            tracing::debug!(
-                "T327b: Watcher already running for {}/{}",
-                cluster_context,
-                kind,
-            );
+            tracing::debug!("T327b: Watcher already running for {}/{}", cluster_context, kind,);
             return;
         }
 
@@ -2565,12 +2648,10 @@ impl AppShell {
         let key_for_channel = key.clone();
 
         // Channel to bridge snapshot updates from Tokio to GPUI.
-        let (tx, mut rx) =
-            tokio::sync::mpsc::unbounded_channel::<Vec<serde_json::Value>>();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Vec<serde_json::Value>>();
 
         // T363: Separate channel to send watcher errors back to GPUI.
-        let (err_tx, mut err_rx) =
-            tokio::sync::mpsc::unbounded_channel::<String>();
+        let (err_tx, mut err_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
 
         // Spawn the watcher on Tokio.
         tokio_handle.spawn(async move {
@@ -2581,13 +2662,11 @@ impl AppShell {
                 move |items| {
                     let _ = tx.send(items);
                 },
-            ).await;
+            )
+            .await;
 
             if let Err(e) = result {
-                tracing::warn!(
-                    "T327b: Resource watcher ended with error: {}",
-                    e,
-                );
+                tracing::warn!("T327b: Resource watcher ended with error: {}", e,);
                 // T363: Send the error back to the GPUI thread.
                 let _ = err_tx.send(e.to_string());
             }
@@ -2686,14 +2765,18 @@ impl AppShell {
             let kind_for_fetch = kind_owned.clone();
             let name_for_fetch = name_owned.clone();
             let ns_for_fetch = ns_owned.clone();
-            let result = tokio_handle.spawn(async move {
-                baeus_core::client::get_resource(
-                    &client,
-                    &kind_for_fetch,
-                    &name_for_fetch,
-                    ns_for_fetch.as_deref(),
-                ).await.map_err(|e| e.to_string())
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    baeus_core::client::get_resource(
+                        &client,
+                        &kind_for_fetch,
+                        &name_for_fetch,
+                        ns_for_fetch.as_deref(),
+                    )
+                    .await
+                    .map_err(|e| e.to_string())
+                })
+                .await;
 
             match result {
                 Ok(Ok(resource_json)) => {
@@ -2712,14 +2795,12 @@ impl AppShell {
                         let ns = detail_key.namespace.as_deref().unwrap_or("_");
                         let error_key = format!(
                             "detail:{}:{}:{}:{}",
-                            detail_key.cluster_context,
-                            detail_key.kind,
-                            detail_key.name,
-                            ns,
+                            detail_key.cluster_context, detail_key.kind, detail_key.name, ns,
                         );
                         this.view_errors.remove(&error_key);
                         this.resource_detail_data.insert(detail_key, resource_json);
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Ok(Err(err)) => {
                     tracing::warn!("T328: Failed to get resource detail: {}", err);
@@ -2748,7 +2829,8 @@ impl AppShell {
                             dk.cluster_context, dk.kind, dk.name, ns,
                         );
                         this.view_errors.insert(error_key, display_err);
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Err(join_err) => {
                     tracing::warn!("T328: Resource detail task panicked: {}", join_err);
@@ -2766,10 +2848,12 @@ impl AppShell {
                             dk.cluster_context, dk.kind, dk.name, ns,
                         );
                         this.view_errors.insert(error_key, msg);
-                    }).ok();
+                    })
+                    .ok();
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// T328: Public accessor for resource detail data.
@@ -2805,7 +2889,9 @@ impl AppShell {
         }
 
         // resource_version
-        if let Some(rv) = resource_json.pointer("/metadata/resourceVersion").and_then(|v| v.as_str()) {
+        if let Some(rv) =
+            resource_json.pointer("/metadata/resourceVersion").and_then(|v| v.as_str())
+        {
             detail_state.resource_version = Some(rv.to_string());
         }
 
@@ -2829,8 +2915,10 @@ impl AppShell {
                     .filter_map(|c| {
                         let type_name = c.get("type")?.as_str()?.to_string();
                         let status_val = c.get("status")?.as_str()?.to_string();
-                        let reason = c.get("reason").and_then(|v| v.as_str()).map(|s| s.to_string());
-                        let message = c.get("message").and_then(|v| v.as_str()).map(|s| s.to_string());
+                        let reason =
+                            c.get("reason").and_then(|v| v.as_str()).map(|s| s.to_string());
+                        let message =
+                            c.get("message").and_then(|v| v.as_str()).map(|s| s.to_string());
                         let age = c
                             .get("lastTransitionTime")
                             .and_then(|v| v.as_str())
@@ -2851,7 +2939,9 @@ impl AppShell {
 
         // Container names (for Pods)
         if detail_state.kind == "Pod" {
-            if let Some(containers) = resource_json.pointer("/spec/containers").and_then(|c| c.as_array()) {
+            if let Some(containers) =
+                resource_json.pointer("/spec/containers").and_then(|c| c.as_array())
+            {
                 let names: Vec<String> = containers
                     .iter()
                     .filter_map(|c| c.get("name").and_then(|n| n.as_str()).map(|s| s.to_string()))
@@ -2882,11 +2972,7 @@ impl AppShell {
     /// 1. Disconnects the currently active cluster (stops watchers, clears dashboard).
     /// 2. Connects to the new cluster (reuses T025 pattern).
     /// 3. Starts loading dashboard data (reuses T027 pattern).
-    fn handle_switch_cluster(
-        &mut self,
-        new_context_name: &str,
-        cx: &mut Context<Self>,
-    ) {
+    fn handle_switch_cluster(&mut self, new_context_name: &str, cx: &mut Context<Self>) {
         tracing::info!("Switching to cluster: {}", new_context_name);
 
         // 1. Disconnect the current cluster if one is active.
@@ -2894,7 +2980,9 @@ impl AppShell {
             if current_context == new_context_name {
                 tracing::debug!("Already on cluster {}, no switch needed", new_context_name);
                 // Still select it in the sidebar in case the UI state is out of sync.
-                if let Some(cluster) = self.sidebar.clusters.iter().find(|c| c.context_name == new_context_name) {
+                if let Some(cluster) =
+                    self.sidebar.clusters.iter().find(|c| c.context_name == new_context_name)
+                {
                     let id = cluster.id;
                     self.sidebar.select_cluster(id);
                 }
@@ -2904,7 +2992,9 @@ impl AppShell {
         }
 
         // 2. Select the new cluster in the sidebar.
-        if let Some(cluster) = self.sidebar.clusters.iter().find(|c| c.context_name == new_context_name) {
+        if let Some(cluster) =
+            self.sidebar.clusters.iter().find(|c| c.context_name == new_context_name)
+        {
             let id = cluster.id;
             self.sidebar.select_cluster(id);
         }
@@ -2920,15 +3010,17 @@ impl AppShell {
 
     /// Find a cluster connection's UUID by context name.
     fn find_connection_id(manager: &ClusterManager, context_name: &str) -> Option<uuid::Uuid> {
-        manager.list_connections()
-            .iter()
-            .find(|c| c.context_name == context_name)
-            .map(|c| c.id)
+        manager.list_connections().iter().find(|c| c.context_name == context_name).map(|c| c.id)
     }
 
     /// Update sidebar cluster status by context name.
-    pub(crate) fn set_sidebar_cluster_status(sidebar: &mut SidebarState, context_name: &str, status: ClusterStatus) {
-        if let Some(cluster) = sidebar.clusters.iter_mut().find(|c| c.context_name == context_name) {
+    pub(crate) fn set_sidebar_cluster_status(
+        sidebar: &mut SidebarState,
+        context_name: &str,
+        status: ClusterStatus,
+    ) {
+        if let Some(cluster) = sidebar.clusters.iter_mut().find(|c| c.context_name == context_name)
+        {
             cluster.status = status;
         }
     }
@@ -2962,7 +3054,6 @@ impl AppShell {
         }
     }
 }
-
 
 // ---------------------------------------------------------------------------
 // T363: Connection loss detection
@@ -3013,22 +3104,13 @@ impl AppShell {
         error_msg: &str,
         cx: &mut Context<Self>,
     ) {
-        tracing::warn!(
-            "T363: Connection lost for cluster {}: {}",
-            cluster_context,
-            error_msg,
-        );
+        tracing::warn!("T363: Connection lost for cluster {}: {}", cluster_context, error_msg,);
 
         // 1. Update sidebar status to Error.
-        Self::set_sidebar_cluster_status(
-            &mut self.sidebar,
-            cluster_context,
-            ClusterStatus::Error,
-        );
+        Self::set_sidebar_cluster_status(&mut self.sidebar, cluster_context, ClusterStatus::Error);
 
         // 2. Store the connection error.
-        self.connection_errors
-            .insert(cluster_context.to_string(), error_msg.to_string());
+        self.connection_errors.insert(cluster_context.to_string(), error_msg.to_string());
 
         // Update the core cluster manager error state.
         if let Some(id) = Self::find_connection_id(&self.cluster_manager, cluster_context) {
@@ -3043,20 +3125,14 @@ impl AppShell {
         // 4. Mark views for this cluster as stale.
         let stale_msg = format!("Connection lost: {}", error_msg);
         let dashboard_key = format!("dashboard:{}", cluster_context);
-        self.view_errors
-            .insert(dashboard_key, stale_msg.clone());
+        self.view_errors.insert(dashboard_key, stale_msg.clone());
 
         // Also mark any resource views for this cluster as stale.
         let resource_keys: Vec<String> = self
             .resource_list_data
             .keys()
             .filter(|k| k.cluster_context == cluster_context)
-            .map(|k| {
-                format!(
-                    "resources:{}:{}",
-                    k.cluster_context, k.kind,
-                )
-            })
+            .map(|k| format!("resources:{}:{}", k.cluster_context, k.kind,))
             .collect();
         for key in resource_keys {
             self.view_errors.insert(key, stale_msg.clone());
@@ -3074,15 +3150,8 @@ impl AppShell {
     ///
     /// Called when a retry or fresh API call succeeds after a prior connection
     /// loss. Clears all error state for the cluster.
-    pub fn on_cluster_reconnected(
-        &mut self,
-        cluster_context: &str,
-        cx: &mut Context<Self>,
-    ) {
-        tracing::info!(
-            "T363: Cluster reconnected: {}",
-            cluster_context,
-        );
+    pub fn on_cluster_reconnected(&mut self, cluster_context: &str, cx: &mut Context<Self>) {
+        tracing::info!("T363: Cluster reconnected: {}", cluster_context,);
 
         // Restore sidebar status to Connected.
         Self::set_sidebar_cluster_status(
@@ -3110,8 +3179,7 @@ impl AppShell {
 
         // Remove all resource-scoped view errors for this cluster.
         let resource_prefix = format!("resources:{}:", cluster_context);
-        self.view_errors
-            .retain(|k, _| !k.starts_with(&resource_prefix));
+        self.view_errors.retain(|k, _| !k.starts_with(&resource_prefix));
 
         // Trigger re-render.
         cx.notify();
@@ -3211,7 +3279,11 @@ impl AppShell {
                 };
                 if !self.resource_detail_data.contains_key(&key) {
                     self.start_resource_detail_loading(
-                        cluster_context, kind, name, namespace.as_deref(), cx,
+                        cluster_context,
+                        kind,
+                        name,
+                        namespace.as_deref(),
+                        cx,
                     );
                 }
             }
@@ -3308,12 +3380,7 @@ impl AppShellState {
     /// Move the table selection in the given direction.
     /// `max_rows` and `max_cols` define the upper bounds (exclusive).
     /// Movement is clamped to valid indices (saturating at 0 and max-1).
-    pub fn move_table_selection(
-        &mut self,
-        direction: Direction,
-        max_rows: usize,
-        max_cols: usize,
-    ) {
+    pub fn move_table_selection(&mut self, direction: Direction, max_rows: usize, max_cols: usize) {
         if let FocusMode::TableNavigation { ref mut row, ref mut col } = self.focus_mode {
             match direction {
                 Direction::Up => {
@@ -3342,7 +3409,6 @@ impl AppShellState {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // T366: Keyboard shortcut handling on AppShell
 // ---------------------------------------------------------------------------
@@ -3361,7 +3427,9 @@ impl AppShell {
         if any_ns_dropdown_open {
             let key = &event.keystroke.key;
             if key == "escape" {
-                if let Some(sel) = self.namespace_selectors.values_mut().find(|s| s.is_dropdown_open) {
+                if let Some(sel) =
+                    self.namespace_selectors.values_mut().find(|s| s.is_dropdown_open)
+                {
                     sel.is_dropdown_open = false;
                     sel.search_query.clear();
                 }
@@ -3467,7 +3535,9 @@ impl AppShell {
 
     fn switch_to_next_tab(&mut self) {
         let tabs = &self.workspace.tabs;
-        if tabs.is_empty() { return; }
+        if tabs.is_empty() {
+            return;
+        }
         if let Some(active_id) = self.workspace.active_tab_id {
             if let Some(idx) = tabs.iter().position(|t| t.id == active_id) {
                 let next = (idx + 1) % tabs.len();
@@ -3478,7 +3548,9 @@ impl AppShell {
 
     fn switch_to_prev_tab(&mut self) {
         let tabs = &self.workspace.tabs;
-        if tabs.is_empty() { return; }
+        if tabs.is_empty() {
+            return;
+        }
         if let Some(active_id) = self.workspace.active_tab_id {
             if let Some(idx) = tabs.iter().position(|t| t.id == active_id) {
                 let prev = if idx == 0 { tabs.len() - 1 } else { idx - 1 };
@@ -3488,13 +3560,15 @@ impl AppShell {
     }
 
     fn navigation_target_for_action(&self, action: KeyAction) -> Option<NavigationTarget> {
-        let cluster = self.active_dashboard_cluster.clone()
+        let cluster = self
+            .active_dashboard_cluster
+            .clone()
             .or_else(|| self.sidebar.clusters.first().map(|c| c.context_name.clone()))?;
 
         Some(match action {
-            KeyAction::NavigateToDashboard => NavigationTarget::Dashboard {
-                cluster_context: cluster,
-            },
+            KeyAction::NavigateToDashboard => {
+                NavigationTarget::Dashboard { cluster_context: cluster }
+            }
             KeyAction::NavigateToClusterList => NavigationTarget::ClusterList,
             KeyAction::NavigateToPods => NavigationTarget::ResourceList {
                 cluster_context: cluster,
@@ -3516,9 +3590,9 @@ impl AppShell {
                 category: crate::icons::ResourceCategory::Monitoring,
                 kind: "Event".to_string(),
             },
-            KeyAction::NavigateToHelmReleases => NavigationTarget::HelmReleases {
-                cluster_context: cluster,
-            },
+            KeyAction::NavigateToHelmReleases => {
+                NavigationTarget::HelmReleases { cluster_context: cluster }
+            }
             _ => return None,
         })
     }
@@ -3565,7 +3639,9 @@ impl Render for AppShell {
                     let x: f32 = event.position.x.into();
                     let delta = x - this.column_drag_start_x;
                     let new_width = (this.column_drag_start_width + delta).max(40.0);
-                    if let (Some(key), Some(idx)) = (&this.column_drag_table_key, this.column_drag_index) {
+                    if let (Some(key), Some(idx)) =
+                        (&this.column_drag_table_key, this.column_drag_index)
+                    {
                         if let Some(ts) = this.resource_table_states.get_mut(key) {
                             ts.set_column_width(idx, new_width);
                         }
@@ -3610,7 +3686,8 @@ impl Render for AppShell {
                 if this.is_dragging_cluster_topo_resize {
                     let y: f32 = event.position.y.into();
                     let delta = y - this.cluster_topo_resize_start_y;
-                    let new_height = (this.cluster_topo_resize_start_height + delta).clamp(150.0, 800.0);
+                    let new_height =
+                        (this.cluster_topo_resize_start_height + delta).clamp(150.0, 800.0);
                     if let Some(ref ctx) = this.cluster_topo_resize_context {
                         if let Some(state) = this.cluster_topology_states.get_mut(ctx) {
                             state.graph_height = new_height;
@@ -3620,19 +3697,22 @@ impl Render for AppShell {
                 }
             }))
             // Global mouse_up to end dock drag resize, column drag resize, and sidebar drag resize
-            .on_mouse_up(MouseButton::Left, _cx.listener(|this, _event: &MouseUpEvent, _window, _cx| {
-                this.is_dragging_dock = false;
-                this.is_dragging_column = false;
-                this.is_dragging_sidebar = false;
-                this.is_dragging_topology = false;
-                this.topology_drag_key = None;
-                this.is_dragging_cluster_topology = false;
-                this.cluster_topology_drag_context = None;
-                this.is_dragging_cluster_topo_resize = false;
-                this.cluster_topo_resize_context = None;
-                this.column_drag_index = None;
-                this.column_drag_table_key = None;
-            }))
+            .on_mouse_up(
+                MouseButton::Left,
+                _cx.listener(|this, _event: &MouseUpEvent, _window, _cx| {
+                    this.is_dragging_dock = false;
+                    this.is_dragging_column = false;
+                    this.is_dragging_sidebar = false;
+                    this.is_dragging_topology = false;
+                    this.topology_drag_key = None;
+                    this.is_dragging_cluster_topology = false;
+                    this.cluster_topology_drag_context = None;
+                    this.is_dragging_cluster_topo_resize = false;
+                    this.cluster_topo_resize_context = None;
+                    this.column_drag_index = None;
+                    this.column_drag_table_key = None;
+                }),
+            )
             // Title bar row (transparent macOS title bar with gear button)
             .child(self.render_titlebar_row(_cx, text_secondary, border))
             // Main content area: sidebar + right column
@@ -3644,7 +3724,14 @@ impl Render for AppShell {
                     .overflow_hidden()
                     // Sidebar: Navigator tree (always show grouped view)
                     .when(!self.layout.sidebar_collapsed, |el| {
-                        el.child(self.render_navigator(_cx, text, text_secondary, border, accent, sidebar_bg))
+                        el.child(self.render_navigator(
+                            _cx,
+                            text,
+                            text_secondary,
+                            border,
+                            accent,
+                            sidebar_bg,
+                        ))
                     })
                     // Right side: tab bar + content + dock + status bar
                     .child(
@@ -3660,14 +3747,22 @@ impl Render for AppShell {
                             .children(self.render_sso_login_banner(_cx))
                             // T330: Content area (min_h_0 + flex container allows child scroll)
                             .child(
-                                div().min_h_0().flex_1().flex().flex_col().overflow_hidden()
-                                    .child(self.render_content_area(_window, _cx, text, text_secondary, border, accent))
+                                div().min_h_0().flex_1().flex().flex_col().overflow_hidden().child(
+                                    self.render_content_area(
+                                        _window,
+                                        _cx,
+                                        text,
+                                        text_secondary,
+                                        border,
+                                        accent,
+                                    ),
+                                ),
                             )
                             // T317/T318: Dock panel at bottom
                             .child(self.render_dock_panel(_cx))
                             // T356: Status bar at very bottom
-                            .child(self.render_status_bar(text, text_secondary, border))
-                    )
+                            .child(self.render_status_bar(text, text_secondary, border)),
+                    ),
             )
             // Namespace dropdown overlay
             .children(self.render_namespace_dropdown_overlay(_cx))
@@ -3750,13 +3845,9 @@ impl AppShell {
             .h_full()
             .flex_shrink_0()
             // Left icon strip (~48px)
-            .child(
-                self.render_icon_strip(cx, icon_strip_bg, accent, border),
-            )
+            .child(self.render_icon_strip(cx, icon_strip_bg, accent, border))
             // Main sidebar tree (~224px)
-            .child(
-                self.render_sidebar_tree(cx, text, text_secondary, border, accent),
-            )
+            .child(self.render_sidebar_tree(cx, text, text_secondary, border, accent))
     }
 
     /// Render the narrow icon strip with one colored square per cluster.
@@ -3792,16 +3883,17 @@ impl AppShell {
             let status = cluster.status.clone();
             let context_name = cluster.context_name.clone();
 
-            let icon_id = ElementId::Name(
-                SharedString::from(format!("cluster-icon-{}", cluster.context_name)),
-            );
+            let icon_id = ElementId::Name(SharedString::from(format!(
+                "cluster-icon-{}",
+                cluster.context_name
+            )));
 
             // Status dot color
             let status_color = match status {
-                ClusterStatus::Connected => gpui::rgb(0x22C55E),    // green
-                ClusterStatus::Connecting => gpui::rgb(0xFBBF24),   // yellow
+                ClusterStatus::Connected => gpui::rgb(0x22C55E), // green
+                ClusterStatus::Connecting => gpui::rgb(0xFBBF24), // yellow
                 ClusterStatus::Disconnected => gpui::rgb(0x6B7280), // gray
-                ClusterStatus::Error => gpui::rgb(0xEF4444),        // red
+                ClusterStatus::Error => gpui::rgb(0xEF4444),     // red
             };
 
             let mut icon = div()
@@ -3826,9 +3918,7 @@ impl AppShell {
 
             // Selected accent border
             if is_selected {
-                icon = icon
-                    .border_2()
-                    .border_color(accent);
+                icon = icon.border_2().border_color(accent);
             }
 
             // Status dot overlay (bottom-right)
@@ -3886,7 +3976,7 @@ impl AppShell {
                     .font_weight(FontWeight::BOLD)
                     .text_color(text)
                     .text_sm()
-                    .child(display_name)
+                    .child(display_name),
             );
 
             // Render that cluster's sections
@@ -3919,11 +4009,7 @@ impl AppShell {
         let width = self.sidebar.sidebar_width;
 
         // Fixed header section (doesn't scroll)
-        let mut header = div()
-            .flex()
-            .flex_col()
-            .flex_shrink_0()
-            .bg(sidebar_bg);
+        let mut header = div().flex().flex_col().flex_shrink_0().bg(sidebar_bg);
 
         // Navigator header bar with filter input
         let filter_input = self.cluster_filter_input.clone();
@@ -3941,10 +4027,14 @@ impl AppShell {
             // Active filter bar with input + toggle buttons
             let case_btn = div()
                 .id("filter-case-toggle")
-                .flex().items_center().justify_center()
-                .w(px(24.0)).h(px(20.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .w(px(24.0))
+                .h(px(20.0))
                 .rounded(px(3.0))
-                .text_xs().font_weight(FontWeight::BOLD)
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
                 .cursor_pointer()
                 .bg(if case_active { toggle_bg_on } else { toggle_bg_off })
                 .text_color(if case_active { accent } else { text_secondary })
@@ -3956,10 +4046,14 @@ impl AppShell {
                 .child("Aa");
             let regex_btn = div()
                 .id("filter-regex-toggle")
-                .flex().items_center().justify_center()
-                .w(px(24.0)).h(px(20.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .w(px(24.0))
+                .h(px(20.0))
                 .rounded(px(3.0))
-                .text_xs().font_weight(FontWeight::BOLD)
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
                 .cursor_pointer()
                 .bg(if regex_active { toggle_bg_on } else { toggle_bg_off })
                 .text_color(if regex_active { accent } else { text_secondary })
@@ -3972,14 +4066,23 @@ impl AppShell {
 
             header = header.child(
                 div()
-                    .mx_2().my_1p5()
-                    .flex().flex_row().items_center().gap_1()
-                    .px_1().py(px(2.0))
+                    .mx_2()
+                    .my_1p5()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap_1()
+                    .px_1()
+                    .py(px(2.0))
                     .rounded_md()
-                    .border_1().border_color(filter_border)
+                    .border_1()
+                    .border_color(filter_border)
                     .bg(Rgba { r: sidebar_bg.r, g: sidebar_bg.g, b: sidebar_bg.b, a: 0.5 })
                     .child(
-                        div().text_xs().text_color(text_secondary).pl_1()
+                        div()
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .pl_1()
                             .child(Icon::new(IconName::Search).small()),
                     )
                     .child(
@@ -3988,8 +4091,8 @@ impl AppShell {
                                 .appearance(false)
                                 .cleanable(true)
                                 .text_sm()
-                                .small()
-                        )
+                                .small(),
+                        ),
                     )
                     .child(case_btn)
                     .child(regex_btn),
@@ -3999,32 +4102,47 @@ impl AppShell {
             header = header.child(
                 div()
                     .id("cluster-filter-placeholder")
-                    .mx_2().my_1p5()
-                    .flex().flex_row().items_center().gap_1()
-                    .px_1().py(px(2.0))
+                    .mx_2()
+                    .my_1p5()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap_1()
+                    .px_1()
+                    .py(px(2.0))
                     .rounded_md()
-                    .border_1().border_color(filter_border)
+                    .border_1()
+                    .border_color(filter_border)
                     .bg(Rgba { r: sidebar_bg.r, g: sidebar_bg.g, b: sidebar_bg.b, a: 0.5 })
                     .cursor_pointer()
                     .child(
-                        div().text_xs().text_color(text_secondary).pl_1()
+                        div()
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .pl_1()
                             .child(Icon::new(IconName::Search).small()),
                     )
                     .child(
-                        div().flex_1().px_1().text_sm().text_color(text_secondary)
+                        div()
+                            .flex_1()
+                            .px_1()
+                            .text_sm()
+                            .text_color(text_secondary)
                             .child("Filter clusters..."),
                     )
                     .on_click(cx.listener(move |this, _evt, window, cx| {
                         let input = cx.new(|cx| {
-                            InputState::new(window, cx)
-                                .placeholder("Filter clusters...")
+                            InputState::new(window, cx).placeholder("Filter clusters...")
                         });
-                        let sub = cx.subscribe(&input, |this: &mut AppShell, entity, event: &InputEvent, cx| {
-                            if matches!(event, InputEvent::Change) {
-                                this.cluster_filter_text = entity.read(cx).value().to_string();
-                                cx.notify();
-                            }
-                        });
+                        let sub = cx.subscribe(
+                            &input,
+                            |this: &mut AppShell, entity, event: &InputEvent, cx| {
+                                if matches!(event, InputEvent::Change) {
+                                    this.cluster_filter_text = entity.read(cx).value().to_string();
+                                    cx.notify();
+                                }
+                            },
+                        );
                         let fh = input.read(cx).focus_handle(cx);
                         fh.focus(window);
                         this.cluster_filter_input = Some(input);
@@ -4037,19 +4155,12 @@ impl AppShell {
 
         // T311: Drill-into breadcrumb bar
         if self.sidebar.is_drill_into() {
-            header = header.child(
-                self.render_drill_into_breadcrumb(cx, text_secondary),
-            );
+            header = header.child(self.render_drill_into_breadcrumb(cx, text_secondary));
         }
 
         // Scrollable cluster list
-        let mut cluster_list = div()
-            .id("nav-cluster-list")
-            .relative()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .overflow_y_scroll();
+        let mut cluster_list =
+            div().id("nav-cluster-list").relative().flex().flex_col().flex_1().overflow_y_scroll();
 
         // T311: Determine which clusters to render (drill-into + text filter)
         let clusters = self.sidebar.clusters.clone();
@@ -4100,56 +4211,85 @@ impl AppShell {
         };
 
         // Group clusters by source type
-        let eks_clusters: Vec<_> = visible_clusters.iter()
+        let eks_clusters: Vec<_> = visible_clusters
+            .iter()
             .filter(|c| matches!(c.source, crate::layout::sidebar::ClusterSource::AwsEks { .. }))
             .collect();
-        let local_clusters: Vec<_> = visible_clusters.iter()
+        let local_clusters: Vec<_> = visible_clusters
+            .iter()
             .filter(|c| matches!(c.source, crate::layout::sidebar::ClusterSource::Kubeconfig))
             .collect();
 
         // Top-level "KUBERNETES CLUSTERS" header
         cluster_list = cluster_list.child(
-            div()
-                .flex().flex_row().items_center()
-                .px_3().py(px(6.0)).mt_1()
-                .child(
-                    div().text_xs().font_weight(FontWeight::BOLD)
-                        .text_color(text_secondary)
-                        .child("KUBERNETES CLUSTERS"),
-                ),
+            div().flex().flex_row().items_center().px_3().py(px(6.0)).mt_1().child(
+                div()
+                    .text_xs()
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(text_secondary)
+                    .child("KUBERNETES CLUSTERS"),
+            ),
         );
 
         // --- AWS EKS section ---
         cluster_list = cluster_list.child(
             div()
                 .id("eks-section-header")
-                .flex().flex_row().items_center().justify_between()
-                .px_3().py(px(5.0))
+                .flex()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .px_3()
+                .py(px(5.0))
                 .cursor_pointer()
                 .hover(|s| s.bg(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.04 }))
                 .child(
-                    div().flex().flex_row().items_center().gap(px(8.0))
+                    div()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(8.0))
                         .child(
-                            div().text_color(gpui::rgb(0xFF9900)).child(Icon::new(IconName::Globe).small()),
+                            div()
+                                .text_color(gpui::rgb(0xFF9900))
+                                .child(Icon::new(IconName::Globe).small()),
                         )
                         .child(
-                            div().text_xs().font_weight(FontWeight::SEMIBOLD).text_color(text)
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(text)
                                 .child("AWS EKS"),
                         )
                         .child(
-                            div().text_xs()
-                                .text_color(Rgba { r: text_secondary.r, g: text_secondary.g, b: text_secondary.b, a: 0.5 })
+                            div()
+                                .text_xs()
+                                .text_color(Rgba {
+                                    r: text_secondary.r,
+                                    g: text_secondary.g,
+                                    b: text_secondary.b,
+                                    a: 0.5,
+                                })
                                 .child(SharedString::from(format!("({})", eks_clusters.len()))),
                         ),
                 )
                 .child(
                     div()
                         .id("eks-section-add")
-                        .w(px(18.0)).h(px(18.0))
-                        .flex().items_center().justify_center()
+                        .w(px(18.0))
+                        .h(px(18.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
                         .rounded(px(3.0))
-                        .text_sm().font_weight(FontWeight::BOLD)
-                        .text_color(Rgba { r: text_secondary.r, g: text_secondary.g, b: text_secondary.b, a: 0.3 })
+                        .text_sm()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(Rgba {
+                            r: text_secondary.r,
+                            g: text_secondary.g,
+                            b: text_secondary.b,
+                            a: 0.3,
+                        })
                         .hover(|s| s.text_color(gpui::rgb(0xFF9900)).bg(gpui::rgba(0xFF990020)))
                         .child("+")
                         .on_click(cx.listener(|this, _evt, window, cx| {
@@ -4158,57 +4298,107 @@ impl AppShell {
                 ),
         );
         for cluster in &eks_clusters {
-            cluster_list = self.render_cluster_with_tree(cluster_list, cx, cluster, text, text_secondary, accent);
+            cluster_list = self.render_cluster_with_tree(
+                cluster_list,
+                cx,
+                cluster,
+                text,
+                text_secondary,
+                accent,
+            );
         }
 
         // --- Local Kubeconfigs section ---
         cluster_list = cluster_list.child(
             div()
                 .id("local-section-header")
-                .flex().flex_row().items_center().justify_between()
-                .px_3().py(px(5.0))
+                .flex()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .px_3()
+                .py(px(5.0))
                 .cursor_pointer()
                 .hover(|s| s.bg(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.04 }))
                 .child(
-                    div().flex().flex_row().items_center().gap(px(8.0))
+                    div()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(8.0))
                         .child(
-                            div().text_color(gpui::rgb(0x326CE5)).child(Icon::new(IconName::Folder).small()),
+                            div()
+                                .text_color(gpui::rgb(0x326CE5))
+                                .child(Icon::new(IconName::Folder).small()),
                         )
                         .child(
-                            div().text_xs().font_weight(FontWeight::SEMIBOLD).text_color(text)
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(text)
                                 .child("Local Kubeconfigs"),
                         )
                         .child(
-                            div().text_xs()
-                                .text_color(Rgba { r: text_secondary.r, g: text_secondary.g, b: text_secondary.b, a: 0.5 })
+                            div()
+                                .text_xs()
+                                .text_color(Rgba {
+                                    r: text_secondary.r,
+                                    g: text_secondary.g,
+                                    b: text_secondary.b,
+                                    a: 0.5,
+                                })
                                 .child(SharedString::from(format!("({})", local_clusters.len()))),
                         ),
                 )
                 .child(
                     div()
                         .id("local-section-add")
-                        .w(px(18.0)).h(px(18.0))
-                        .flex().items_center().justify_center()
+                        .w(px(18.0))
+                        .h(px(18.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
                         .rounded(px(3.0))
-                        .text_sm().font_weight(FontWeight::BOLD)
-                        .text_color(Rgba { r: text_secondary.r, g: text_secondary.g, b: text_secondary.b, a: 0.3 })
+                        .text_sm()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(Rgba {
+                            r: text_secondary.r,
+                            g: text_secondary.g,
+                            b: text_secondary.b,
+                            a: 0.3,
+                        })
                         .hover(|s| s.text_color(gpui::rgb(0x326CE5)).bg(gpui::rgba(0x326CE520)))
                         .child("+")
                         .on_click(cx.listener(|this, _evt, _window, cx| {
                             this.workspace.open_tab(crate::layout::NavigationTarget::Preferences);
-                            this.active_prefs_section = crate::layout::app_shell::PreferencesSection::Kubernetes;
+                            this.active_prefs_section =
+                                crate::layout::app_shell::PreferencesSection::Kubernetes;
                             cx.notify();
                         })),
                 ),
         );
         for cluster in &local_clusters {
-            cluster_list = self.render_cluster_with_tree(cluster_list, cx, cluster, text, text_secondary, accent);
+            cluster_list = self.render_cluster_with_tree(
+                cluster_list,
+                cx,
+                cluster,
+                text,
+                text_secondary,
+                accent,
+            );
         }
 
         // Ungrouped fallback
         if eks_clusters.is_empty() && local_clusters.is_empty() && !visible_clusters.is_empty() {
             for cluster in &visible_clusters {
-                cluster_list = self.render_cluster_with_tree(cluster_list, cx, cluster, text, text_secondary, accent);
+                cluster_list = self.render_cluster_with_tree(
+                    cluster_list,
+                    cx,
+                    cluster,
+                    text,
+                    text_secondary,
+                    accent,
+                );
             }
         }
 
@@ -4262,9 +4452,7 @@ impl AppShell {
         cx: &mut Context<Self>,
         _text_secondary: Rgba,
     ) -> Stateful<Div> {
-        let breadcrumb_id = ElementId::Name(
-            SharedString::from("nav-drill-into-back"),
-        );
+        let breadcrumb_id = ElementId::Name(SharedString::from("nav-drill-into-back"));
         div()
             .id(breadcrumb_id)
             .flex()
@@ -4367,9 +4555,8 @@ impl AppShell {
         // 1. Connect or Disconnect
         if is_connected {
             let ctx = context_name.clone();
-            let disconnect_id = ElementId::Name(
-                SharedString::from(format!("ctx-menu-disconnect-{cluster_id}")),
-            );
+            let disconnect_id =
+                ElementId::Name(SharedString::from(format!("ctx-menu-disconnect-{cluster_id}")));
             menu = menu.child(
                 div()
                     .id(disconnect_id)
@@ -4387,17 +4574,12 @@ impl AppShell {
         } else if is_connecting {
             // Show a non-clickable "Connecting..." label while role assumption is in progress
             menu = menu.child(
-                div()
-                    .px_3()
-                    .py_1()
-                    .text_color(gpui::rgb(0x9CA3AF))
-                    .child("Connecting\u{2026}"),
+                div().px_3().py_1().text_color(gpui::rgb(0x9CA3AF)).child("Connecting\u{2026}"),
             );
         } else {
             let ctx = context_name.clone();
-            let connect_id = ElementId::Name(
-                SharedString::from(format!("ctx-menu-connect-{cluster_id}")),
-            );
+            let connect_id =
+                ElementId::Name(SharedString::from(format!("ctx-menu-connect-{cluster_id}")));
             menu = menu.child(
                 div()
                     .id(connect_id)
@@ -4415,15 +4597,12 @@ impl AppShell {
         }
 
         // ── separator ──
-        menu = menu.child(
-            div().my_1().h(px(1.0)).bg(separator_color),
-        );
+        menu = menu.child(div().my_1().h(px(1.0)).bg(separator_color));
 
         // 2. Cluster Settings
         let ctx_settings = context_name.clone();
-        let settings_id = ElementId::Name(
-            SharedString::from(format!("ctx-menu-settings-{cluster_id}")),
-        );
+        let settings_id =
+            ElementId::Name(SharedString::from(format!("ctx-menu-settings-{cluster_id}")));
         menu = menu.child(
             div()
                 .id(settings_id)
@@ -4432,9 +4611,8 @@ impl AppShell {
                 .cursor_pointer()
                 .hover(move |s| s.bg(hover_bg))
                 .on_click(cx.listener(move |this, _event, _window, cx| {
-                    let target = NavigationTarget::ClusterSettings {
-                        cluster_context: ctx_settings.clone(),
-                    };
+                    let target =
+                        NavigationTarget::ClusterSettings { cluster_context: ctx_settings.clone() };
                     this.workspace.open_tab(target);
                     this.context_menu_cluster = None;
                     this.context_menu_dismissed_this_frame = true;
@@ -4445,9 +4623,8 @@ impl AppShell {
 
         // 3. Open Dashboard
         let ctx_dash = context_name.clone();
-        let dash_id = ElementId::Name(
-            SharedString::from(format!("ctx-menu-dashboard-{cluster_id}")),
-        );
+        let dash_id =
+            ElementId::Name(SharedString::from(format!("ctx-menu-dashboard-{cluster_id}")));
         menu = menu.child(
             div()
                 .id(dash_id)
@@ -4456,9 +4633,7 @@ impl AppShell {
                 .cursor_pointer()
                 .hover(move |s| s.bg(hover_bg))
                 .on_click(cx.listener(move |this, _event, _window, cx| {
-                    let target = NavigationTarget::Dashboard {
-                        cluster_context: ctx_dash.clone(),
-                    };
+                    let target = NavigationTarget::Dashboard { cluster_context: ctx_dash.clone() };
                     this.workspace.open_tab(target);
                     this.context_menu_cluster = None;
                     this.context_menu_dismissed_this_frame = true;
@@ -4469,9 +4644,7 @@ impl AppShell {
 
         // 4. Copy Context Name
         let ctx_copy = context_name.clone();
-        let copy_id = ElementId::Name(
-            SharedString::from(format!("ctx-menu-copy-{cluster_id}")),
-        );
+        let copy_id = ElementId::Name(SharedString::from(format!("ctx-menu-copy-{cluster_id}")));
         menu = menu.child(
             div()
                 .id(copy_id)
@@ -4488,14 +4661,11 @@ impl AppShell {
         );
 
         // ── separator ──
-        menu = menu.child(
-            div().my_1().h(px(1.0)).bg(separator_color),
-        );
+        menu = menu.child(div().my_1().h(px(1.0)).bg(separator_color));
 
         // 5. Remove from List (red)
-        let remove_id = ElementId::Name(
-            SharedString::from(format!("ctx-menu-remove-{cluster_id}")),
-        );
+        let remove_id =
+            ElementId::Name(SharedString::from(format!("ctx-menu-remove-{cluster_id}")));
         let remove_ctx = context_name.clone();
         menu = menu.child(
             div()
@@ -4513,8 +4683,10 @@ impl AppShell {
                         }
                     }
                     // Remove from saved EKS connections in preferences
-                    this.preferences.saved_eks_connections
-                        .retain(|c| baeus_core::aws_eks::eks_context_name_from_parts(&c.cluster_name, &c.region) != remove_ctx);
+                    this.preferences.saved_eks_connections.retain(|c| {
+                        baeus_core::aws_eks::eks_context_name_from_parts(&c.cluster_name, &c.region)
+                            != remove_ctx
+                    });
                     this.save_preferences();
                     // Remove EKS cluster data
                     this.eks_cluster_data.remove(&remove_ctx);
@@ -4589,22 +4761,22 @@ impl AppShell {
         let card_bg = self.theme.colors.surface.to_gpui();
 
         // Look up the cluster entry for display data.
-        let cluster = self.sidebar.clusters.iter()
-            .find(|c| c.context_name == cluster_context);
+        let cluster = self.sidebar.clusters.iter().find(|c| c.context_name == cluster_context);
 
-        let display_name = cluster.map(|c| c.display_name.clone())
-            .unwrap_or_else(|| cluster_context.to_string());
-        let initials = cluster.map(|c| c.initials.clone())
-            .unwrap_or_else(|| "??".to_string());
+        let display_name =
+            cluster.map(|c| c.display_name.clone()).unwrap_or_else(|| cluster_context.to_string());
+        let initials = cluster.map(|c| c.initials.clone()).unwrap_or_else(|| "??".to_string());
 
         // Effective color: custom override or cluster default.
-        let effective_color = self.cluster_appearances
+        let effective_color = self
+            .cluster_appearances
             .get(cluster_context)
             .and_then(|a| a.custom_color)
             .or_else(|| cluster.map(|c| c.color))
             .unwrap_or(0x3B82F6);
 
-        let kubeconfig_path = self.kubeconfig_paths
+        let kubeconfig_path = self
+            .kubeconfig_paths
             .get(cluster_context)
             .cloned()
             .unwrap_or_else(|| "Unknown".to_string());
@@ -4650,9 +4822,8 @@ impl AppShell {
             .text_color(gpui::rgb(0xFFFFFF))
             .child(SharedString::from(initials));
 
-        let dots_id = ElementId::Name(SharedString::from(
-            format!("cluster-settings-icon-dots-{}", ctx_name),
-        ));
+        let dots_id =
+            ElementId::Name(SharedString::from(format!("cluster-settings-icon-dots-{}", ctx_name)));
         let dots_btn = div()
             .id(dots_id)
             .px_2()
@@ -4670,13 +4841,8 @@ impl AppShell {
             }))
             .child(Icon::new(IconName::Ellipsis).small());
 
-        let icon_row = div()
-            .flex()
-            .flex_row()
-            .items_center()
-            .gap_3()
-            .child(icon_preview)
-            .child(dots_btn);
+        let icon_row =
+            div().flex().flex_row().items_center().gap_3().child(icon_preview).child(dots_btn);
 
         // Icon appearance popup
         let mut icon_section = div()
@@ -4703,13 +4869,15 @@ impl AppShell {
             let popup_hover = gpui::rgb(0x374151);
 
             let ctx_pick = ctx_name.clone();
-            let pick_id = ElementId::Name(SharedString::from(
-                format!("cluster-settings-pick-color-{}", ctx_name),
-            ));
+            let pick_id = ElementId::Name(SharedString::from(format!(
+                "cluster-settings-pick-color-{}",
+                ctx_name
+            )));
             let ctx_clear = ctx_name.clone();
-            let clear_id = ElementId::Name(SharedString::from(
-                format!("cluster-settings-clear-icon-{}", ctx_name),
-            ));
+            let clear_id = ElementId::Name(SharedString::from(format!(
+                "cluster-settings-clear-icon-{}",
+                ctx_name
+            )));
 
             let popup = div()
                 .mt_2()
@@ -4730,9 +4898,7 @@ impl AppShell {
                         .hover(move |s| s.bg(popup_hover))
                         .on_click(cx.listener(move |this, _event, _window, _cx| {
                             // Toggle color picker visibility
-                            if this.cluster_settings_color_picker.as_deref()
-                                == Some(&ctx_pick)
-                            {
+                            if this.cluster_settings_color_picker.as_deref() == Some(&ctx_pick) {
                                 this.cluster_settings_color_picker = None;
                             } else {
                                 this.cluster_settings_color_picker = Some(ctx_pick.clone());
@@ -4752,7 +4918,10 @@ impl AppShell {
                             // Clear custom color and icon
                             this.cluster_appearances.remove(&ctx_clear);
                             // Reset sidebar entry color to auto-generated
-                            if let Some(entry) = this.sidebar.clusters.iter_mut()
+                            if let Some(entry) = this
+                                .sidebar
+                                .clusters
+                                .iter_mut()
                                 .find(|c| c.context_name == ctx_clear)
                             {
                                 entry.color = crate::layout::sidebar::generate_cluster_color(
@@ -4771,18 +4940,14 @@ impl AppShell {
 
         // Show color picker if visible
         if self.cluster_settings_color_picker.as_deref() == Some(cluster_context) {
-            let mut palette_grid = div()
-                .mt_2()
-                .flex()
-                .flex_row()
-                .flex_wrap()
-                .gap_2();
+            let mut palette_grid = div().mt_2().flex().flex_row().flex_wrap().gap_2();
 
             for color in Self::CLUSTER_COLOR_PALETTE {
                 let ctx_color = ctx_name.clone();
-                let swatch_id = ElementId::Name(SharedString::from(
-                    format!("color-swatch-{}-{:06X}", ctx_name, color),
-                ));
+                let swatch_id = ElementId::Name(SharedString::from(format!(
+                    "color-swatch-{}-{:06X}",
+                    ctx_name, color
+                )));
                 let is_selected = effective_color == color;
                 let swatch = div()
                     .id(swatch_id)
@@ -4791,18 +4956,15 @@ impl AppShell {
                     .rounded_full()
                     .bg(gpui::rgb(color))
                     .cursor_pointer()
-                    .when(is_selected, |s| {
-                        s.border_2().border_color(gpui::rgb(0xFFFFFF))
-                    })
+                    .when(is_selected, |s| s.border_2().border_color(gpui::rgb(0xFFFFFF)))
                     .on_click(cx.listener(move |this, _event, _window, _cx| {
                         // Set custom color
-                        let appearance = this.cluster_appearances
-                            .entry(ctx_color.clone())
-                            .or_default();
+                        let appearance =
+                            this.cluster_appearances.entry(ctx_color.clone()).or_default();
                         appearance.custom_color = Some(color);
                         // Update sidebar entry color
-                        if let Some(entry) = this.sidebar.clusters.iter_mut()
-                            .find(|c| c.context_name == ctx_color)
+                        if let Some(entry) =
+                            this.sidebar.clusters.iter_mut().find(|c| c.context_name == ctx_color)
                         {
                             entry.color = color;
                         }
@@ -4816,9 +4978,10 @@ impl AppShell {
         }
 
         // --- Section 3: Kubeconfig ---
-        let kubeconfig_id = ElementId::Name(SharedString::from(
-            format!("cluster-settings-kubeconfig-{}", ctx_name),
-        ));
+        let kubeconfig_id = ElementId::Name(SharedString::from(format!(
+            "cluster-settings-kubeconfig-{}",
+            ctx_name
+        )));
         let kubeconfig_section = div()
             .p_4()
             .rounded_lg()
@@ -4859,8 +5022,7 @@ impl AppShell {
                             if let Some(parent) =
                                 std::path::Path::new(ctx_for_finder.as_str()).parent()
                             {
-                                let _ =
-                                    std::process::Command::new("xdg-open").arg(parent).spawn();
+                                let _ = std::process::Command::new("xdg-open").arg(parent).spawn();
                             }
                         }
                     }))
@@ -4879,36 +5041,36 @@ impl AppShell {
                     .cloned()
                     .unwrap_or_default();
                 let input = cx.new(|cx| {
-                    let mut state = InputState::new(window, cx)
-                        .placeholder("Leave blank to use default");
+                    let mut state =
+                        InputState::new(window, cx).placeholder("Leave blank to use default");
                     state.set_value(initial_value, window, cx);
                     state
                 });
                 let ctx_for_sub = ctx_key.clone();
-                let sub = cx.subscribe(&input, move |this: &mut AppShell, entity, event: &InputEvent, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        let val = entity.read(cx).value().to_string();
-                        if val.is_empty() {
-                            this.preferences.cluster_aws_profiles.remove(&ctx_for_sub);
-                            this.cluster_aws_profiles.remove(&ctx_for_sub);
-                        } else {
-                            this.preferences.cluster_aws_profiles.insert(ctx_for_sub.clone(), val.clone());
-                            this.cluster_aws_profiles.insert(ctx_for_sub.clone(), val);
+                let sub = cx.subscribe(
+                    &input,
+                    move |this: &mut AppShell, entity, event: &InputEvent, cx| {
+                        if matches!(event, InputEvent::Change) {
+                            let val = entity.read(cx).value().to_string();
+                            if val.is_empty() {
+                                this.preferences.cluster_aws_profiles.remove(&ctx_for_sub);
+                                this.cluster_aws_profiles.remove(&ctx_for_sub);
+                            } else {
+                                this.preferences
+                                    .cluster_aws_profiles
+                                    .insert(ctx_for_sub.clone(), val.clone());
+                                this.cluster_aws_profiles.insert(ctx_for_sub.clone(), val);
+                            }
+                            cx.notify();
                         }
-                        cx.notify();
-                    }
-                });
+                    },
+                );
                 self.cluster_aws_profile_inputs.insert(ctx_key.clone(), input);
                 self._cluster_aws_profile_subscriptions.insert(ctx_key.clone(), sub);
             }
 
-            let mut section = div()
-                .p_4()
-                .rounded_lg()
-                .bg(card_bg)
-                .border_1()
-                .border_color(border)
-                .child(
+            let mut section =
+                div().p_4().rounded_lg().bg(card_bg).border_1().border_color(border).child(
                     div()
                         .text_xs()
                         .font_weight(FontWeight::SEMIBOLD)
@@ -4931,13 +5093,7 @@ impl AppShell {
                                 .min_w(px(80.))
                                 .child("Profile:"),
                         )
-                        .child(
-                            div().flex_1().child(
-                                Input::new(input_entity)
-                                    .text_sm()
-                                    .small()
-                            ),
-                        ),
+                        .child(div().flex_1().child(Input::new(input_entity).text_sm().small())),
                 );
             }
 
@@ -4953,37 +5109,27 @@ impl AppShell {
         };
 
         // Assemble the settings view
-        let scrollable = div()
-            .id("cluster-settings-scroll")
-            .flex()
-            .flex_col()
-            .flex_1()
-            .h_full()
-            .p_6()
-            .gap_4()
-            .overflow_y_scroll()
-            .child(
-                div()
-                    .text_lg()
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(text)
-                    .mb_2()
-                    .child(SharedString::from(
-                        format!("Cluster Settings \u{2014} {}", ctx_name),
-                    )),
-            )
-            .child(name_section)
-            .child(icon_section)
-            .child(kubeconfig_section)
-            .child(aws_profile_section);
+        let scrollable =
+            div()
+                .id("cluster-settings-scroll")
+                .flex()
+                .flex_col()
+                .flex_1()
+                .h_full()
+                .p_6()
+                .gap_4()
+                .overflow_y_scroll()
+                .child(
+                    div().text_lg().font_weight(FontWeight::BOLD).text_color(text).mb_2().child(
+                        SharedString::from(format!("Cluster Settings \u{2014} {}", ctx_name)),
+                    ),
+                )
+                .child(name_section)
+                .child(icon_section)
+                .child(kubeconfig_section)
+                .child(aws_profile_section);
 
-        div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .h_full()
-            .bg(bg)
-            .child(scrollable)
+        div().flex().flex_col().flex_1().h_full().bg(bg).child(scrollable)
     }
 
     /// Render a cluster node plus its expanded tree (if expanded).
@@ -4997,9 +5143,13 @@ impl AppShell {
         text_secondary: Rgba,
         accent: Rgba,
     ) -> gpui::Stateful<gpui::Div> {
-        parent = parent.child(
-            self.render_navigator_cluster_node(cx, cluster, text, text_secondary, accent),
-        );
+        parent = parent.child(self.render_navigator_cluster_node(
+            cx,
+            cluster,
+            text,
+            text_secondary,
+            accent,
+        ));
 
         if cluster.expanded {
             let entries = self.sidebar.flatten_navigator_tree(cluster);
@@ -5011,16 +5161,11 @@ impl AppShell {
                     gpui::hsla(0.0, 0.0, 1.0, 0.08),
                 );
 
-                let scroll_handle = self
-                    .navigator_scroll_handles
-                    .get(&cluster.id)
-                    .cloned()
-                    .unwrap_or_default();
+                let scroll_handle =
+                    self.navigator_scroll_handles.get(&cluster.id).cloned().unwrap_or_default();
 
-                let list_id = ElementId::Name(SharedString::from(format!(
-                    "nav-tree-{}",
-                    cluster.id,
-                )));
+                let list_id =
+                    ElementId::Name(SharedString::from(format!("nav-tree-{}", cluster.id,)));
 
                 let view = cx.entity().downgrade();
                 let entries = Rc::new(entries);
@@ -5034,7 +5179,10 @@ impl AppShell {
                                 range
                                     .map(|ix| {
                                         this.render_navigator_flat_entry(
-                                            &entries[ix], ix, accent, cx,
+                                            &entries[ix],
+                                            ix,
+                                            accent,
+                                            cx,
                                         )
                                         .into_any_element()
                                     })
@@ -5075,10 +5223,10 @@ impl AppShell {
 
         // Status dot color
         let status_color = match &status {
-            ClusterStatus::Connected => gpui::rgb(0x22C55E),    // green
-            ClusterStatus::Connecting => gpui::rgb(0xFBBF24),   // yellow
+            ClusterStatus::Connected => gpui::rgb(0x22C55E), // green
+            ClusterStatus::Connecting => gpui::rgb(0xFBBF24), // yellow
             ClusterStatus::Disconnected => gpui::rgb(0x6B7280), // gray
-            ClusterStatus::Error => gpui::rgb(0xEF4444),        // red
+            ClusterStatus::Error => gpui::rgb(0xEF4444),     // red
         };
 
         let chevron_icon = if expanded {
@@ -5086,9 +5234,7 @@ impl AppShell {
         } else {
             Icon::new(IconName::ChevronRight).xsmall()
         };
-        let chevron_id = ElementId::Name(
-            SharedString::from(format!("nav-chevron-{}", cluster_id)),
-        );
+        let chevron_id = ElementId::Name(SharedString::from(format!("nav-chevron-{}", cluster_id)));
         let chevron_btn = div()
             .id(chevron_id)
             .w(px(16.0))
@@ -5096,9 +5242,12 @@ impl AppShell {
             .flex()
             .items_center()
             .justify_center()
-            .text_color(self.theme.colors.text_secondary.to_gpui())            .cursor_pointer()
+            .text_color(self.theme.colors.text_secondary.to_gpui())
+            .cursor_pointer()
             .on_click(cx.listener(move |this, _event, _window, _cx| {
-                if this.has_modal_overlay() { return; }
+                if this.has_modal_overlay() {
+                    return;
+                }
                 this.sidebar.toggle_cluster_expand(cluster_id);
             }))
             .child(chevron_icon);
@@ -5118,16 +5267,10 @@ impl AppShell {
             .child(initials);
 
         // Status dot
-        let status_dot = div()
-            .w(px(8.0))
-            .h(px(8.0))
-            .rounded_full()
-            .bg(status_color);
+        let status_dot = div().w(px(8.0)).h(px(8.0)).rounded_full().bg(status_color);
 
         // Cluster name — clicking opens dashboard (T309)
-        let name_id = ElementId::Name(
-            SharedString::from(format!("nav-cluster-{}", cluster_id)),
-        );
+        let name_id = ElementId::Name(SharedString::from(format!("nav-cluster-{}", cluster_id)));
 
         let ctx_for_click = context_name.clone();
         let name_el = div()
@@ -5138,7 +5281,9 @@ impl AppShell {
             .text_color(text)
             .cursor_pointer()
             .on_click(cx.listener(move |this, event, _window, cx| {
-                if this.has_modal_overlay() { return; }
+                if this.has_modal_overlay() {
+                    return;
+                }
                 // T311: Double-click enters drill-into mode.
                 let click_count = match event {
                     ClickEvent::Mouse(m) => m.down.click_count,
@@ -5154,9 +5299,8 @@ impl AppShell {
                     this.handle_connect_cluster(&ctx_for_click, cx);
                 } else {
                     // T309: Open dashboard tab for this cluster
-                    let target = NavigationTarget::Dashboard {
-                        cluster_context: ctx_for_click.clone(),
-                    };
+                    let target =
+                        NavigationTarget::Dashboard { cluster_context: ctx_for_click.clone() };
                     this.workspace.open_tab(target);
                     // T310: Sync navigator tree to the newly opened tab.
                     this.sync_navigator_to_active_tab();
@@ -5168,9 +5312,7 @@ impl AppShell {
 
         // Assemble the cluster row
         div()
-            .id(ElementId::Name(SharedString::from(
-                format!("nav-cluster-row-{cluster_id}"),
-            )))
+            .id(ElementId::Name(SharedString::from(format!("nav-cluster-row-{cluster_id}"))))
             .flex()
             .flex_row()
             .items_center()
@@ -5207,9 +5349,15 @@ impl AppShell {
                 cluster_id,
                 context_name,
                 ..
-            } => {
-                self.render_nav_leaf(*depth, label, target_kind, *cluster_id, context_name, accent, cx)
-            }
+            } => self.render_nav_leaf(
+                *depth,
+                label,
+                target_kind,
+                *cluster_id,
+                context_name,
+                accent,
+                cx,
+            ),
             NavigatorFlatEntry::CategoryHeader {
                 depth,
                 label,
@@ -5217,9 +5365,14 @@ impl AppShell {
                 cluster_id,
                 expanded,
                 ..
-            } => {
-                self.render_nav_category_header(*depth, label, *category, *cluster_id, *expanded, cx)
-            }
+            } => self.render_nav_category_header(
+                *depth,
+                label,
+                *category,
+                *cluster_id,
+                *expanded,
+                cx,
+            ),
             NavigatorFlatEntry::ResourceKind {
                 depth,
                 label,
@@ -5229,12 +5382,17 @@ impl AppShell {
                 context_name,
                 badge_count,
                 ..
-            } => {
-                self.render_nav_resource_kind(
-                    *depth, label, kind, *category, *cluster_id, context_name,
-                    *badge_count, accent, cx,
-                )
-            }
+            } => self.render_nav_resource_kind(
+                *depth,
+                label,
+                kind,
+                *category,
+                *cluster_id,
+                context_name,
+                *badge_count,
+                accent,
+                cx,
+            ),
         }
     }
 
@@ -5276,10 +5434,8 @@ impl AppShell {
                     .unwrap_or(false)
         };
 
-        let item_id = ElementId::Name(SharedString::from(format!(
-            "nav-leaf-{}-{}",
-            cluster_id, target_kind
-        )));
+        let item_id =
+            ElementId::Name(SharedString::from(format!("nav-leaf-{}-{}", cluster_id, target_kind)));
 
         let label_str = SharedString::from(label.to_string());
         let target_kind_owned = target_kind.to_string();
@@ -5300,16 +5456,15 @@ impl AppShell {
                 let kind = target_kind_owned.clone();
                 let ctx = ctx_owned.clone();
                 move |this, _event, _window, cx| {
-                    if this.has_modal_overlay() { return; }
+                    if this.has_modal_overlay() {
+                        return;
+                    }
                     if kind == "__Dashboard__" {
-                        let target = NavigationTarget::Dashboard {
-                            cluster_context: ctx.clone(),
-                        };
+                        let target = NavigationTarget::Dashboard { cluster_context: ctx.clone() };
                         this.workspace.open_tab(target);
                     } else if kind == "__ClusterTopology__" {
-                        let target = NavigationTarget::ClusterTopology {
-                            cluster_context: ctx.clone(),
-                        };
+                        let target =
+                            NavigationTarget::ClusterTopology { cluster_context: ctx.clone() };
                         this.workspace.open_tab(target);
                     } else {
                         this.sidebar.navigate_to_kind(&kind, &ctx);
@@ -5329,9 +5484,7 @@ impl AppShell {
         let nav_text = self.theme.colors.text_primary.to_gpui();
         let nav_text_secondary = self.theme.colors.text_secondary.to_gpui();
         let nav_selection_bg = self.theme.colors.selection.to_gpui();
-        let nav_hover_bg = Rgba {
-            r: nav_text.r, g: nav_text.g, b: nav_text.b, a: 0.04,
-        };
+        let nav_hover_bg = Rgba { r: nav_text.r, g: nav_text.g, b: nav_text.b, a: 0.04 };
 
         if is_active {
             item_div = item_div
@@ -5340,9 +5493,7 @@ impl AppShell {
                 .border_color(accent)
                 .text_color(nav_text);
         } else {
-            item_div = item_div
-                .text_color(nav_text)
-                .hover(move |s| s.bg(nav_hover_bg));
+            item_div = item_div.text_color(nav_text).hover(move |s| s.bg(nav_hover_bg));
         }
 
         // Choose icon based on the leaf target kind
@@ -5414,17 +5565,12 @@ impl AppShell {
             .cursor_pointer()
             .hover(move |s| s.bg(cat_hover))
             .on_click(cx.listener(move |this, _event, _window, _cx| {
-                if this.has_modal_overlay() { return; }
+                if this.has_modal_overlay() {
+                    return;
+                }
                 this.sidebar.toggle_category_expand(cluster_id, category);
             }))
-            .child(
-                div()
-                    .w(px(12.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(chevron_icon),
-            )
+            .child(div().w(px(12.0)).flex().items_center().justify_center().child(chevron_icon))
             .child(
                 div()
                     .w(px(16.0))
@@ -5485,7 +5631,9 @@ impl AppShell {
                 let kind_click = kind_owned.clone();
                 let ctx_click = ctx_owned.clone();
                 move |this, _event, _window, cx| {
-                    if this.has_modal_overlay() { return; }
+                    if this.has_modal_overlay() {
+                        return;
+                    }
                     this.sidebar.navigate_to_kind(&kind_click, &ctx_click);
                     this.workspace.open_tab(NavigationTarget::ResourceList {
                         cluster_context: ctx_click.clone(),
@@ -5504,15 +5652,10 @@ impl AppShell {
         let rk_badge_bg = self.theme.colors.surface_hover.to_gpui();
 
         if is_active {
-            item_div = item_div
-                .bg(rk_selection)
-                .border_l_2()
-                .border_color(accent)
-                .text_color(rk_text);
+            item_div =
+                item_div.bg(rk_selection).border_l_2().border_color(accent).text_color(rk_text);
         } else {
-            item_div = item_div
-                .text_color(rk_text)
-                .hover(move |s| s.bg(rk_hover));
+            item_div = item_div.text_color(rk_text).hover(move |s| s.bg(rk_hover));
         }
 
         let res_icon = ResourceIcon::from_kind(kind);
@@ -5525,15 +5668,9 @@ impl AppShell {
                     .flex()
                     .items_center()
                     .justify_center()
-                    .child(
-                        Icon::new(res_icon)
-                            .xsmall()
-                            .text_color(rk_text_sec),
-                    ),
+                    .child(Icon::new(res_icon).xsmall().text_color(rk_text_sec)),
             )
-            .child(
-                div().flex_1().child(label_str),
-            );
+            .child(div().flex_1().child(label_str));
 
         if let Some(count) = badge {
             item_div = item_div.child(
@@ -5565,24 +5702,20 @@ impl AppShell {
             let expanded = section.expanded;
             let category = section.category;
 
-            let mut section_div = div()
-                .flex()
-                .flex_col()
-                .py_1()
-                .child(
-                    div()
-                        .flex()
-                        .flex_row()
-                        .items_center()
-                        .px_2()
-                        .py_1()
-                        .text_xs()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(text_secondary)
-                        .cursor_pointer()
-                        .child(if expanded { "v " } else { "> " })
-                        .child(category_label)
-                );
+            let mut section_div = div().flex().flex_col().py_1().child(
+                div()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .px_2()
+                    .py_1()
+                    .text_xs()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(text_secondary)
+                    .cursor_pointer()
+                    .child(if expanded { "v " } else { "> " })
+                    .child(category_label),
+            );
 
             if expanded {
                 for item in &section.items {
@@ -5592,9 +5725,10 @@ impl AppShell {
                     let kind = item.kind.clone();
                     let ctx = cluster_context.to_string();
 
-                    let item_id = ElementId::Name(
-                        SharedString::from(format!("sidebar-item-{sec_idx}-{}", kind)),
-                    );
+                    let item_id = ElementId::Name(SharedString::from(format!(
+                        "sidebar-item-{sec_idx}-{}",
+                        kind
+                    )));
                     let mut item_div = div()
                         .id(item_id)
                         .flex()
@@ -5619,9 +5753,7 @@ impl AppShell {
                         }));
 
                     if is_active {
-                        item_div = item_div
-                            .bg(accent)
-                            .text_color(gpui::rgb(0xFFFFFF));
+                        item_div = item_div.bg(accent).text_color(gpui::rgb(0xFFFFFF));
                     }
 
                     item_div = item_div.child(label);
@@ -5633,7 +5765,7 @@ impl AppShell {
                                 .px_1()
                                 .rounded_sm()
                                 .bg(gpui::rgb(0x374151))
-                                .child(count.to_string())
+                                .child(count.to_string()),
                         );
                     }
 
@@ -5650,25 +5782,18 @@ impl AppShell {
     /// T356: Render the status bar at the very bottom of the window.
     ///
     /// Shows: [connection-dot cluster-name] --- spacer --- [k8s version]
-    fn render_status_bar(
-        &self,
-        _text: Rgba,
-        text_secondary: Rgba,
-        border: Rgba,
-    ) -> Div {
+    fn render_status_bar(&self, _text: Rgba, text_secondary: Rgba, border: Rgba) -> Div {
         // Determine the active cluster name and its connection status.
         let (cluster_display, cluster_status) = self.status_bar_cluster_info();
 
-        let k8s_version_label = self.k8s_version
-            .as_deref()
-            .unwrap_or("K8s version unknown");
+        let k8s_version_label = self.k8s_version.as_deref().unwrap_or("K8s version unknown");
 
         // Status dot color: green=connected, yellow=connecting, gray=disconnected, red=error.
         let dot_color = match cluster_status {
-            ClusterStatus::Connected => gpui::rgb(0x22C55E),    // green
-            ClusterStatus::Connecting => gpui::rgb(0xF59E0B),   // yellow
+            ClusterStatus::Connected => gpui::rgb(0x22C55E), // green
+            ClusterStatus::Connecting => gpui::rgb(0xF59E0B), // yellow
             ClusterStatus::Disconnected => gpui::rgb(0x9CA3AF), // gray
-            ClusterStatus::Error => gpui::rgb(0xEF4444),        // red
+            ClusterStatus::Error => gpui::rgb(0xEF4444),     // red
         };
 
         // --- Left side: connection indicator + cluster name + context ---
@@ -5679,27 +5804,26 @@ impl AppShell {
             .items_center()
             .gap_2()
             // Colored dot
-            .child(
-                div()
-                    .w(px(8.0))
-                    .h(px(8.0))
-                    .rounded(px(4.0))
-                    .bg(dot_color)
-            )
+            .child(div().w(px(8.0)).h(px(8.0)).rounded(px(4.0)).bg(dot_color))
             // Cluster name
             .child(
                 div()
                     .text_xs()
                     .text_color(text_secondary)
-                    .child(SharedString::from(cluster_display))
+                    .child(SharedString::from(cluster_display)),
             )
             // Context name (dimmer)
             .when(!context_name.is_empty(), |el| {
                 el.child(
                     div()
                         .text_xs()
-                        .text_color(Rgba { r: text_secondary.r, g: text_secondary.g, b: text_secondary.b, a: 0.5 })
-                        .child(SharedString::from(format!("ctx: {context_name}")))
+                        .text_color(Rgba {
+                            r: text_secondary.r,
+                            g: text_secondary.g,
+                            b: text_secondary.b,
+                            a: 0.5,
+                        })
+                        .child(SharedString::from(format!("ctx: {context_name}"))),
                 )
             });
 
@@ -5748,7 +5872,9 @@ impl AppShell {
             }
         }
         // Fall back to the first connected cluster.
-        if let Some(entry) = self.sidebar.clusters.iter().find(|c| c.status == ClusterStatus::Connected) {
+        if let Some(entry) =
+            self.sidebar.clusters.iter().find(|c| c.status == ClusterStatus::Connected)
+        {
             return (entry.display_name.clone(), entry.status.clone());
         }
         // Fall back to the first cluster, or show a placeholder.
@@ -5787,9 +5913,8 @@ impl AppShell {
             let closable = tab.closable;
             let tab_cluster_context = tab.target.cluster_context().map(|s| s.to_string());
 
-            let tab_element_id = ElementId::Name(
-                SharedString::from(format!("appshell-tab-{tab_idx}")),
-            );
+            let tab_element_id =
+                ElementId::Name(SharedString::from(format!("appshell-tab-{tab_idx}")));
 
             let tab_active_bg = self.theme.colors.tab_active_bg.to_gpui();
 
@@ -5817,14 +5942,9 @@ impl AppShell {
                 .min_w(px(if is_active { 80.0 } else { 40.0 }))
                 .max_w(px(200.0))
                 .overflow_hidden()
-                .when(is_active, |el| {
-                    el.border_color(accent)
-                        .text_color(text)
-                        .bg(tab_active_bg)
-                })
+                .when(is_active, |el| el.border_color(accent).text_color(text).bg(tab_active_bg))
                 .when(!is_active, |el| {
-                    el.border_color(gpui::rgba(0x00000000))
-                        .text_color(text_secondary)
+                    el.border_color(gpui::rgba(0x00000000)).text_color(text_secondary)
                 })
                 .on_click(cx.listener(move |this, _event, _window, cx| {
                     this.workspace.activate_tab(tab_id);
@@ -5834,17 +5954,12 @@ impl AppShell {
                     this.trigger_data_loading_for_active_tab(cx);
                 }))
                 .child(
-                    div()
-                        .flex_1()
-                        .overflow_hidden()
-                        .whitespace_nowrap()
-                        .child(tab_label_shared)
+                    div().flex_1().overflow_hidden().whitespace_nowrap().child(tab_label_shared),
                 );
 
             if closable {
-                let close_id = ElementId::Name(
-                    SharedString::from(format!("appshell-tab-close-{tab_idx}")),
-                );
+                let close_id =
+                    ElementId::Name(SharedString::from(format!("appshell-tab-close-{tab_idx}")));
                 let close_btn = div()
                     .id(close_id)
                     .ml_1()
@@ -5913,28 +6028,27 @@ impl AppShell {
             NavigationTarget::Dashboard { cluster_context } => {
                 self.render_dashboard_content(cluster_context, text, text_secondary, bg)
             }
-            NavigationTarget::ResourceList { cluster_context, kind, .. } => {
-                self.render_resource_list_content(cx, cluster_context, kind, text, text_secondary, bg)
-            }
-            NavigationTarget::ResourceDetail { cluster_context, kind, name, namespace } => {
-                self.render_resource_detail_content(
-                    cx, cluster_context, kind, name, namespace.as_deref(), text, text_secondary, bg,
-                )
-            }
+            NavigationTarget::ResourceList { cluster_context, kind, .. } => self
+                .render_resource_list_content(cx, cluster_context, kind, text, text_secondary, bg),
+            NavigationTarget::ResourceDetail { cluster_context, kind, name, namespace } => self
+                .render_resource_detail_content(
+                    cx,
+                    cluster_context,
+                    kind,
+                    name,
+                    namespace.as_deref(),
+                    text,
+                    text_secondary,
+                    bg,
+                ),
             NavigationTarget::HelmReleases { cluster_context } => {
-                self.render_helm_releases_content(
-                    cluster_context, text, text_secondary, bg,
-                )
+                self.render_helm_releases_content(cluster_context, text, text_secondary, bg)
             }
             NavigationTarget::HelmInstall { cluster_context } => {
-                self.render_helm_install_content(
-                    cluster_context, text, text_secondary, bg,
-                )
+                self.render_helm_install_content(cluster_context, text, text_secondary, bg)
             }
             NavigationTarget::CrdBrowser { cluster_context } => {
-                self.render_crd_browser_content(
-                    cluster_context, text, text_secondary, bg,
-                )
+                self.render_crd_browser_content(cluster_context, text, text_secondary, bg)
             }
             NavigationTarget::NamespaceMap { .. } => {
                 self.render_view_placeholder("Resource Map", &label, text, text_secondary, bg)
@@ -5971,11 +6085,12 @@ impl AppShell {
             .bg(bg)
             .gap_2()
             .child(
-                div().font_weight(FontWeight::SEMIBOLD).text_color(text).child(view_name.to_string()),
+                div()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(text)
+                    .child(view_name.to_string()),
             )
-            .child(
-                div().text_sm().text_color(text_secondary).child(label.to_string()),
-            )
+            .child(div().text_sm().text_color(text_secondary).child(label.to_string()))
     }
 
     // -----------------------------------------------------------------------
@@ -6017,9 +6132,8 @@ impl AppShell {
 
         for &section in PreferencesSection::all() {
             let is_active = section == self.active_prefs_section;
-            let section_id = ElementId::Name(SharedString::from(
-                format!("prefs-section-{}", section.label()),
-            ));
+            let section_id =
+                ElementId::Name(SharedString::from(format!("prefs-section-{}", section.label())));
 
             let item = div()
                 .id(section_id)
@@ -6064,16 +6178,19 @@ impl AppShell {
                     .text_color(text)
                     .child(self.active_prefs_section.label()),
             )
-            .children(self.render_prefs_section_content(window, cx, text, text_secondary, surface, surface_hover, accent, border));
+            .children(self.render_prefs_section_content(
+                window,
+                cx,
+                text,
+                text_secondary,
+                surface,
+                surface_hover,
+                accent,
+                border,
+            ));
 
         // --- Outer container ---
-        div()
-            .flex_1()
-            .h_full()
-            .flex()
-            .flex_row()
-            .child(sidebar)
-            .child(content)
+        div().flex_1().h_full().flex().flex_row().child(sidebar).child(content)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -6089,9 +6206,15 @@ impl AppShell {
         border: Rgba,
     ) -> Vec<Div> {
         match self.active_prefs_section {
-            PreferencesSection::App => self.render_prefs_app(cx, text, text_secondary, surface, accent, border),
-            PreferencesSection::Kubernetes => self.render_prefs_kubernetes(window, cx, text, text_secondary, surface, border),
-            PreferencesSection::Terminal => self.render_prefs_terminal(text, text_secondary, surface, border),
+            PreferencesSection::App => {
+                self.render_prefs_app(cx, text, text_secondary, surface, accent, border)
+            }
+            PreferencesSection::Kubernetes => {
+                self.render_prefs_kubernetes(window, cx, text, text_secondary, surface, border)
+            }
+            PreferencesSection::Terminal => {
+                self.render_prefs_terminal(text, text_secondary, surface, border)
+            }
             PreferencesSection::About => self.render_prefs_about(text, text_secondary),
         }
     }
@@ -6141,7 +6264,11 @@ impl AppShell {
                     .border_1()
                     .border_color(if is_selected { accent } else { border })
                     .text_color(if is_selected { accent } else { text })
-                    .font_weight(if is_selected { FontWeight::SEMIBOLD } else { FontWeight::NORMAL })
+                    .font_weight(if is_selected {
+                        FontWeight::SEMIBOLD
+                    } else {
+                        FontWeight::NORMAL
+                    })
                     .when(is_selected, |el| {
                         el.bg(Rgba { r: accent.r, g: accent.g, b: accent.b, a: 0.15 })
                     })
@@ -6201,11 +6328,8 @@ impl AppShell {
                 }))
                 .child("+");
 
-            let value_display = div()
-                .px_3()
-                .text_sm()
-                .text_color(text)
-                .child(format!("{}", font_size as u32));
+            let value_display =
+                div().px_3().text_sm().text_color(text).child(format!("{}", font_size as u32));
 
             div()
                 .flex()
@@ -6241,7 +6365,8 @@ impl AppShell {
                 .text_color(text)
                 .hover(|el| el.bg(surface))
                 .on_click(cx.listener(|this, _event, _window, cx| {
-                    this.preferences.log_line_limit = this.preferences.log_line_limit.saturating_sub(1000).max(1000);
+                    this.preferences.log_line_limit =
+                        this.preferences.log_line_limit.saturating_sub(1000).max(1000);
                     cx.notify();
                 }))
                 .child("\u{2212}");
@@ -6258,16 +6383,14 @@ impl AppShell {
                 .text_color(text)
                 .hover(|el| el.bg(surface))
                 .on_click(cx.listener(|this, _event, _window, cx| {
-                    this.preferences.log_line_limit = (this.preferences.log_line_limit + 1000).min(100_000);
+                    this.preferences.log_line_limit =
+                        (this.preferences.log_line_limit + 1000).min(100_000);
                     cx.notify();
                 }))
                 .child("+");
 
-            let value_display = div()
-                .px_3()
-                .text_sm()
-                .text_color(text)
-                .child(format!("{}", log_limit));
+            let value_display =
+                div().px_3().text_sm().text_color(text).child(format!("{}", log_limit));
 
             div()
                 .flex()
@@ -6304,11 +6427,8 @@ impl AppShell {
     ) -> Vec<Div> {
         // Default namespace
         let ns_group = {
-            let ns_val = self
-                .preferences
-                .default_namespace
-                .as_deref()
-                .unwrap_or("(all namespaces)");
+            let ns_val =
+                self.preferences.default_namespace.as_deref().unwrap_or("(all namespaces)");
 
             div()
                 .flex()
@@ -6335,31 +6455,24 @@ impl AppShell {
 
             // Always show the default ~/.kube/ entry (non-removable)
             list = list.child(
-                div()
-                    .flex()
-                    .flex_row()
-                    .items_center()
-                    .gap_2()
-                    .child(
-                        div()
-                            .flex_1()
-                            .px_3()
-                            .py_1p5()
-                            .rounded_md()
-                            .border_1()
-                            .border_color(border)
-                            .bg(surface)
-                            .text_sm()
-                            .text_color(text_secondary)
-                            .child("~/.kube/ (default)"),
-                    ),
+                div().flex().flex_row().items_center().gap_2().child(
+                    div()
+                        .flex_1()
+                        .px_3()
+                        .py_1p5()
+                        .rounded_md()
+                        .border_1()
+                        .border_color(border)
+                        .bg(surface)
+                        .text_sm()
+                        .text_color(text_secondary)
+                        .child("~/.kube/ (default)"),
+                ),
             );
 
             // User-added directories with Remove buttons
             for (i, dir) in self.preferences.kubeconfig_scan_dirs.iter().enumerate() {
-                let remove_id = ElementId::Name(SharedString::from(
-                    format!("remove-scandir-{i}"),
-                ));
+                let remove_id = ElementId::Name(SharedString::from(format!("remove-scandir-{i}")));
                 let row = div()
                     .flex()
                     .flex_row()
@@ -6423,10 +6536,12 @@ impl AppShell {
                                         this.preferences.kubeconfig_scan_dirs.push(path_str);
                                     }
                                     cx.notify();
-                                }).ok();
+                                })
+                                .ok();
                             }
                         }
-                    }).detach();
+                    })
+                    .detach();
                 }))
                 .child("Add Directory");
             list = list.child(add_btn);
@@ -6443,28 +6558,25 @@ impl AppShell {
         let aws_group = {
             // Lazily create the default AWS profile input
             if self.aws_profile_input.is_none() {
-                let initial_value = self
-                    .preferences
-                    .default_aws_profile
-                    .clone()
-                    .unwrap_or_default();
+                let initial_value =
+                    self.preferences.default_aws_profile.clone().unwrap_or_default();
                 let input = cx.new(|cx| {
-                    let mut state = InputState::new(window, cx)
-                        .placeholder("e.g. my-sso-profile");
+                    let mut state = InputState::new(window, cx).placeholder("e.g. my-sso-profile");
                     state.set_value(initial_value, window, cx);
                     state
                 });
-                let sub = cx.subscribe(&input, |this: &mut AppShell, entity, event: &InputEvent, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        let val = entity.read(cx).value().to_string();
-                        if val.is_empty() {
-                            this.preferences.default_aws_profile = None;
-                        } else {
-                            this.preferences.default_aws_profile = Some(val);
+                let sub =
+                    cx.subscribe(&input, |this: &mut AppShell, entity, event: &InputEvent, cx| {
+                        if matches!(event, InputEvent::Change) {
+                            let val = entity.read(cx).value().to_string();
+                            if val.is_empty() {
+                                this.preferences.default_aws_profile = None;
+                            } else {
+                                this.preferences.default_aws_profile = Some(val);
+                            }
+                            cx.notify();
                         }
-                        cx.notify();
-                    }
-                });
+                    });
                 self.aws_profile_input = Some(input);
                 self._aws_profile_subscription = Some(sub);
             }
@@ -6474,74 +6586,76 @@ impl AppShell {
                 .flex_col()
                 .gap_2()
                 .child(self.prefs_group_label("AWS AUTHENTICATION", text_secondary))
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(text_secondary)
-                        .child("Set the AWS profile used for EKS cluster authentication (aws eks get-token)."),
-                );
+                .child(div().text_xs().text_color(text_secondary).child(
+                    "Set the AWS profile used for EKS cluster authentication (aws eks get-token).",
+                ));
 
             // Current Identity display
-            let identity_row = {
-                let mut row = div()
-                    .flex()
-                    .flex_col()
-                    .gap_1()
-                    .p_3()
-                    .rounded_md()
-                    .border_1()
-                    .border_color(border)
-                    .bg(surface);
+            let identity_row =
+                {
+                    let mut row = div()
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .p_3()
+                        .rounded_md()
+                        .border_1()
+                        .border_color(border)
+                        .bg(surface);
 
-                let header_row = div()
-                    .flex()
-                    .flex_row()
-                    .items_center()
-                    .gap_2()
-                    .child(
-                        div()
-                            .text_xs()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(text_secondary)
-                            .child("Current Identity"),
-                    )
-                    .child(
-                        div()
-                            .id("aws-identity-refresh")
-                            .cursor_pointer()
-                            .text_xs()
-                            .text_color(text_secondary)
-                            .hover(|el| el.text_color(gpui::rgb(0x60A5FA)))
-                            .on_click(cx.listener(|this, _event, _window, cx| {
-                                this.fetch_aws_caller_identity(cx);
-                            }))
-                            .child(if self.aws_identity_loading { "loading..." } else { "refresh" }),
-                    );
-                row = row.child(header_row);
-
-                if let Some(ref identity) = self.aws_caller_identity {
-                    row = row
+                    let header_row = div()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap_2()
                         .child(
-                            div().text_sm().text_color(text)
-                                .child(SharedString::from(identity.arn.clone())),
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(text_secondary)
+                                .child("Current Identity"),
                         )
                         .child(
-                            div().text_xs().text_color(text_secondary)
-                                .child(SharedString::from(format!("Account: {}", identity.account))),
+                            div()
+                                .id("aws-identity-refresh")
+                                .cursor_pointer()
+                                .text_xs()
+                                .text_color(text_secondary)
+                                .hover(|el| el.text_color(gpui::rgb(0x60A5FA)))
+                                .on_click(cx.listener(|this, _event, _window, cx| {
+                                    this.fetch_aws_caller_identity(cx);
+                                }))
+                                .child(if self.aws_identity_loading {
+                                    "loading..."
+                                } else {
+                                    "refresh"
+                                }),
                         );
-                } else if self.aws_identity_loading {
-                    row = row.child(
-                        div().text_sm().text_color(text_secondary).child("Fetching..."),
-                    );
-                } else {
-                    row = row.child(
-                        div().text_sm().text_color(text_secondary)
-                            .child("Not available — click refresh or check AWS CLI configuration"),
-                    );
-                }
+                    row = row.child(header_row);
 
-                row
-            };
+                    if let Some(ref identity) = self.aws_caller_identity {
+                        row = row
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .text_color(text)
+                                    .child(SharedString::from(identity.arn.clone())),
+                            )
+                            .child(div().text_xs().text_color(text_secondary).child(
+                                SharedString::from(format!("Account: {}", identity.account)),
+                            ));
+                    } else if self.aws_identity_loading {
+                        row = row
+                            .child(div().text_sm().text_color(text_secondary).child("Fetching..."));
+                    } else {
+                        row =
+                            row.child(div().text_sm().text_color(text_secondary).child(
+                                "Not available — click refresh or check AWS CLI configuration",
+                            ));
+                    }
+
+                    row
+                };
             aws_section = aws_section.child(identity_row);
 
             // Default AWS Profile editable input
@@ -6559,13 +6673,7 @@ impl AppShell {
                                 .min_w(px(160.))
                                 .child("Default AWS Profile:"),
                         )
-                        .child(
-                            div().flex_1().child(
-                                Input::new(input_entity)
-                                    .text_sm()
-                                    .small()
-                            ),
-                        ),
+                        .child(div().flex_1().child(Input::new(input_entity).text_sm().small())),
                 );
             }
 
@@ -6607,7 +6715,8 @@ impl AppShell {
             aws_section
         };
 
-        let save_btn = self.render_prefs_save_button(cx, text, self.theme.colors.accent.to_gpui(), border);
+        let save_btn =
+            self.render_prefs_save_button(cx, text, self.theme.colors.accent.to_gpui(), border);
 
         vec![ns_group, dirs_group, aws_group, save_btn]
     }
@@ -6620,11 +6729,8 @@ impl AppShell {
         surface: Rgba,
         border: Rgba,
     ) -> Vec<Div> {
-        let shell_path = self
-            .preferences
-            .terminal_shell_path
-            .as_deref()
-            .unwrap_or("(system default)");
+        let shell_path =
+            self.preferences.terminal_shell_path.as_deref().unwrap_or("(system default)");
 
         let shell_group = div()
             .flex()
@@ -6654,11 +6760,7 @@ impl AppShell {
     }
 
     // --- About section ---
-    fn render_prefs_about(
-        &self,
-        text: Rgba,
-        text_secondary: Rgba,
-    ) -> Vec<Div> {
+    fn render_prefs_about(&self, text: Rgba, text_secondary: Rgba) -> Vec<Div> {
         let version = div()
             .flex()
             .flex_col()
@@ -6680,12 +6782,7 @@ impl AppShell {
             .flex_col()
             .gap_2()
             .child(self.prefs_group_label("CONFIG FILE", text_secondary))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(text)
-                    .child(config_path),
-            );
+            .child(div().text_sm().text_color(text).child(config_path));
 
         vec![version, config_group]
     }
@@ -6699,26 +6796,24 @@ impl AppShell {
         _border: Rgba,
     ) -> Div {
         let save_id = ElementId::Name(SharedString::from("prefs-save"));
-        div()
-            .pt_4()
-            .child(
-                div()
-                    .id(save_id)
-                    .px_4()
-                    .py_1p5()
-                    .rounded_md()
-                    .cursor_pointer()
-                    .bg(accent)
-                    .text_color(text)
-                    .text_sm()
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .hover(|el| el.opacity(0.9))
-                    .on_click(cx.listener(|this, _event, _window, cx| {
-                        this.save_preferences();
-                        cx.notify();
-                    }))
-                    .child("Save"),
-            )
+        div().pt_4().child(
+            div()
+                .id(save_id)
+                .px_4()
+                .py_1p5()
+                .rounded_md()
+                .cursor_pointer()
+                .bg(accent)
+                .text_color(text)
+                .text_sm()
+                .font_weight(FontWeight::SEMIBOLD)
+                .hover(|el| el.opacity(0.9))
+                .on_click(cx.listener(|this, _event, _window, cx| {
+                    this.save_preferences();
+                    cx.notify();
+                }))
+                .child("Save"),
+        )
     }
 
     /// Persist current preferences to disk and apply theme.
@@ -6766,7 +6861,10 @@ impl AppShell {
                             #[cfg(unix)]
                             {
                                 use std::os::unix::fs::PermissionsExt;
-                                let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+                                let _ = std::fs::set_permissions(
+                                    &path,
+                                    std::fs::Permissions::from_mode(0o600),
+                                );
                             }
                             tracing::info!("Preferences saved to {}", path.display());
                         }
@@ -6785,14 +6883,10 @@ impl AppShell {
     /// Adds any newly discovered clusters to the sidebar and kubeconfig_paths map
     /// without removing existing ones (to avoid disrupting active connections).
     fn rediscover_clusters(&mut self) {
-        let scan_dirs: Vec<std::path::PathBuf> = self
-            .preferences
-            .kubeconfig_scan_dirs
-            .iter()
-            .map(std::path::PathBuf::from)
-            .collect();
-        let discovery = baeus_core::kubeconfig::KubeconfigDiscovery::new()
-            .with_additional_dirs(scan_dirs);
+        let scan_dirs: Vec<std::path::PathBuf> =
+            self.preferences.kubeconfig_scan_dirs.iter().map(std::path::PathBuf::from).collect();
+        let discovery =
+            baeus_core::kubeconfig::KubeconfigDiscovery::new().with_additional_dirs(scan_dirs);
 
         let loaded = match discovery.load_all() {
             Ok(l) => l,
@@ -6809,10 +6903,7 @@ impl AppShell {
                 // Disambiguate duplicate context names the same way as initial discovery.
                 let effective_name = if self.kubeconfig_paths.contains_key(&ctx.name) {
                     if ctx.cluster_name.is_empty() || ctx.cluster_name == ctx.name {
-                        let stem = path
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("unknown");
+                        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
                         format!("{}@{}", ctx.name, stem)
                     } else {
                         format!("{}@{}", ctx.cluster_name, ctx.name)
@@ -6835,11 +6926,9 @@ impl AppShell {
                     format!("{}({})", ctx.cluster_name, effective_name)
                 };
                 self.sidebar.add_cluster(&effective_name, &display_name);
-                self.kubeconfig_paths
-                    .insert(effective_name.clone(), path_str.clone());
+                self.kubeconfig_paths.insert(effective_name.clone(), path_str.clone());
                 if effective_name != ctx.name {
-                    self.original_context_names
-                        .insert(effective_name.clone(), ctx.name.clone());
+                    self.original_context_names.insert(effective_name.clone(), ctx.name.clone());
                 }
 
                 // Register in the core cluster manager.
@@ -6888,10 +6977,7 @@ impl AppShell {
 
     /// Open a dock terminal and run `aws sso login --profile <profile>`.
     pub(crate) fn run_aws_sso_login(&mut self, cx: &mut Context<Self>) {
-        let profile = self
-            .preferences
-            .default_aws_profile
-            .clone();
+        let profile = self.preferences.default_aws_profile.clone();
         self.run_aws_sso_login_with_optional_profile(profile.as_deref(), cx);
     }
 
@@ -6990,11 +7076,7 @@ impl AppShell {
                                     Ok(b) => b,
                                     Err(_) => break,
                                 };
-                                if buf.is_empty() {
-                                    Vec::new()
-                                } else {
-                                    std::mem::take(&mut *buf)
-                                }
+                                if buf.is_empty() { Vec::new() } else { std::mem::take(&mut *buf) }
                             };
 
                             // Track output for success detection.
@@ -7004,28 +7086,32 @@ impl AppShell {
                                     // Keep only the last 2KB to avoid unbounded growth.
                                     if accumulated_output.len() > 2048 {
                                         let start = accumulated_output.len() - 2048;
-                                        accumulated_output = accumulated_output[start..].to_string();
+                                        accumulated_output =
+                                            accumulated_output[start..].to_string();
                                     }
                                 }
                             }
 
                             let alive = cx.update(|cx| {
-                                entity_weak.update(cx, |view, cx| {
-                                    if !data.is_empty() {
-                                        view.process_output(&data);
-                                    }
-                                    // Drain pending keyboard input and write to PTY.
-                                    let input = view.take_pending_input();
-                                    if !input.is_empty() {
-                                        if let Some(ref writer_h) = writer_for_poll {
-                                            if let Ok(mut w) = writer_h.lock() {
-                                                let _ = std::io::Write::write_all(&mut *w, &input);
-                                                let _ = std::io::Write::flush(&mut *w);
+                                entity_weak
+                                    .update(cx, |view, cx| {
+                                        if !data.is_empty() {
+                                            view.process_output(&data);
+                                        }
+                                        // Drain pending keyboard input and write to PTY.
+                                        let input = view.take_pending_input();
+                                        if !input.is_empty() {
+                                            if let Some(ref writer_h) = writer_for_poll {
+                                                if let Ok(mut w) = writer_h.lock() {
+                                                    let _ =
+                                                        std::io::Write::write_all(&mut *w, &input);
+                                                    let _ = std::io::Write::flush(&mut *w);
+                                                }
                                             }
                                         }
-                                    }
-                                    cx.notify();
-                                }).is_ok()
+                                        cx.notify();
+                                    })
+                                    .is_ok()
                             });
 
                             match alive {
@@ -7063,9 +7149,9 @@ impl AppShell {
                 tracing::error!("Failed to spawn PTY for AWS SSO login: {e}");
                 entity.update(cx, |view, _cx| {
                     view.state.connection_state =
-                        crate::components::terminal_view::TerminalConnectionState::Error(
-                            format!("Failed to spawn shell: {e}"),
-                        );
+                        crate::components::terminal_view::TerminalConnectionState::Error(format!(
+                            "Failed to spawn shell: {e}"
+                        ));
                 });
             }
         }
@@ -7099,9 +7185,7 @@ impl AppShell {
         let error_key_owned = error_key.to_string();
 
         // Retry button element ID (unique per error key to avoid collisions)
-        let retry_id = ElementId::Name(
-            SharedString::from(format!("retry-btn-{}", error_key)),
-        );
+        let retry_id = ElementId::Name(SharedString::from(format!("retry-btn-{}", error_key)));
 
         let retry_button = div()
             .id(retry_id)
@@ -7173,11 +7257,7 @@ impl AppShell {
     ///
     /// This dispatches to the appropriate `start_*_loading` method based on the
     /// target variant, matching the logic in `trigger_data_loading_for_active_tab`.
-    fn retry_data_loading_for_target(
-        &mut self,
-        target: &NavigationTarget,
-        cx: &mut Context<Self>,
-    ) {
+    fn retry_data_loading_for_target(&mut self, target: &NavigationTarget, cx: &mut Context<Self>) {
         match target {
             NavigationTarget::Dashboard { cluster_context } => {
                 self.start_dashboard_loading(cluster_context, cx);
@@ -7187,7 +7267,11 @@ impl AppShell {
             }
             NavigationTarget::ResourceDetail { cluster_context, kind, name, namespace } => {
                 self.start_resource_detail_loading(
-                    cluster_context, kind, name, namespace.as_deref(), cx,
+                    cluster_context,
+                    kind,
+                    name,
+                    namespace.as_deref(),
+                    cx,
                 );
             }
             _ => {
@@ -7300,7 +7384,9 @@ impl AppShell {
                 );
         }
 
-        use crate::components::donut_chart::{DonutChart, ResourceDistributionBar, ResourceDistEntry, resource_kind_color};
+        use crate::components::donut_chart::{
+            DonutChart, ResourceDistEntry, ResourceDistributionBar, resource_kind_color,
+        };
 
         if let Some(state) = &self.dashboard_state {
             if self.active_dashboard_cluster.as_deref() == Some(cluster_context) {
@@ -7311,26 +7397,34 @@ impl AppShell {
                 let surface = self.theme.colors.surface.to_gpui();
                 let border = self.theme.colors.border.to_gpui();
 
-                let scroll_id = ElementId::Name(SharedString::from(
-                    format!("dashboard-scroll-{}", cluster_context),
-                ));
+                let scroll_id = ElementId::Name(SharedString::from(format!(
+                    "dashboard-scroll-{}",
+                    cluster_context
+                )));
 
-                let mut inner = div()
-                    .flex().flex_col().p_4().gap_4();
+                let mut inner = div().flex().flex_col().p_4().gap_4();
 
                 // Header: Cluster Overview
                 let cluster_display = self.sidebar.display_name_for_context(cluster_context);
                 inner = inner.child(
-                    div().flex().flex_row().items_center().gap_2()
+                    div()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap_2()
                         .child(
-                            div().text_lg().font_weight(FontWeight::BOLD).text_color(text)
+                            div()
+                                .text_lg()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(text)
                                 .child(format!("Cluster Overview \u{2014} {}", cluster_display)),
                         )
                         .child(div().flex_grow())
-                        .child(
-                            div().text_sm().text_color(text_secondary)
-                                .child(format!("Nodes: {}  |  Namespaces: {}", state.node_count, state.namespaces.len())),
-                        ),
+                        .child(div().text_sm().text_color(text_secondary).child(format!(
+                            "Nodes: {}  |  Namespaces: {}",
+                            state.node_count,
+                            state.namespaces.len()
+                        ))),
                 );
 
                 // Resource usage donut row
@@ -7338,22 +7432,33 @@ impl AppShell {
                 let mem_value = state.memory_usage_percent.map(|p| p / 100.0).unwrap_or(0.0);
                 let pod_total = state.pod_summary.total;
                 let pod_running = state.pod_summary.running;
-                let pod_value = if pod_total > 0 { pod_running as f32 / pod_total as f32 } else { 0.0 };
+                let pod_value =
+                    if pod_total > 0 { pod_running as f32 / pod_total as f32 } else { 0.0 };
 
-                let cpu_used_label = state.cpu_used
-                    .map(|v| format!("{:.1} cores", v))
-                    .unwrap_or_else(|| {
-                        if state.cpu_capacity.is_some() { "No metrics".to_string() } else { "N/A".to_string() }
+                let cpu_used_label =
+                    state.cpu_used.map(|v| format!("{:.1} cores", v)).unwrap_or_else(|| {
+                        if state.cpu_capacity.is_some() {
+                            "No metrics".to_string()
+                        } else {
+                            "N/A".to_string()
+                        }
                     });
-                let cpu_total_label = state.cpu_capacity
+                let cpu_total_label = state
+                    .cpu_capacity
                     .map(|v| format!("{:.0} cores", v))
                     .unwrap_or_else(|| "N/A".to_string());
-                let mem_used_label = state.memory_used
+                let mem_used_label = state
+                    .memory_used
                     .map(|v| format!("{:.1} GiB", v / 1_073_741_824.0))
                     .unwrap_or_else(|| {
-                        if state.memory_capacity.is_some() { "No metrics".to_string() } else { "N/A".to_string() }
+                        if state.memory_capacity.is_some() {
+                            "No metrics".to_string()
+                        } else {
+                            "N/A".to_string()
+                        }
                     });
-                let mem_total_label = state.memory_capacity
+                let mem_total_label = state
+                    .memory_capacity
                     .map(|v| format!("{:.1} GiB", v / 1_073_741_824.0))
                     .unwrap_or_else(|| "N/A".to_string());
 
@@ -7383,8 +7488,16 @@ impl AppShell {
                 };
 
                 inner = inner.child(
-                    div().flex().flex_row().justify_center().gap_8().py_4()
-                        .bg(surface).rounded_lg().border_1().border_color(border)
+                    div()
+                        .flex()
+                        .flex_row()
+                        .justify_center()
+                        .gap_8()
+                        .py_4()
+                        .bg(surface)
+                        .rounded_lg()
+                        .border_1()
+                        .border_color(border)
                         .child(cpu_donut.render(text, text_secondary))
                         .child(mem_donut.render(text, text_secondary))
                         .child(pod_donut.render(text, text_secondary)),
@@ -7392,47 +7505,122 @@ impl AppShell {
 
                 // Resource distribution bar (stacked horizontal bar with legend)
                 let dist_entries = vec![
-                    ResourceDistEntry { kind: "Pods", count: rc.pods, color: resource_kind_color("Pods") },
-                    ResourceDistEntry { kind: "Deployments", count: rc.deployments, color: resource_kind_color("Deployments") },
-                    ResourceDistEntry { kind: "DaemonSets", count: rc.daemonsets, color: resource_kind_color("DaemonSets") },
-                    ResourceDistEntry { kind: "StatefulSets", count: rc.statefulsets, color: resource_kind_color("StatefulSets") },
-                    ResourceDistEntry { kind: "ReplicaSets", count: rc.replicasets, color: resource_kind_color("ReplicaSets") },
-                    ResourceDistEntry { kind: "Jobs", count: rc.jobs, color: resource_kind_color("Jobs") },
-                    ResourceDistEntry { kind: "CronJobs", count: rc.cronjobs, color: resource_kind_color("CronJobs") },
+                    ResourceDistEntry {
+                        kind: "Pods",
+                        count: rc.pods,
+                        color: resource_kind_color("Pods"),
+                    },
+                    ResourceDistEntry {
+                        kind: "Deployments",
+                        count: rc.deployments,
+                        color: resource_kind_color("Deployments"),
+                    },
+                    ResourceDistEntry {
+                        kind: "DaemonSets",
+                        count: rc.daemonsets,
+                        color: resource_kind_color("DaemonSets"),
+                    },
+                    ResourceDistEntry {
+                        kind: "StatefulSets",
+                        count: rc.statefulsets,
+                        color: resource_kind_color("StatefulSets"),
+                    },
+                    ResourceDistEntry {
+                        kind: "ReplicaSets",
+                        count: rc.replicasets,
+                        color: resource_kind_color("ReplicaSets"),
+                    },
+                    ResourceDistEntry {
+                        kind: "Jobs",
+                        count: rc.jobs,
+                        color: resource_kind_color("Jobs"),
+                    },
+                    ResourceDistEntry {
+                        kind: "CronJobs",
+                        count: rc.cronjobs,
+                        color: resource_kind_color("CronJobs"),
+                    },
                 ];
 
                 inner = inner.child(
-                    div().bg(surface).rounded_lg().border_1().border_color(border).p_3()
-                        .child(ResourceDistributionBar::render(&dist_entries, text, text_secondary, bg)),
+                    div().bg(surface).rounded_lg().border_1().border_color(border).p_3().child(
+                        ResourceDistributionBar::render(&dist_entries, text, text_secondary, bg),
+                    ),
                 );
 
                 // Pod summary stats
                 inner = inner.child(
-                    div().flex().flex_row().gap_4().py_2()
-                        .bg(surface).rounded_lg().border_1().border_color(border).px_4()
+                    div()
+                        .flex()
+                        .flex_row()
+                        .gap_4()
+                        .py_2()
+                        .bg(surface)
+                        .rounded_lg()
+                        .border_1()
+                        .border_color(border)
+                        .px_4()
                         .child(
-                            div().flex().flex_col().items_center().flex_1()
-                                .child(div().text_lg().font_weight(FontWeight::BOLD).text_color(self.theme.colors.success.to_gpui())
-                                    .child(state.pod_summary.running.to_string()))
+                            div()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .flex_1()
+                                .child(
+                                    div()
+                                        .text_lg()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(self.theme.colors.success.to_gpui())
+                                        .child(state.pod_summary.running.to_string()),
+                                )
                                 .child(div().text_xs().text_color(text_secondary).child("Running")),
                         )
                         .child(
-                            div().flex().flex_col().items_center().flex_1()
-                                .child(div().text_lg().font_weight(FontWeight::BOLD).text_color(self.theme.colors.warning.to_gpui())
-                                    .child(state.pod_summary.pending.to_string()))
+                            div()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .flex_1()
+                                .child(
+                                    div()
+                                        .text_lg()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(self.theme.colors.warning.to_gpui())
+                                        .child(state.pod_summary.pending.to_string()),
+                                )
                                 .child(div().text_xs().text_color(text_secondary).child("Pending")),
                         )
                         .child(
-                            div().flex().flex_col().items_center().flex_1()
-                                .child(div().text_lg().font_weight(FontWeight::BOLD).text_color(self.theme.colors.error.to_gpui())
-                                    .child(state.pod_summary.failed.to_string()))
+                            div()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .flex_1()
+                                .child(
+                                    div()
+                                        .text_lg()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(self.theme.colors.error.to_gpui())
+                                        .child(state.pod_summary.failed.to_string()),
+                                )
                                 .child(div().text_xs().text_color(text_secondary).child("Failed")),
                         )
                         .child(
-                            div().flex().flex_col().items_center().flex_1()
-                                .child(div().text_lg().font_weight(FontWeight::BOLD).text_color(text)
-                                    .child(state.pod_summary.succeeded.to_string()))
-                                .child(div().text_xs().text_color(text_secondary).child("Succeeded")),
+                            div()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .flex_1()
+                                .child(
+                                    div()
+                                        .text_lg()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(text)
+                                        .child(state.pod_summary.succeeded.to_string()),
+                                )
+                                .child(
+                                    div().text_xs().text_color(text_secondary).child("Succeeded"),
+                                ),
                         ),
                 );
 
@@ -7443,26 +7631,36 @@ impl AppShell {
                     let header_text = format!("Events ({} of {})", display_count, total_events);
 
                     let mut events_section = div()
-                        .flex().flex_col().gap_1()
-                        .bg(surface).rounded_lg().border_1().border_color(border).p_3();
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .bg(surface)
+                        .rounded_lg()
+                        .border_1()
+                        .border_color(border)
+                        .p_3();
 
                     events_section = events_section.child(
-                        div().font_weight(FontWeight::SEMIBOLD).text_color(text).pb_2()
+                        div()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(text)
+                            .pb_2()
                             .child(header_text),
                     );
 
                     // Column header row
-                    events_section = events_section.child(
-                        self.render_dashboard_events_header(text_secondary, border),
-                    );
+                    events_section = events_section
+                        .child(self.render_dashboard_events_header(text_secondary, border));
 
                     let warning_color = self.theme.colors.warning.to_gpui();
                     for event in state.recent_events.iter().take(10) {
-                        events_section = events_section.child(
-                            self.render_dashboard_event_row(
-                                event, text, text_secondary, border, warning_color,
-                            ),
-                        );
+                        events_section = events_section.child(self.render_dashboard_event_row(
+                            event,
+                            text,
+                            text_secondary,
+                            border,
+                            warning_color,
+                        ));
                     }
 
                     inner = inner.child(events_section);
@@ -7471,16 +7669,23 @@ impl AppShell {
                 // Workloads Summary section
                 {
                     let workload_kinds = [
-                        "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet",
-                        "Job", "CronJob", "Pod",
+                        "Deployment",
+                        "StatefulSet",
+                        "DaemonSet",
+                        "ReplicaSet",
+                        "Job",
+                        "CronJob",
+                        "Pod",
                     ];
-                    let mut workload_section = div()
-                        .flex().flex_col().p_4().gap_2()
-                        .bg(surface).rounded(px(8.0));
+                    let mut workload_section =
+                        div().flex().flex_col().p_4().gap_2().bg(surface).rounded(px(8.0));
 
                     workload_section = workload_section.child(
-                        div().text_sm().font_weight(FontWeight::BOLD)
-                            .text_color(text).child("Workloads Summary"),
+                        div()
+                            .text_sm()
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(text)
+                            .child("Workloads Summary"),
                     );
 
                     for wk in &workload_kinds {
@@ -7489,34 +7694,44 @@ impl AppShell {
                             kind: wk.to_string(),
                             namespace: None,
                         };
-                        let count = self.resource_list_data.get(&list_key)
+                        let count = self
+                            .resource_list_data
+                            .get(&list_key)
                             .map(|items| items.len())
                             .unwrap_or(0);
 
                         // Count "ready" items for a basic status bar
-                        let ready = self.resource_list_data.get(&list_key)
+                        let ready = self
+                            .resource_list_data
+                            .get(&list_key)
                             .map(|items| {
-                                items.iter().filter(|item| {
-                                    // For Pods: phase == Running
-                                    if *wk == "Pod" {
-                                        return item.pointer("/status/phase")
-                                            .and_then(|v| v.as_str()) == Some("Running");
-                                    }
-                                    // For Deployments/StatefulSets/etc: readyReplicas == replicas
-                                    let desired = item.pointer("/spec/replicas")
-                                        .and_then(|v| v.as_i64()).unwrap_or(0);
-                                    let ready = item.pointer("/status/readyReplicas")
-                                        .and_then(|v| v.as_i64()).unwrap_or(0);
-                                    if desired > 0 { ready >= desired } else { true }
-                                }).count()
+                                items
+                                    .iter()
+                                    .filter(|item| {
+                                        // For Pods: phase == Running
+                                        if *wk == "Pod" {
+                                            return item
+                                                .pointer("/status/phase")
+                                                .and_then(|v| v.as_str())
+                                                == Some("Running");
+                                        }
+                                        // For Deployments/StatefulSets/etc: readyReplicas == replicas
+                                        let desired = item
+                                            .pointer("/spec/replicas")
+                                            .and_then(|v| v.as_i64())
+                                            .unwrap_or(0);
+                                        let ready = item
+                                            .pointer("/status/readyReplicas")
+                                            .and_then(|v| v.as_i64())
+                                            .unwrap_or(0);
+                                        if desired > 0 { ready >= desired } else { true }
+                                    })
+                                    .count()
                             })
                             .unwrap_or(0);
 
-                        let bar_fraction = if count > 0 {
-                            ready as f32 / count as f32
-                        } else {
-                            0.0
-                        };
+                        let bar_fraction =
+                            if count > 0 { ready as f32 / count as f32 } else { 0.0 };
 
                         let bar_color = if bar_fraction >= 1.0 {
                             self.theme.colors.success.to_gpui()
@@ -7530,16 +7745,23 @@ impl AppShell {
 
                         workload_section = workload_section.child(
                             div()
-                                .flex().flex_row().items_center().gap_2()
+                                .flex()
+                                .flex_row()
+                                .items_center()
+                                .gap_2()
                                 .child(
-                                    div().w(px(100.0)).text_xs().text_color(text)
+                                    div()
+                                        .w(px(100.0))
+                                        .text_xs()
+                                        .text_color(text)
                                         .child(SharedString::from(wk.to_string())),
                                 )
                                 .child(
-                                    div().w(px(60.0)).text_xs().text_color(text_secondary)
-                                        .child(SharedString::from(
-                                            format!("{ready}/{count}"),
-                                        )),
+                                    div()
+                                        .w(px(60.0))
+                                        .text_xs()
+                                        .text_color(text_secondary)
+                                        .child(SharedString::from(format!("{ready}/{count}"))),
                                 )
                                 .child(
                                     div()
@@ -7563,17 +7785,23 @@ impl AppShell {
                 }
 
                 return div()
-                    .flex_1().flex().flex_col().bg(bg).overflow_hidden()
-                    .child(
-                        div().id(scroll_id).flex_1().overflow_y_scroll()
-                            .child(inner),
-                    );
+                    .flex_1()
+                    .flex()
+                    .flex_col()
+                    .bg(bg)
+                    .overflow_hidden()
+                    .child(div().id(scroll_id).flex_1().overflow_y_scroll().child(inner));
             }
         }
 
         div()
-            .flex_1().flex().items_center().justify_center().bg(bg)
-            .text_color(text_secondary).text_sm()
+            .flex_1()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(bg)
+            .text_color(text_secondary)
+            .text_sm()
             .child(format!("Loading dashboard for {}...", cluster_context))
     }
 
@@ -7601,81 +7829,123 @@ impl AppShell {
             // Filter rows by namespace selector
             let ns_selector = self.namespace_selectors.get(cluster_context);
             let filter_query = table_state.filter_text.to_lowercase();
-            let filtered_rows: Vec<&TableRow> = table_state.rows.iter()
+            let filtered_rows: Vec<&TableRow> = table_state
+                .rows
+                .iter()
                 .filter(|row| {
                     // Namespace filter
                     let ns_match = match (&row.namespace, ns_selector) {
                         (Some(ns), Some(sel)) => sel.matches_namespace(ns),
                         _ => true,
                     };
-                    if !ns_match { return false; }
+                    if !ns_match {
+                        return false;
+                    }
                     // Text search filter
-                    if filter_query.is_empty() { return true; }
-                    if row.name.to_lowercase().contains(&filter_query) { return true; }
+                    if filter_query.is_empty() {
+                        return true;
+                    }
+                    if row.name.to_lowercase().contains(&filter_query) {
+                        return true;
+                    }
                     if let Some(ns) = &row.namespace {
-                        if ns.to_lowercase().contains(&filter_query) { return true; }
+                        if ns.to_lowercase().contains(&filter_query) {
+                            return true;
+                        }
                     }
                     row.cells.iter().any(|cell| cell.to_lowercase().contains(&filter_query))
                 })
                 .collect();
             let count = filtered_rows.len();
 
-            let mut content = div()
-                .flex_1().min_h(px(0.0)).flex().flex_col().bg(bg).overflow_hidden();
+            let mut content =
+                div().flex_1().min_h(px(0.0)).flex().flex_col().bg(bg).overflow_hidden();
 
             // Header bar with kind name + count badge + namespace dropdown
-            content = content.child(
-                self.render_resource_list_header(
-                    cx, cluster_context, kind, count, text, text_secondary, surface, border,
-                ),
-            );
+            content = content.child(self.render_resource_list_header(
+                cx,
+                cluster_context,
+                kind,
+                count,
+                text,
+                text_secondary,
+                surface,
+                border,
+            ));
 
             // Search / filter bar
-            content = content.child(
-                self.render_resource_filter_bar(
-                    cx, &key, text, text_secondary, surface, border,
-                ),
-            );
+            content = content.child(self.render_resource_filter_bar(
+                cx,
+                &key,
+                text,
+                text_secondary,
+                surface,
+                border,
+            ));
 
             // Column headers
-            content = content.child(
-                self.render_resource_table_headers(
-                    cx, &table_state.columns, cluster_context, kind,
-                    text_secondary, surface, border,
-                ),
-            );
+            content = content.child(self.render_resource_table_headers(
+                cx,
+                &table_state.columns,
+                cluster_context,
+                kind,
+                text_secondary,
+                surface,
+                border,
+            ));
 
             // Table body with namespace-filtered rows
-            content = content.child(
-                self.render_resource_table_body_filtered(
-                    cx, &filtered_rows, &table_state.columns, cluster_context,
-                    text, text_secondary, bg, border, selection, accent,
-                ),
-            );
+            content = content.child(self.render_resource_table_body_filtered(
+                cx,
+                &filtered_rows,
+                &table_state.columns,
+                cluster_context,
+                text,
+                text_secondary,
+                bg,
+                border,
+                selection,
+                accent,
+            ));
 
             // Context menu popup overlay (if a row "..." is active)
             if let Some(&menu_row_idx) = self.context_menu_row.get(&key) {
                 if let Some(row) = filtered_rows.get(menu_row_idx) {
-                    content = content.child(
-                        self.render_row_context_menu(
-                            cx, cluster_context, &row.kind, &row.name,
-                            row.namespace.as_deref(), menu_row_idx,
-                            text, text_secondary, surface, border,
-                        ),
-                    );
+                    content = content.child(self.render_row_context_menu(
+                        cx,
+                        cluster_context,
+                        &row.kind,
+                        &row.name,
+                        row.namespace.as_deref(),
+                        menu_row_idx,
+                        text,
+                        text_secondary,
+                        surface,
+                        border,
+                    ));
                 }
             }
 
             content
         } else if self.resource_list_data.contains_key(&key) {
             div()
-                .flex_1().flex().items_center().justify_center().bg(bg)
-                .text_color(text_secondary).text_sm()
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(bg)
+                .text_color(text_secondary)
+                .text_sm()
                 .child(format!("Building table for {}...", kind))
         } else {
             div()
-                .flex_1().flex().items_center().justify_center().bg(bg)
-                .text_color(text_secondary).text_sm()
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(bg)
+                .text_color(text_secondary)
+                .text_sm()
                 .child(format!("Loading {} list for {}...", kind, cluster_context))
         }
     }
@@ -7697,16 +7967,23 @@ impl AppShell {
         let kind_label = SharedString::from(format!("{}s", kind));
 
         let mut header = div()
-            .flex().flex_row().items_center().gap_2()
-            .px_4().py_2()
+            .flex()
+            .flex_row()
+            .items_center()
+            .gap_2()
+            .px_4()
+            .py_2()
             .bg(surface)
-            .border_b_1().border_color(border)
+            .border_b_1()
+            .border_color(border)
             .child(
-                div().font_weight(FontWeight::BOLD).text_color(text)
-                    .text_base().child(kind_label),
+                div().font_weight(FontWeight::BOLD).text_color(text).text_base().child(kind_label),
             )
             .child(
-                div().text_xs().px_2().py(px(1.0))
+                div()
+                    .text_xs()
+                    .px_2()
+                    .py(px(1.0))
                     .rounded_md()
                     .bg(gpui::rgb(0x374151))
                     .text_color(text_secondary)
@@ -7718,13 +7995,17 @@ impl AppShell {
         // Namespace dropdown button + panel
         if let Some(ns_sel) = self.namespace_selectors.get(cluster_context) {
             let display = SharedString::from(ns_sel.display_label());
-            let arrow: SharedString = if ns_sel.is_dropdown_open { "\u{25B2}".into() } else { "\u{25BC}".into() };
+            let arrow: SharedString =
+                if ns_sel.is_dropdown_open { "\u{25B2}".into() } else { "\u{25BC}".into() };
             let ctx = cluster_context.to_string();
 
             let button = div()
                 .id(ElementId::Name(SharedString::from(format!("ns-dropdown-btn-{}", kind))))
-                .flex().items_center().gap(px(4.0))
-                .px_3().py_1()
+                .flex()
+                .items_center()
+                .gap(px(4.0))
+                .px_3()
+                .py_1()
                 .rounded(px(6.0))
                 .bg(gpui::rgb(0x374151))
                 .text_sm()
@@ -7738,18 +8019,22 @@ impl AppShell {
                             // Create a fresh InputState for the search box
                             let ctx_for_sub = ctx.clone();
                             let input = cx.new(|cx| {
-                                InputState::new(window, cx)
-                                    .placeholder("Filter namespaces...")
+                                InputState::new(window, cx).placeholder("Filter namespaces...")
                             });
-                            let sub = cx.subscribe(&input, move |this: &mut AppShell, entity, event: &InputEvent, cx| {
-                                if matches!(event, InputEvent::Change) {
-                                    let val = entity.read(cx).value().to_string();
-                                    if let Some(sel) = this.namespace_selectors.get_mut(&ctx_for_sub) {
-                                        sel.search_query = val;
+                            let sub = cx.subscribe(
+                                &input,
+                                move |this: &mut AppShell, entity, event: &InputEvent, cx| {
+                                    if matches!(event, InputEvent::Change) {
+                                        let val = entity.read(cx).value().to_string();
+                                        if let Some(sel) =
+                                            this.namespace_selectors.get_mut(&ctx_for_sub)
+                                        {
+                                            sel.search_query = val;
+                                        }
+                                        cx.notify();
                                     }
-                                    cx.notify();
-                                }
-                            });
+                                },
+                            );
                             // Focus the input
                             let fh = input.read(cx).focus_handle(cx);
                             fh.focus(window);
@@ -7764,9 +8049,7 @@ impl AppShell {
                     }
                 }))
                 .child(display)
-                .child(
-                    div().text_xs().text_color(gpui::rgb(0x9CA3AF)).child(arrow),
-                );
+                .child(div().text_xs().text_color(gpui::rgb(0x9CA3AF)).child(arrow));
 
             let wrapper = div().relative().child(button);
 
@@ -7791,29 +8074,34 @@ impl AppShell {
         let key_for_create = key.clone();
 
         let mut bar = div()
-            .flex().flex_row().items_center().gap_2()
-            .px_4().py_1()
+            .flex()
+            .flex_row()
+            .items_center()
+            .gap_2()
+            .px_4()
+            .py_1()
             .bg(surface)
-            .border_b_1().border_color(border);
+            .border_b_1()
+            .border_color(border);
 
         // Search icon label
         bar = bar.child(
-            div().text_xs().text_color(text_secondary).child(SharedString::from("\u{1F50D}"))
+            div().text_xs().text_color(text_secondary).child(SharedString::from("\u{1F50D}")),
         );
 
         if let Some(input_entity) = filter_input {
-            bar = bar.child(
-                div().flex_1().child(Input::new(&input_entity).text_sm().small())
-            );
+            bar = bar.child(div().flex_1().child(Input::new(&input_entity).text_sm().small()));
         } else {
             // Create the input on first render via an on_click on the placeholder
             bar = bar.child(
                 div()
                     .id(ElementId::Name(SharedString::from(format!(
-                        "filter-placeholder-{}-{}", key_for_create.cluster_context, key_for_create.kind
+                        "filter-placeholder-{}-{}",
+                        key_for_create.cluster_context, key_for_create.kind
                     ))))
                     .flex_1()
-                    .px_2().py_1()
+                    .px_2()
+                    .py_1()
                     .text_sm()
                     .text_color(text_secondary)
                     .cursor_pointer()
@@ -7822,23 +8110,25 @@ impl AppShell {
                         let k = key_for_create.clone();
                         let k2 = k.clone();
                         let input = cx.new(|cx| {
-                            InputState::new(window, cx)
-                                .placeholder("Search resources...")
+                            InputState::new(window, cx).placeholder("Search resources...")
                         });
-                        let sub = cx.subscribe(&input, move |this: &mut AppShell, entity, event: &InputEvent, cx| {
-                            if matches!(event, InputEvent::Change) {
-                                let val = entity.read(cx).value().to_string();
-                                if let Some(ts) = this.resource_table_states.get_mut(&k2) {
-                                    ts.filter_text = val;
+                        let sub = cx.subscribe(
+                            &input,
+                            move |this: &mut AppShell, entity, event: &InputEvent, cx| {
+                                if matches!(event, InputEvent::Change) {
+                                    let val = entity.read(cx).value().to_string();
+                                    if let Some(ts) = this.resource_table_states.get_mut(&k2) {
+                                        ts.filter_text = val;
+                                    }
+                                    cx.notify();
                                 }
-                                cx.notify();
-                            }
-                        });
+                            },
+                        );
                         let fh = input.read(cx).focus_handle(cx);
                         fh.focus(window);
                         this.resource_filter_inputs.insert(k.clone(), input);
                         this._resource_filter_subscriptions.insert(k, sub);
-                    }))
+                    })),
             );
         }
 
@@ -7847,10 +8137,7 @@ impl AppShell {
 
     /// Render the namespace dropdown as a root-level overlay (if any dropdown is open).
     /// Returns an Option so it can be used with `.children()`.
-    fn render_namespace_dropdown_overlay(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> Option<Stateful<Div>> {
+    fn render_namespace_dropdown_overlay(&self, cx: &mut Context<Self>) -> Option<Stateful<Div>> {
         let (ctx, ns_sel) = self.namespace_selectors.iter().find(|(_, s)| s.is_dropdown_open)?;
 
         // Position the dropdown at the top-right of the content area.
@@ -7861,7 +8148,7 @@ impl AppShell {
             self.render_namespace_dropdown_panel(cx, ctx, ns_sel)
                 .absolute()
                 .top(top_offset)
-                .right(px(16.0))
+                .right(px(16.0)),
         )
     }
 
@@ -7877,13 +8164,18 @@ impl AppShell {
         let ctx_dismiss = cluster_context.to_string();
 
         let mut panel = div()
-            .id(ElementId::Name(SharedString::from(format!("ns-dropdown-panel-{}", cluster_context))))
+            .id(ElementId::Name(SharedString::from(format!(
+                "ns-dropdown-panel-{}",
+                cluster_context
+            ))))
             .occlude()
             .w(px(260.0))
             .max_h(px(360.0))
-            .flex().flex_col()
+            .flex()
+            .flex_col()
             .bg(gpui::rgb(0x1F2937))
-            .border_1().border_color(gpui::rgb(0x4B5563))
+            .border_1()
+            .border_color(gpui::rgb(0x4B5563))
             .rounded(px(6.0))
             .shadow_lg()
             .overflow_hidden();
@@ -7891,15 +8183,12 @@ impl AppShell {
         // Search input using gpui_component::Input for proper text entry
         if let Some(input_entity) = &self.ns_search_input {
             panel = panel.child(
-                div()
-                    .border_b_1().border_color(gpui::rgb(0x4B5563))
-                    .px_1().py_1()
-                    .child(
-                        Input::new(input_entity)
-                            .prefix(Icon::new(IconName::Search).size(px(14.0)))
-                            .cleanable(true)
-                            .with_size(gpui_component::Size::Small)
-                    ),
+                div().border_b_1().border_color(gpui::rgb(0x4B5563)).px_1().py_1().child(
+                    Input::new(input_entity)
+                        .prefix(Icon::new(IconName::Search).size(px(14.0)))
+                        .cleanable(true)
+                        .with_size(gpui_component::Size::Small),
+                ),
             );
         }
 
@@ -7908,9 +8197,14 @@ impl AppShell {
         panel = panel.child(
             div()
                 .id(ElementId::Name(SharedString::from("ns-row-all")))
-                .flex().items_center().gap(px(8.0))
-                .w_full().px_3().py(px(6.0))
-                .border_b_1().border_color(gpui::rgb(0x374151))
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .w_full()
+                .px_3()
+                .py(px(6.0))
+                .border_b_1()
+                .border_color(gpui::rgb(0x374151))
                 .cursor_pointer()
                 .hover(|s| s.bg(gpui::rgb(0x374151)))
                 .when(all_selected, |el| el.bg(Rgba { r: 0.118, g: 0.227, b: 0.373, a: 0.3 }))
@@ -7920,14 +8214,17 @@ impl AppShell {
                     }
                 }))
                 .child(
-                    div().text_sm().text_color(gpui::rgb(0xD1D5DB))
+                    div()
+                        .text_sm()
+                        .text_color(gpui::rgb(0xD1D5DB))
                         .font_weight(FontWeight::MEDIUM)
                         .child("All Namespaces"),
                 )
                 .child(div().flex_grow())
                 .when(all_selected, |el| {
                     el.child(
-                        div().text_color(gpui::rgb(0x60A5FA))
+                        div()
+                            .text_color(gpui::rgb(0x60A5FA))
                             .child(Icon::new(IconName::Check).size(px(14.0))),
                     )
                 }),
@@ -7936,7 +8233,8 @@ impl AppShell {
         // Scrollable namespace rows
         let mut rows_container = div()
             .id(ElementId::Name(SharedString::from("ns-rows-scroll")))
-            .flex().flex_col()
+            .flex()
+            .flex_col()
             .overflow_y_scroll()
             .max_h(px(260.0));
 
@@ -7949,8 +8247,12 @@ impl AppShell {
 
             let row = div()
                 .id(row_id)
-                .flex().items_center().gap(px(8.0))
-                .w_full().px_3().py(px(5.0))
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .w_full()
+                .px_3()
+                .py(px(5.0))
                 .cursor_pointer()
                 .hover(|s| s.bg(gpui::rgb(0x374151)))
                 .on_click(cx.listener(move |this, _evt, _window, _cx| {
@@ -7959,16 +8261,17 @@ impl AppShell {
                     }
                 }))
                 .child(
-                    div().flex_none().text_color(gpui::rgb(0x6B7280))
+                    div()
+                        .flex_none()
+                        .text_color(gpui::rgb(0x6B7280))
                         .child(Icon::new(IconName::Folder).size(px(14.0))),
                 )
-                .child(
-                    div().flex_1().text_sm().text_color(gpui::rgb(0xD1D5DB))
-                        .child(ns_label),
-                )
+                .child(div().flex_1().text_sm().text_color(gpui::rgb(0xD1D5DB)).child(ns_label))
                 .when(is_selected, |el| {
                     el.child(
-                        div().flex_none().text_color(gpui::rgb(0x60A5FA))
+                        div()
+                            .flex_none()
+                            .text_color(gpui::rgb(0x60A5FA))
                             .child(Icon::new(IconName::Check).size(px(14.0))),
                     )
                 });
@@ -8008,32 +8311,44 @@ impl AppShell {
         )));
         let mut inner = div()
             .id(table_id)
-            .flex().flex_col().w_full().flex_1().min_h(px(0.0))
-            .overflow_y_scroll().bg(bg);
+            .flex()
+            .flex_col()
+            .w_full()
+            .flex_1()
+            .min_h(px(0.0))
+            .overflow_y_scroll()
+            .bg(bg);
 
         if rows.is_empty() {
             inner = inner.child(
-                div().flex().justify_center().py_8()
-                    .text_sm().text_color(text_secondary)
+                div()
+                    .flex()
+                    .justify_center()
+                    .py_8()
+                    .text_sm()
+                    .text_color(text_secondary)
                     .child("No resources found"),
             );
         } else {
             for (idx, row) in rows.iter().take(200).enumerate() {
-                inner = inner.child(
-                    self.render_resource_table_row(
-                        cx, row, idx, cluster_context, columns,
-                        text, bg, border, selection,
-                    ),
-                );
+                inner = inner.child(self.render_resource_table_row(
+                    cx,
+                    row,
+                    idx,
+                    cluster_context,
+                    columns,
+                    text,
+                    bg,
+                    border,
+                    selection,
+                ));
             }
 
             if rows.len() > 200 {
-                inner = inner.child(
-                    div().text_xs().text_color(text_secondary).px_4().py_2()
-                        .child(SharedString::from(
-                            format!("Showing 200 of {} resources", rows.len()),
-                        )),
-                );
+                inner =
+                    inner.child(div().text_xs().text_color(text_secondary).px_4().py_2().child(
+                        SharedString::from(format!("Showing 200 of {} resources", rows.len())),
+                    ));
             }
         }
 
@@ -8058,12 +8373,11 @@ impl AppShell {
                 d.style().flex_grow = Some(2.0);
                 d
             }
-            "Namespace" | "Controlled By" | "Node" =>
-                base.flex_1().min_w(px(80.0)),
-            "CPU" | "Memory" | "Restarts" | "QoS" | "Age" | "Status" =>
-                base.flex_shrink_0().w(px(80.0)),
-            "Containers" | "Ports" | "Type" =>
-                base.flex_shrink_0().w(px(90.0)),
+            "Namespace" | "Controlled By" | "Node" => base.flex_1().min_w(px(80.0)),
+            "CPU" | "Memory" | "Restarts" | "QoS" | "Age" | "Status" => {
+                base.flex_shrink_0().w(px(80.0))
+            }
+            "Containers" | "Ports" | "Type" => base.flex_shrink_0().w(px(90.0)),
             _ => base.flex_1().min_w(px(weight * 50.0)),
         }
     }
@@ -8084,10 +8398,8 @@ impl AppShell {
     ) -> Div {
         use crate::components::resource_table::SortDirection;
 
-        let mut header = div()
-            .flex().flex_row().w_full()
-            .border_b_1().border_color(border)
-            .bg(surface).px_2();
+        let mut header =
+            div().flex().flex_row().w_full().border_b_1().border_color(border).bg(surface).px_2();
 
         // Look up current sort state and column widths for this table
         let list_key = ResourceListKey {
@@ -8099,16 +8411,15 @@ impl AppShell {
         let current_sort = table_state
             .and_then(|ts| ts.sort.as_ref())
             .map(|s| (s.column_id.as_str(), &s.direction));
-        let column_widths: Vec<f32> = table_state
-            .map(|ts| ts.column_widths.clone())
-            .unwrap_or_default();
+        let column_widths: Vec<f32> =
+            table_state.map(|ts| ts.column_widths.clone()).unwrap_or_default();
 
         for (col_idx, col) in columns.iter().enumerate() {
             // Determine sort indicator
             let sort_indicator = match current_sort {
                 Some((id, dir)) if id == col.id => match dir {
-                    SortDirection::Ascending => " \u{25B2}",   // ▲
-                    SortDirection::Descending => " \u{25BC}",  // ▼
+                    SortDirection::Ascending => " \u{25B2}",  // ▲
+                    SortDirection::Descending => " \u{25BC}", // ▼
                 },
                 _ => "",
             };
@@ -8122,35 +8433,34 @@ impl AppShell {
                 let col_id = col.id.clone();
                 let ctx = cluster_context.to_string();
                 let k = kind.to_string();
-                let header_id = ElementId::Name(SharedString::from(
-                    format!("hdr-{}-{}-{}", ctx, k, col_idx),
-                ));
+                let header_id =
+                    ElementId::Name(SharedString::from(format!("hdr-{}-{}-{}", ctx, k, col_idx)));
                 let cell = if let Some(w) = col_width {
                     Self::table_cell_px(w)
                 } else {
                     Self::table_cell_base(&col.label, col.width_weight)
                 }
-                    .py_1()
-                    .text_xs()
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary)
-                    .whitespace_nowrap()
-                    .overflow_hidden()
-                    .text_ellipsis()
-                    .id(header_id)
-                    .cursor_pointer()
-                    .hover(|s| s.bg(border))
-                    .on_click(cx.listener(move |this, _event, _window, _cx| {
-                        let key = ResourceListKey {
-                            cluster_context: ctx.clone(),
-                            kind: k.clone(),
-                            namespace: None,
-                        };
-                        if let Some(ts) = this.resource_table_states.get_mut(&key) {
-                            ts.sort_by(&col_id);
-                        }
-                    }))
-                    .child(label_with_sort);
+                .py_1()
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .whitespace_nowrap()
+                .overflow_hidden()
+                .text_ellipsis()
+                .id(header_id)
+                .cursor_pointer()
+                .hover(|s| s.bg(border))
+                .on_click(cx.listener(move |this, _event, _window, _cx| {
+                    let key = ResourceListKey {
+                        cluster_context: ctx.clone(),
+                        kind: k.clone(),
+                        namespace: None,
+                    };
+                    if let Some(ts) = this.resource_table_states.get_mut(&key) {
+                        ts.sort_by(&col_id);
+                    }
+                }))
+                .child(label_with_sort);
                 header = header.child(cell);
             } else {
                 let cell = if let Some(w) = col_width {
@@ -8158,14 +8468,14 @@ impl AppShell {
                 } else {
                     Self::table_cell_base(&col.label, col.width_weight)
                 }
-                    .py_1()
-                    .text_xs()
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary)
-                    .whitespace_nowrap()
-                    .overflow_hidden()
-                    .text_ellipsis()
-                    .child(label_with_sort);
+                .py_1()
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(text_secondary)
+                .whitespace_nowrap()
+                .overflow_hidden()
+                .text_ellipsis()
+                .child(label_with_sort);
                 header = header.child(cell);
             }
 
@@ -8173,26 +8483,30 @@ impl AppShell {
             let current_width = col_width.unwrap_or(col.width_weight * 100.0);
             let drag_ctx = cluster_context.to_string();
             let drag_kind = kind.to_string();
-            let handle_id = ElementId::Name(SharedString::from(
-                format!("col-resize-{}-{}-{}", drag_ctx, drag_kind, col_idx),
-            ));
+            let handle_id = ElementId::Name(SharedString::from(format!(
+                "col-resize-{}-{}-{}",
+                drag_ctx, drag_kind, col_idx
+            )));
             let resize_handle = div()
                 .id(handle_id)
                 .w(px(4.0))
                 .h_full()
                 .cursor_col_resize()
                 .hover(|s| s.bg(border))
-                .on_mouse_down(MouseButton::Left, cx.listener(move |this, event: &MouseDownEvent, _window, _cx| {
-                    this.is_dragging_column = true;
-                    this.column_drag_index = Some(col_idx);
-                    this.column_drag_start_x = event.position.x.into();
-                    this.column_drag_start_width = current_width;
-                    this.column_drag_table_key = Some(ResourceListKey {
-                        cluster_context: drag_ctx.clone(),
-                        kind: drag_kind.clone(),
-                        namespace: None,
-                    });
-                }));
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, event: &MouseDownEvent, _window, _cx| {
+                        this.is_dragging_column = true;
+                        this.column_drag_index = Some(col_idx);
+                        this.column_drag_start_x = event.position.x.into();
+                        this.column_drag_start_width = current_width;
+                        this.column_drag_table_key = Some(ResourceListKey {
+                            cluster_context: drag_ctx.clone(),
+                            kind: drag_kind.clone(),
+                            namespace: None,
+                        });
+                    }),
+                );
             header = header.child(resize_handle);
         }
 
@@ -8204,13 +8518,29 @@ impl AppShell {
 
     /// Render the dashboard events column header row (8-column layout).
     fn render_dashboard_events_header(&self, text_secondary: Rgba, border: Rgba) -> Div {
-        div().flex().flex_row().gap_2().text_xs()
-            .font_weight(FontWeight::BOLD).text_color(text_secondary)
-            .border_b_1().border_color(border).pb_1()
+        div()
+            .flex()
+            .flex_row()
+            .gap_2()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .text_color(text_secondary)
+            .border_b_1()
+            .border_color(border)
+            .pb_1()
             .child(div().w(px(60.0)).child("Type"))
-            .child(div().flex_grow().flex_basis(Pixels::ZERO).flex_shrink().min_w_0().child("Message"))
+            .child(
+                div().flex_grow().flex_basis(Pixels::ZERO).flex_shrink().min_w_0().child("Message"),
+            )
             .child(div().w(px(80.0)).child("Namespace"))
-            .child(div().flex_grow().flex_basis(Pixels::ZERO).flex_shrink().min_w_0().child("Involved Object"))
+            .child(
+                div()
+                    .flex_grow()
+                    .flex_basis(Pixels::ZERO)
+                    .flex_shrink()
+                    .min_w_0()
+                    .child("Involved Object"),
+            )
             .child(div().w(px(90.0)).child("Source"))
             .child(div().w(px(40.0)).child("Count"))
             .child(div().w(px(50.0)).child("Age"))
@@ -8232,16 +8562,15 @@ impl AppShell {
         let type_color = if event.is_warning { warning_color } else { text_secondary };
 
         let age_str = human_age_from_datetime(event.timestamp);
-        let last_seen_str = event.last_seen
-            .map(human_age_from_datetime)
-            .unwrap_or_else(|| "—".to_string());
+        let last_seen_str =
+            event.last_seen.map(human_age_from_datetime).unwrap_or_else(|| "—".to_string());
 
         let involved = event.involved_object_display();
         let ns = event.namespace.clone().unwrap_or_default();
         let source = event.source.clone().unwrap_or_else(|| "—".to_string());
 
-        let mut row = div().flex().flex_row().gap_2().text_xs().py(px(2.0))
-            .border_b_1().border_color(border);
+        let mut row =
+            div().flex().flex_row().gap_2().text_xs().py(px(2.0)).border_b_1().border_color(border);
 
         // Subtle amber left border accent for warnings
         if event.is_warning {
@@ -8250,24 +8579,61 @@ impl AppShell {
         }
 
         row.child(div().w(px(60.0)).text_color(type_color).child(type_label.to_string()))
-            .child(div().flex_grow().flex_basis(Pixels::ZERO).flex_shrink().min_w_0()
-                .text_color(text).overflow_hidden().whitespace_nowrap().text_ellipsis()
-                .child(SharedString::from(event.message.clone())))
-            .child(div().w(px(80.0)).text_color(text_secondary).overflow_hidden()
-                .whitespace_nowrap().text_ellipsis()
-                .child(SharedString::from(ns)))
-            .child(div().flex_grow().flex_basis(Pixels::ZERO).flex_shrink().min_w_0()
-                .text_color(text_secondary).overflow_hidden().whitespace_nowrap().text_ellipsis()
-                .child(SharedString::from(involved)))
-            .child(div().w(px(90.0)).text_color(text_secondary).overflow_hidden()
-                .whitespace_nowrap().text_ellipsis()
-                .child(SharedString::from(source)))
-            .child(div().w(px(40.0)).text_color(text_secondary)
-                .child(SharedString::from(event.count.to_string())))
-            .child(div().w(px(50.0)).text_color(text_secondary)
-                .child(SharedString::from(age_str)))
-            .child(div().w(px(60.0)).text_color(text_secondary)
-                .child(SharedString::from(last_seen_str)))
+            .child(
+                div()
+                    .flex_grow()
+                    .flex_basis(Pixels::ZERO)
+                    .flex_shrink()
+                    .min_w_0()
+                    .text_color(text)
+                    .overflow_hidden()
+                    .whitespace_nowrap()
+                    .text_ellipsis()
+                    .child(SharedString::from(event.message.clone())),
+            )
+            .child(
+                div()
+                    .w(px(80.0))
+                    .text_color(text_secondary)
+                    .overflow_hidden()
+                    .whitespace_nowrap()
+                    .text_ellipsis()
+                    .child(SharedString::from(ns)),
+            )
+            .child(
+                div()
+                    .flex_grow()
+                    .flex_basis(Pixels::ZERO)
+                    .flex_shrink()
+                    .min_w_0()
+                    .text_color(text_secondary)
+                    .overflow_hidden()
+                    .whitespace_nowrap()
+                    .text_ellipsis()
+                    .child(SharedString::from(involved)),
+            )
+            .child(
+                div()
+                    .w(px(90.0))
+                    .text_color(text_secondary)
+                    .overflow_hidden()
+                    .whitespace_nowrap()
+                    .text_ellipsis()
+                    .child(SharedString::from(source)),
+            )
+            .child(
+                div()
+                    .w(px(40.0))
+                    .text_color(text_secondary)
+                    .child(SharedString::from(event.count.to_string())),
+            )
+            .child(div().w(px(50.0)).text_color(text_secondary).child(SharedString::from(age_str)))
+            .child(
+                div()
+                    .w(px(60.0))
+                    .text_color(text_secondary)
+                    .child(SharedString::from(last_seen_str)),
+            )
     }
 
     /// Clicking a row opens a ResourceDetail tab for that resource.
@@ -8284,17 +8650,11 @@ impl AppShell {
         border: Rgba,
         selection: Rgba,
     ) -> Stateful<Div> {
-        let row_bg = if idx % 2 == 0 {
-            bg
-        } else {
-            self.theme.colors.table_stripe.to_gpui()
-        };
+        let row_bg = if idx % 2 == 0 { bg } else { self.theme.colors.table_stripe.to_gpui() };
 
         // Tint Warning event rows with subtle amber background
         let row_bg = if row.kind == "Event" {
-            let is_warning = row.cells.first()
-                .map(|c| c == "Warning")
-                .unwrap_or(false);
+            let is_warning = row.cells.first().map(|c| c == "Warning").unwrap_or(false);
             if is_warning {
                 let w = self.theme.colors.warning.to_gpui();
                 Rgba { r: w.r, g: w.g, b: w.b, a: 0.08 }
@@ -8305,9 +8665,10 @@ impl AppShell {
             row_bg
         };
 
-        let row_id = ElementId::Name(SharedString::from(
-            format!("tbl-row-{}-{}-{}", cluster_context, row.kind, idx),
-        ));
+        let row_id = ElementId::Name(SharedString::from(format!(
+            "tbl-row-{}-{}-{}",
+            cluster_context, row.kind, idx
+        )));
 
         let kind_for_click = row.kind.clone();
         let name_for_click = row.name.clone();
@@ -8320,16 +8681,21 @@ impl AppShell {
             kind: row.kind.clone(),
             namespace: None,
         };
-        let column_widths: Vec<f32> = self.resource_table_states.get(&list_key)
+        let column_widths: Vec<f32> = self
+            .resource_table_states
+            .get(&list_key)
             .map(|ts| ts.column_widths.clone())
             .unwrap_or_default();
 
         let mut row_div = div()
             .id(row_id)
-            .flex().flex_row().w_full()
+            .flex()
+            .flex_row()
+            .w_full()
             .items_center()
             .bg(row_bg)
-            .border_b_1().border_color(border)
+            .border_b_1()
+            .border_color(border)
             .cursor_pointer()
             .px_2()
             .hover(|s| s.bg(selection))
@@ -8356,7 +8722,8 @@ impl AppShell {
 
         // Render cells matching column order
         for (col_idx, cell_val) in row.cells.iter().enumerate() {
-            let (col_id, col_label, col_weight) = columns.get(col_idx)
+            let (col_id, col_label, col_weight) = columns
+                .get(col_idx)
                 .map(|c| (c.id.as_str(), c.label.as_str(), c.width_weight))
                 .unwrap_or(("", "", 1.0));
             let col_width = column_widths.get(col_idx).copied();
@@ -8364,7 +8731,11 @@ impl AppShell {
             // Phase 3: Container bricks for Pod "containers" column
             if col_id == "containers" && !row.container_statuses.is_empty() {
                 let brick_cell = self.render_container_bricks_cell(
-                    &row.container_statuses, cell_val, col_label, col_weight, col_width,
+                    &row.container_statuses,
+                    cell_val,
+                    col_label,
+                    col_weight,
+                    col_width,
                 );
                 row_div = row_div.child(brick_cell);
                 continue;
@@ -8372,9 +8743,8 @@ impl AppShell {
 
             // Phase 4: Condition badges for "conditions" columns
             if col_id == "conditions" && !row.conditions.is_empty() {
-                let cond_cell = self.render_conditions_cell(
-                    &row.conditions, col_label, col_weight, col_width,
-                );
+                let cond_cell =
+                    self.render_conditions_cell(&row.conditions, col_label, col_weight, col_width);
                 row_div = row_div.child(cond_cell);
                 continue;
             }
@@ -8421,20 +8791,21 @@ impl AppShell {
             } else {
                 Self::table_cell_base(col_label, col_weight)
             }
-                .py_1()
-                .text_sm()
-                .text_color(cell_color)
-                .overflow_hidden()
-                .whitespace_nowrap()
-                .text_ellipsis()
-                .child(cell_text);
+            .py_1()
+            .text_sm()
+            .text_color(cell_color)
+            .overflow_hidden()
+            .whitespace_nowrap()
+            .text_ellipsis()
+            .child(cell_text);
             row_div = row_div.child(cell);
         }
 
         // "..." dots button for context menu
-        let dots_id = ElementId::Name(SharedString::from(
-            format!("tbl-dots-{}-{}-{}", cluster_context, row.kind, idx),
-        ));
+        let dots_id = ElementId::Name(SharedString::from(format!(
+            "tbl-dots-{}-{}-{}",
+            cluster_context, row.kind, idx
+        )));
         let dots_ctx = cluster_context.to_string();
         let dots_kind = row.kind.clone();
         let dots_idx = idx;
@@ -8497,22 +8868,18 @@ impl AppShell {
         let dismiss_kind = k.clone();
 
         // Click-away dismiss backdrop
-        let backdrop = div()
-            .id("ctx-menu-backdrop")
-            .absolute()
-            .top_0()
-            .left_0()
-            .w_full()
-            .h_full()
-            .on_click(cx.listener(move |this, _event, _window, cx| {
-                let key = ResourceListKey {
-                    cluster_context: dismiss_ctx.clone(),
-                    kind: dismiss_kind.clone(),
-                    namespace: None,
-                };
-                this.context_menu_row.remove(&key);
-                cx.notify();
-            }));
+        let backdrop =
+            div().id("ctx-menu-backdrop").absolute().top_0().left_0().w_full().h_full().on_click(
+                cx.listener(move |this, _event, _window, cx| {
+                    let key = ResourceListKey {
+                        cluster_context: dismiss_ctx.clone(),
+                        kind: dismiss_kind.clone(),
+                        namespace: None,
+                    };
+                    this.context_menu_row.remove(&key);
+                    cx.notify();
+                }),
+            );
 
         // Menu items
         let mut menu = div()
@@ -8639,9 +9006,8 @@ impl AppShell {
                         };
                         this.context_menu_row.remove(&menu_key);
                         use crate::components::confirm_dialog::ConfirmDialogState;
-                        let dialog = ConfirmDialogState::scale_resource(
-                            &scale_kind, &scale_name, 1,
-                        );
+                        let dialog =
+                            ConfirmDialogState::scale_resource(&scale_kind, &scale_name, 1);
                         this.confirm_dialog = Some(ConfirmDialogContext {
                             dialog,
                             action: PendingAction::ScaleResource {
@@ -8724,12 +9090,7 @@ impl AppShell {
             );
         }
 
-        div()
-            .relative()
-            .w_full()
-            .h_0()
-            .child(backdrop)
-            .child(menu)
+        div().relative().w_full().h_0().child(backdrop).child(menu)
     }
 
     /// Look up metrics for a table row from `self.cluster_metrics`.
@@ -8819,20 +9180,9 @@ impl AppShell {
                         .rounded(px(3.0))
                         .bg(bar_bg)
                         .overflow_hidden()
-                        .child(
-                            div()
-                                .h_full()
-                                .w(relative(pct))
-                                .bg(bar_color)
-                                .rounded(px(3.0)),
-                        ),
+                        .child(div().h_full().w(relative(pct)).bg(bar_color).rounded(px(3.0))),
                 )
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(text_secondary)
-                        .child(display_text.to_string()),
-                )
+                .child(div().text_xs().text_color(text_secondary).child(display_text.to_string()))
         } else {
             // Pod metrics: just the value text (styled differently from "—")
             let accent = self.theme.colors.accent.to_gpui();
@@ -8863,17 +9213,15 @@ impl AppShell {
         } else {
             Self::table_cell_base(col_label, col_weight)
         }
-            .py_1()
-            .flex()
-            .flex_row()
-            .items_center()
-            .gap_1();
+        .py_1()
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap_1();
 
         for (i, status) in statuses.iter().enumerate() {
             let (bg_color, border_color) = match status {
-                ContainerBrickStatus::Running => {
-                    (self.theme.colors.success.to_gpui(), None)
-                }
+                ContainerBrickStatus::Running => (self.theme.colors.success.to_gpui(), None),
                 ContainerBrickStatus::Waiting => {
                     let c = self.theme.colors.warning.to_gpui();
                     let bg = Rgba { r: c.r, g: c.g, b: c.b, a: 0.3 };
@@ -8884,12 +9232,8 @@ impl AppShell {
                     let bg = Rgba { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
                     (bg, Some(c))
                 }
-                ContainerBrickStatus::Failed => {
-                    (self.theme.colors.error.to_gpui(), None)
-                }
-                ContainerBrickStatus::Creating => {
-                    (self.theme.colors.info.to_gpui(), None)
-                }
+                ContainerBrickStatus::Failed => (self.theme.colors.error.to_gpui(), None),
+                ContainerBrickStatus::Creating => (self.theme.colors.info.to_gpui(), None),
                 ContainerBrickStatus::Restarted => {
                     let green = self.theme.colors.success.to_gpui();
                     let orange = self.theme.colors.warning.to_gpui();
@@ -8937,19 +9281,16 @@ impl AppShell {
         } else {
             Self::table_cell_base(col_label, col_weight)
         }
-            .py_1()
-            .flex()
-            .flex_row()
-            .items_center()
-            .overflow_hidden();
+        .py_1()
+        .flex()
+        .flex_row()
+        .items_center()
+        .overflow_hidden();
 
         for (i, (ctype, is_true)) in conditions.iter().enumerate() {
             if i > 0 {
                 cell = cell.child(
-                    div()
-                        .text_xs()
-                        .text_color(self.theme.colors.text_muted.to_gpui())
-                        .child(" · "),
+                    div().text_xs().text_color(self.theme.colors.text_muted.to_gpui()).child(" · "),
                 );
             }
 
@@ -8959,12 +9300,8 @@ impl AppShell {
                 self.theme.colors.error.to_gpui()
             };
 
-            cell = cell.child(
-                div()
-                    .text_xs()
-                    .text_color(color)
-                    .child(SharedString::from(ctype.clone())),
-            );
+            cell = cell
+                .child(div().text_xs().text_color(color).child(SharedString::from(ctype.clone())));
         }
 
         cell
@@ -8994,19 +9331,34 @@ impl AppShell {
             let surface = self.theme.colors.surface.to_gpui();
             let accent = self.theme.colors.accent.to_gpui();
 
-            let mut content = div()
-                .flex_1().min_h(px(0.0)).flex().flex_col().bg(bg);
+            let mut content = div().flex_1().min_h(px(0.0)).flex().flex_col().bg(bg);
 
             // Title bar with action buttons
-            content = content.child(
-                self.render_detail_title_bar(cx, kind, name, cluster_context, namespace, text, surface, border, accent),
-            );
+            content = content.child(self.render_detail_title_bar(
+                cx,
+                kind,
+                name,
+                cluster_context,
+                namespace,
+                text,
+                surface,
+                border,
+                accent,
+            ));
 
             // Overview | YAML tab bar
-            let active_tab = self.detail_active_tab.get(&key).copied().unwrap_or(DetailTabMode::Overview);
-            content = content.child(
-                self.render_detail_tab_bar(cx, &key, active_tab, text, text_secondary, surface, border, accent),
-            );
+            let active_tab =
+                self.detail_active_tab.get(&key).copied().unwrap_or(DetailTabMode::Overview);
+            content = content.child(self.render_detail_tab_bar(
+                cx,
+                &key,
+                active_tab,
+                text,
+                text_secondary,
+                surface,
+                border,
+                accent,
+            ));
 
             // If YAML tab is active, render the YAML editor
             if active_tab == DetailTabMode::Yaml {
@@ -9030,57 +9382,74 @@ impl AppShell {
                     let fh = cx.focus_handle();
                     self.yaml_editor_focus_handles.insert(key.clone(), fh);
                 }
-                content = content.child(
-                    self.render_yaml_editor_content(cx, &key, text, text_secondary, bg),
-                );
+                content = content.child(self.render_yaml_editor_content(
+                    cx,
+                    &key,
+                    text,
+                    text_secondary,
+                    bg,
+                ));
                 return content;
             }
 
             // If Events tab is active, render the events list
             if active_tab == DetailTabMode::Events {
-                content = content.child(
-                    self.render_resource_events_tab(
-                        kind, name, namespace, json,
-                        text, text_secondary, bg, border, accent,
-                    ),
-                );
+                content = content.child(self.render_resource_events_tab(
+                    kind,
+                    name,
+                    namespace,
+                    json,
+                    text,
+                    text_secondary,
+                    bg,
+                    border,
+                    accent,
+                ));
                 return content;
             }
 
             // If Topology tab is active, render the topology view
             if active_tab == DetailTabMode::Topology {
-                content = content.child(
-                    self.render_topology_tab(cx, &key, text, text_secondary, bg),
-                );
+                content =
+                    content.child(self.render_topology_tab(cx, &key, text, text_secondary, bg));
                 return content;
             }
 
             // Pod-specific rich detail view
             if kind == "Pod" {
-                content = content.child(
-                    self.render_pod_detail_body(cx, json, text, text_secondary, bg),
-                );
+                content =
+                    content.child(self.render_pod_detail_body(cx, json, text, text_secondary, bg));
                 return content;
             }
 
             // Node-specific rich detail view
             if kind == "Node" {
-                content = content.child(
-                    self.render_node_detail_body(cx, json, text, text_secondary, bg),
-                );
+                content =
+                    content.child(self.render_node_detail_body(cx, json, text, text_secondary, bg));
                 return content;
             }
 
             // Generic detail view for non-Pod resources — collapsible sections
             let mut body = div()
                 .id("generic-detail-body")
-                .flex().flex_col().flex_1().overflow_y_scroll().p_4().gap_3();
+                .flex()
+                .flex_col()
+                .flex_1()
+                .overflow_y_scroll()
+                .p_4()
+                .gap_3();
 
             // Properties section — collapsible
             let props = json_extract::extract_detail_properties(kind, json);
             body = body.child(self.render_pod_section(
-                cx, SectionIcon::Info, &format!("{kind}-properties"), &props,
-                text, text_secondary, border, accent,
+                cx,
+                SectionIcon::Info,
+                &format!("{kind}-properties"),
+                &props,
+                text,
+                text_secondary,
+                border,
+                accent,
                 |this: &Self, _cx, props, text, text_secondary, border, _accent| {
                     this.render_detail_properties_body(props, text, text_secondary, border)
                 },
@@ -9090,8 +9459,14 @@ impl AppShell {
             let labels = json_extract::extract_labels(json);
             if !labels.is_empty() {
                 body = body.child(self.render_pod_section(
-                    cx, SectionIcon::Labels, &format!("{kind}-labels"), &labels,
-                    text, text_secondary, border, accent,
+                    cx,
+                    SectionIcon::Labels,
+                    &format!("{kind}-labels"),
+                    &labels,
+                    text,
+                    text_secondary,
+                    border,
+                    accent,
                     |this: &Self, _cx, labels, _text, _text_secondary, _border, _accent| {
                         this.render_detail_label_badges_body(labels, surface)
                     },
@@ -9102,8 +9477,14 @@ impl AppShell {
             let annotations = json_extract::extract_annotations(json);
             if !annotations.is_empty() {
                 body = body.child(self.render_pod_section(
-                    cx, SectionIcon::Annotations, &format!("{kind}-annotations"), &annotations,
-                    text, text_secondary, border, accent,
+                    cx,
+                    SectionIcon::Annotations,
+                    &format!("{kind}-annotations"),
+                    &annotations,
+                    text,
+                    text_secondary,
+                    border,
+                    accent,
                     |this: &Self, _cx, annotations, _text, _text_secondary, _border, _accent| {
                         this.render_detail_annotations_body(annotations, surface)
                     },
@@ -9114,10 +9495,21 @@ impl AppShell {
             let conditions = json_extract::extract_conditions(json);
             if !conditions.is_empty() {
                 body = body.child(self.render_pod_section(
-                    cx, SectionIcon::Conditions, &format!("{kind}-conditions"), &conditions,
-                    text, text_secondary, border, accent,
+                    cx,
+                    SectionIcon::Conditions,
+                    &format!("{kind}-conditions"),
+                    &conditions,
+                    text,
+                    text_secondary,
+                    border,
+                    accent,
                     |this: &Self, _cx, conditions, _text, text_secondary, _border, _accent| {
-                        this.render_detail_conditions_body(conditions, text_secondary, surface, border)
+                        this.render_detail_conditions_body(
+                            conditions,
+                            text_secondary,
+                            surface,
+                            border,
+                        )
                     },
                 ));
             }
@@ -9125,7 +9517,8 @@ impl AppShell {
             // Secret Data section — show keys with masked values and eye toggle
             if kind == "Secret" {
                 if let Some(data_obj) = json.get("data").and_then(|d| d.as_object()) {
-                    let data_keys: Vec<(String, String)> = data_obj.iter()
+                    let data_keys: Vec<(String, String)> = data_obj
+                        .iter()
                         .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
                         .collect();
                     if !data_keys.is_empty() {
@@ -9138,21 +9531,41 @@ impl AppShell {
                         // Section header
                         section = section.child(
                             div()
-                                .id(ElementId::Name(SharedString::from(format!("section-hdr-{section_id}"))))
-                                .flex().flex_row().items_center().gap_2()
-                                .px_3().py_2()
+                                .id(ElementId::Name(SharedString::from(format!(
+                                    "section-hdr-{section_id}"
+                                ))))
+                                .flex()
+                                .flex_row()
+                                .items_center()
+                                .gap_2()
+                                .px_3()
+                                .py_2()
                                 .cursor_pointer()
                                 .on_click(cx.listener(move |this, _event, _window, cx| {
                                     if this.detail_collapsed_sections.contains(&section_id_toggle) {
                                         this.detail_collapsed_sections.remove(&section_id_toggle);
                                     } else {
-                                        this.detail_collapsed_sections.insert(section_id_toggle.clone());
+                                        this.detail_collapsed_sections
+                                            .insert(section_id_toggle.clone());
                                     }
                                     cx.notify();
                                 }))
-                                .child(div().text_xs().text_color(text_secondary).child(if is_collapsed { "▶" } else { "▼" }))
-                                .child(div().text_xs().font_weight(FontWeight::SEMIBOLD).text_color(text).child("Data"))
-                                .child(div().text_xs().text_color(text_secondary).child(SharedString::from(format!("({} keys)", data_keys.len())))),
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(text_secondary)
+                                        .child(if is_collapsed { "▶" } else { "▼" }),
+                                )
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(text)
+                                        .child("Data"),
+                                )
+                                .child(div().text_xs().text_color(text_secondary).child(
+                                    SharedString::from(format!("({} keys)", data_keys.len())),
+                                )),
                         );
 
                         if !is_collapsed {
@@ -9160,7 +9573,8 @@ impl AppShell {
                             let secret_name = name;
                             let secret_ns = namespace.unwrap_or("");
                             for (key, b64_value) in &data_keys {
-                                let reveal_id = format!("{cluster_context}:{secret_ns}:{secret_name}:{key}");
+                                let reveal_id =
+                                    format!("{cluster_context}:{secret_ns}:{secret_name}:{key}");
                                 let is_revealed = self.revealed_secret_keys.contains(&reveal_id);
 
                                 // Decode base64 for display when revealed
@@ -9184,41 +9598,70 @@ impl AppShell {
 
                                 rows = rows.child(
                                     div()
-                                        .flex().flex_row().items_center()
+                                        .flex()
+                                        .flex_row()
+                                        .items_center()
                                         .py_1()
-                                        .border_b_1().border_color(Rgba { r: border.r, g: border.g, b: border.b, a: 0.2 })
+                                        .border_b_1()
+                                        .border_color(Rgba {
+                                            r: border.r,
+                                            g: border.g,
+                                            b: border.b,
+                                            a: 0.2,
+                                        })
                                         .child(
-                                            div().w(px(160.0)).flex_shrink_0()
-                                                .text_xs().font_weight(FontWeight::MEDIUM)
+                                            div()
+                                                .w(px(160.0))
+                                                .flex_shrink_0()
+                                                .text_xs()
+                                                .font_weight(FontWeight::MEDIUM)
                                                 .text_color(text_secondary)
                                                 .child(SharedString::from(key.clone())),
                                         )
                                         .child(
-                                            div().flex_1().min_w_0()
+                                            div()
+                                                .flex_1()
+                                                .min_w_0()
                                                 .text_xs()
-                                                .text_color(if is_revealed { text } else {
+                                                .text_color(if is_revealed {
+                                                    text
+                                                } else {
                                                     Rgba { r: text.r, g: text.g, b: text.b, a: 0.4 }
                                                 })
                                                 .child(SharedString::from(decoded)),
                                         )
                                         .child(
                                             div()
-                                                .id(ElementId::Name(SharedString::from(format!("eye-{reveal_id}"))))
-                                                .w(px(24.0)).h(px(20.0))
-                                                .flex().items_center().justify_center()
+                                                .id(ElementId::Name(SharedString::from(format!(
+                                                    "eye-{reveal_id}"
+                                                ))))
+                                                .w(px(24.0))
+                                                .h(px(20.0))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
                                                 .cursor_pointer()
                                                 .rounded(px(3.0))
                                                 .text_xs()
-                                                .hover(|s| s.bg(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.1 }))
+                                                .hover(|s| {
+                                                    s.bg(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.1 })
+                                                })
                                                 .child(eye_icon)
-                                                .on_click(cx.listener(move |this, _event, _window, cx| {
-                                                    if this.revealed_secret_keys.contains(&reveal_id_click) {
-                                                        this.revealed_secret_keys.remove(&reveal_id_click);
-                                                    } else {
-                                                        this.revealed_secret_keys.insert(reveal_id_click.clone());
-                                                    }
-                                                    cx.notify();
-                                                })),
+                                                .on_click(cx.listener(
+                                                    move |this, _event, _window, cx| {
+                                                        if this
+                                                            .revealed_secret_keys
+                                                            .contains(&reveal_id_click)
+                                                        {
+                                                            this.revealed_secret_keys
+                                                                .remove(&reveal_id_click);
+                                                        } else {
+                                                            this.revealed_secret_keys
+                                                                .insert(reveal_id_click.clone());
+                                                        }
+                                                        cx.notify();
+                                                    },
+                                                )),
                                         ),
                                 );
                             }
@@ -9234,8 +9677,13 @@ impl AppShell {
             content
         } else {
             div()
-                .flex_1().flex().items_center().justify_center().bg(bg)
-                .text_color(text_secondary).text_sm()
+                .flex_1()
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(bg)
+                .text_color(text_secondary)
+                .text_sm()
                 .child(format!("Loading {kind}/{name} from {cluster_context}..."))
         }
     }
@@ -9263,13 +9711,8 @@ impl AppShell {
         let events_color = if active == DetailTabMode::Events { text } else { text_secondary };
         let topology_color = if active == DetailTabMode::Topology { text } else { text_secondary };
 
-        let mut bar = div()
-            .flex()
-            .flex_row()
-            .w_full()
-            .border_b_1()
-            .border_color(border)
-            .bg(surface);
+        let mut bar =
+            div().flex().flex_row().w_full().border_b_1().border_color(border).bg(surface);
 
         // Overview tab
         let mut overview_tab = div()
@@ -9283,13 +9726,11 @@ impl AppShell {
         if active == DetailTabMode::Overview {
             overview_tab = overview_tab.border_b_2().border_color(accent);
         }
-        bar = bar.child(
-            overview_tab.on_click(cx.listener(move |this, _event, _window, cx| {
-                this.detail_active_tab.insert(key_overview.clone(), DetailTabMode::Overview);
-                this.topology_data.remove(&key_overview);
-                cx.notify();
-            })),
-        );
+        bar = bar.child(overview_tab.on_click(cx.listener(move |this, _event, _window, cx| {
+            this.detail_active_tab.insert(key_overview.clone(), DetailTabMode::Overview);
+            this.topology_data.remove(&key_overview);
+            cx.notify();
+        })));
 
         // YAML tab
         let mut yaml_tab = div()
@@ -9303,13 +9744,11 @@ impl AppShell {
         if active == DetailTabMode::Yaml {
             yaml_tab = yaml_tab.border_b_2().border_color(accent);
         }
-        bar = bar.child(
-            yaml_tab.on_click(cx.listener(move |this, _event, _window, cx| {
-                this.detail_active_tab.insert(key_yaml.clone(), DetailTabMode::Yaml);
-                this.topology_data.remove(&key_yaml);
-                cx.notify();
-            })),
-        );
+        bar = bar.child(yaml_tab.on_click(cx.listener(move |this, _event, _window, cx| {
+            this.detail_active_tab.insert(key_yaml.clone(), DetailTabMode::Yaml);
+            this.topology_data.remove(&key_yaml);
+            cx.notify();
+        })));
 
         // Events tab
         let mut events_tab = div()
@@ -9323,13 +9762,11 @@ impl AppShell {
         if active == DetailTabMode::Events {
             events_tab = events_tab.border_b_2().border_color(accent);
         }
-        bar = bar.child(
-            events_tab.on_click(cx.listener(move |this, _event, _window, cx| {
-                this.detail_active_tab.insert(key_events.clone(), DetailTabMode::Events);
-                this.topology_data.remove(&key_events);
-                cx.notify();
-            })),
-        );
+        bar = bar.child(events_tab.on_click(cx.listener(move |this, _event, _window, cx| {
+            this.detail_active_tab.insert(key_events.clone(), DetailTabMode::Events);
+            this.topology_data.remove(&key_events);
+            cx.notify();
+        })));
 
         // Topology tab
         let mut topology_tab = div()
@@ -9343,17 +9780,14 @@ impl AppShell {
         if active == DetailTabMode::Topology {
             topology_tab = topology_tab.border_b_2().border_color(accent);
         }
-        bar = bar.child(
-            topology_tab.on_click(cx.listener(move |this, _event, _window, cx| {
-                this.detail_active_tab
-                    .insert(key_topology.clone(), DetailTabMode::Topology);
-                // Start loading topology data if not already loaded
-                if !this.topology_data.contains_key(&key_topology) {
-                    this.start_topology_loading(&key_topology, cx);
-                }
-                cx.notify();
-            })),
-        );
+        bar = bar.child(topology_tab.on_click(cx.listener(move |this, _event, _window, cx| {
+            this.detail_active_tab.insert(key_topology.clone(), DetailTabMode::Topology);
+            // Start loading topology data if not already loaded
+            if !this.topology_data.contains_key(&key_topology) {
+                this.start_topology_loading(&key_topology, cx);
+            }
+            cx.notify();
+        })));
 
         bar
     }
@@ -9396,14 +9830,16 @@ impl AppShell {
         let name_scale = name.to_string();
 
         let mut bar = div()
-            .flex().flex_row().items_center().gap_2()
-            .px_4().py_3()
+            .flex()
+            .flex_row()
+            .items_center()
+            .gap_2()
+            .px_4()
+            .py_3()
             .bg(surface)
-            .border_b_1().border_color(border)
-            .child(
-                div().font_weight(FontWeight::BOLD).text_color(text)
-                    .text_base().child(title),
-            )
+            .border_b_1()
+            .border_color(border)
+            .child(div().font_weight(FontWeight::BOLD).text_color(text).text_base().child(title))
             // Spacer
             .child(div().flex_1());
 
@@ -9470,23 +9906,31 @@ impl AppShell {
                 let mut found = Vec::new();
                 for key in &keys {
                     if let Some(pods) = self.resource_list_data.get(key) {
-                        found = pods.iter().filter_map(|pj| {
-                            let pname = pj.pointer("/metadata/name")?.as_str()?;
-                            if let Some(ns) = &ns_str {
-                                let pns = pj.pointer("/metadata/namespace").and_then(|v| v.as_str());
-                                if pns != Some(ns) { return None; }
-                            }
-                            let refs = pj.pointer("/metadata/ownerReferences")?.as_array()?;
-                            let first = refs.first()?;
-                            let rk = first.get("kind")?.as_str()?;
-                            let rn = first.get("name")?.as_str()?;
-                            if rk == ok.as_str() && rn == on.as_str() {
-                                Some(pname.to_string())
-                            } else {
-                                None
-                            }
-                        }).collect();
-                        if !found.is_empty() { break; }
+                        found = pods
+                            .iter()
+                            .filter_map(|pj| {
+                                let pname = pj.pointer("/metadata/name")?.as_str()?;
+                                if let Some(ns) = &ns_str {
+                                    let pns =
+                                        pj.pointer("/metadata/namespace").and_then(|v| v.as_str());
+                                    if pns != Some(ns) {
+                                        return None;
+                                    }
+                                }
+                                let refs = pj.pointer("/metadata/ownerReferences")?.as_array()?;
+                                let first = refs.first()?;
+                                let rk = first.get("kind")?.as_str()?;
+                                let rn = first.get("name")?.as_str()?;
+                                if rk == ok.as_str() && rn == on.as_str() {
+                                    Some(pname.to_string())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        if !found.is_empty() {
+                            break;
+                        }
                     }
                 }
                 found
@@ -9511,22 +9955,32 @@ impl AppShell {
                     .text_color(text)
                     .hover(|s| s.bg(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.08 }))
                     .child(
-                        div().flex().flex_row().items_center().gap(px(4.0))
+                        div()
+                            .flex()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(4.0))
                             .child(Icon::new(IconName::File).xsmall())
                             .child("Logs"),
                     )
                     .on_click(cx.listener(move |this, _event, _window, cx| {
-                        let owner_ref = owner_for_click.as_ref().map(|(k, n)| (k.as_str(), n.as_str()));
+                        let owner_ref =
+                            owner_for_click.as_ref().map(|(k, n)| (k.as_str(), n.as_str()));
                         this.open_logs_in_dock_with_owner(
-                            &logs_name, &container_for_click, &logs_ctx,
-                            logs_ns.as_deref(), owner_ref, cx,
+                            &logs_name,
+                            &container_for_click,
+                            &logs_ctx,
+                            logs_ns.as_deref(),
+                            owner_ref,
+                            cx,
                         );
                         // Set container filter and sibling pods on the newly created log viewer
                         if let Some(tab_id) = this.dock.active_tab_id {
                             if let Some(entity) = this.log_viewer_views.get(&tab_id) {
                                 entity.update(cx, |view, _cx| {
                                     if !containers_for_click.is_empty() {
-                                        view.state.set_container_filter(containers_for_click.clone());
+                                        view.state
+                                            .set_container_filter(containers_for_click.clone());
                                     }
                                     if !sibling_pods_for_click.is_empty() {
                                         view.state.sibling_pods = sibling_pods_for_click.clone();
@@ -9553,7 +10007,11 @@ impl AppShell {
                     .text_color(text)
                     .hover(|s| s.bg(Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.08 }))
                     .child(
-                        div().flex().flex_row().items_center().gap(px(4.0))
+                        div()
+                            .flex()
+                            .flex_row()
+                            .items_center()
+                            .gap(px(4.0))
                             .child(Icon::new(IconName::SquareTerminal).xsmall())
                             .child("Shell"),
                     )
@@ -9627,9 +10085,8 @@ impl AppShell {
                     .child("Scale")
                     .on_click(cx.listener(move |this, _event, _window, cx| {
                         use crate::components::confirm_dialog::ConfirmDialogState;
-                        let dialog = ConfirmDialogState::scale_resource(
-                            &kind_scale, &name_scale, 1,
-                        );
+                        let dialog =
+                            ConfirmDialogState::scale_resource(&kind_scale, &name_scale, 1);
                         this.confirm_dialog = Some(ConfirmDialogContext {
                             dialog,
                             action: PendingAction::ScaleResource {
@@ -9666,9 +10123,13 @@ impl AppShell {
                         use crate::components::confirm_dialog::DialogSeverity;
                         let dialog = ConfirmDialogState::new(
                             "Restart Resource",
-                            &format!("Restart {}? This will trigger a rolling update.", name_restart),
+                            &format!(
+                                "Restart {}? This will trigger a rolling update.",
+                                name_restart
+                            ),
                             DialogSeverity::Warning,
-                        ).with_confirm_label("Restart");
+                        )
+                        .with_confirm_label("Restart");
                         this.confirm_dialog = Some(ConfirmDialogContext {
                             dialog,
                             action: PendingAction::RestartResource {
@@ -9734,7 +10195,8 @@ impl AppShell {
                             "Cordon Node",
                             &format!("Mark node {} as unschedulable?", name_cordon),
                             DialogSeverity::Warning,
-                        ).with_confirm_label("Cordon");
+                        )
+                        .with_confirm_label("Cordon");
                         this.confirm_dialog = Some(ConfirmDialogContext {
                             dialog,
                             action: PendingAction::CordonNode {
@@ -9764,7 +10226,8 @@ impl AppShell {
                             "Uncordon Node",
                             &format!("Mark node {} as schedulable?", name_uncordon),
                             DialogSeverity::Info,
-                        ).with_confirm_label("Uncordon");
+                        )
+                        .with_confirm_label("Uncordon");
                         this.confirm_dialog = Some(ConfirmDialogContext {
                             dialog,
                             action: PendingAction::UncordonNode {
@@ -9820,20 +10283,22 @@ impl AppShell {
         let label_s = SharedString::from(label.to_string());
         let value_s = SharedString::from(value.to_string());
         div()
-            .flex().flex_row().items_center()
-            .border_b_1().border_color(border)
+            .flex()
+            .flex_row()
+            .items_center()
+            .border_b_1()
+            .border_color(border)
             .py_1()
             .child(
-                div().w(px(160.0)).flex_shrink_0()
-                    .text_xs().font_weight(FontWeight::MEDIUM)
+                div()
+                    .w(px(160.0))
+                    .flex_shrink_0()
+                    .text_xs()
+                    .font_weight(FontWeight::MEDIUM)
                     .text_color(text_secondary)
                     .child(label_s),
             )
-            .child(
-                div().flex_1()
-                    .text_xs().text_color(gpui::rgb(0xE5E7EB))
-                    .child(value_s),
-            )
+            .child(div().flex_1().text_xs().text_color(gpui::rgb(0xE5E7EB)).child(value_s))
     }
 
     /// Render property rows only (no section header).
@@ -9847,9 +10312,13 @@ impl AppShell {
     ) -> Div {
         let mut body = div().flex().flex_col().gap_1();
         for (label, value) in props {
-            body = body.child(
-                self.render_detail_property_row(label, value, text, text_secondary, border),
-            );
+            body = body.child(self.render_detail_property_row(
+                label,
+                value,
+                text,
+                text_secondary,
+                border,
+            ));
         }
         body
     }
@@ -9864,7 +10333,8 @@ impl AppShell {
         for (key, value) in labels {
             let badge_text = SharedString::from(format!("{key}={value}"));
             let badge = div()
-                .px_2().py(px(2.0))
+                .px_2()
+                .py(px(2.0))
                 .rounded_sm()
                 .bg(surface)
                 .text_xs()
@@ -9885,7 +10355,8 @@ impl AppShell {
         for (key, value) in annotations {
             let badge_text = SharedString::from(format!("{key}={value}"));
             let badge = div()
-                .px_2().py(px(2.0))
+                .px_2()
+                .py(px(2.0))
                 .rounded_sm()
                 .bg(surface)
                 .text_xs()
@@ -9909,28 +10380,101 @@ impl AppShell {
 
         // Header
         let cond_header = div()
-            .flex().flex_row().w_full()
-            .bg(surface).border_b_1().border_color(border)
-            .child(div().w(px(120.0)).px_2().py_1().text_xs().font_weight(FontWeight::BOLD).text_color(text_secondary).child("Type"))
-            .child(div().w(px(60.0)).px_2().py_1().text_xs().font_weight(FontWeight::BOLD).text_color(text_secondary).child("Status"))
-            .child(div().flex_1().px_2().py_1().text_xs().font_weight(FontWeight::BOLD).text_color(text_secondary).child("Reason"))
-            .child(div().flex_1().px_2().py_1().text_xs().font_weight(FontWeight::BOLD).text_color(text_secondary).child("Message"));
+            .flex()
+            .flex_row()
+            .w_full()
+            .bg(surface)
+            .border_b_1()
+            .border_color(border)
+            .child(
+                div()
+                    .w(px(120.0))
+                    .px_2()
+                    .py_1()
+                    .text_xs()
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(text_secondary)
+                    .child("Type"),
+            )
+            .child(
+                div()
+                    .w(px(60.0))
+                    .px_2()
+                    .py_1()
+                    .text_xs()
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(text_secondary)
+                    .child("Status"),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .px_2()
+                    .py_1()
+                    .text_xs()
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(text_secondary)
+                    .child("Reason"),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .px_2()
+                    .py_1()
+                    .text_xs()
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(text_secondary)
+                    .child("Message"),
+            );
         body = body.child(cond_header);
 
         // Rows
         for (ctype, status, reason, message, _last_transition) in conditions {
-            let status_color = if status == "True" {
-                gpui::rgb(0x22C55E)
-            } else {
-                gpui::rgb(0xEF4444)
-            };
+            let status_color =
+                if status == "True" { gpui::rgb(0x22C55E) } else { gpui::rgb(0xEF4444) };
             let cond_row = div()
-                .flex().flex_row().w_full()
-                .border_b_1().border_color(border)
-                .child(div().w(px(120.0)).px_2().py_1().text_xs().text_color(gpui::rgb(0xE5E7EB)).child(SharedString::from(ctype.clone())))
-                .child(div().w(px(60.0)).px_2().py_1().text_xs().text_color(status_color).child(SharedString::from(status.clone())))
-                .child(div().flex_1().px_2().py_1().text_xs().text_color(text_secondary).child(SharedString::from(reason.clone())))
-                .child(div().flex_1().px_2().py_1().text_xs().text_color(text_secondary).overflow_hidden().child(SharedString::from(message.clone())));
+                .flex()
+                .flex_row()
+                .w_full()
+                .border_b_1()
+                .border_color(border)
+                .child(
+                    div()
+                        .w(px(120.0))
+                        .px_2()
+                        .py_1()
+                        .text_xs()
+                        .text_color(gpui::rgb(0xE5E7EB))
+                        .child(SharedString::from(ctype.clone())),
+                )
+                .child(
+                    div()
+                        .w(px(60.0))
+                        .px_2()
+                        .py_1()
+                        .text_xs()
+                        .text_color(status_color)
+                        .child(SharedString::from(status.clone())),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .px_2()
+                        .py_1()
+                        .text_xs()
+                        .text_color(text_secondary)
+                        .child(SharedString::from(reason.clone())),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .px_2()
+                        .py_1()
+                        .text_xs()
+                        .text_color(text_secondary)
+                        .overflow_hidden()
+                        .child(SharedString::from(message.clone())),
+                );
             body = body.child(cond_row);
         }
 
@@ -10002,7 +10546,6 @@ impl AppShell {
             }
         }
     }
-
 
     // -----------------------------------------------------------------------
     // T317: Dock panel rendering helpers
@@ -10124,9 +10667,7 @@ impl AppShell {
             // Drag handle at top
             .child(self.render_dock_drag_handle(handle_color, handle_hover, cx))
             // Tab bar with tabs + collapse button
-            .child(self.render_dock_expanded_tab_bar(
-                cx, active_color, text_dim, border_color,
-            ))
+            .child(self.render_dock_expanded_tab_bar(cx, active_color, text_dim, border_color))
             // Cluster context info bar
             .child(self.render_dock_context_bar(text_dim, border_color))
             // Active tab content area
@@ -10134,35 +10675,45 @@ impl AppShell {
     }
 
     /// Render the 6px drag handle at the top of the expanded dock.
-    fn render_dock_drag_handle(&self, color: Rgba, hover_color: Rgba, cx: &mut Context<Self>) -> Div {
-        div()
-            .child(
-                div()
-                    .id("dock-drag-handle")
-                    .w_full()
-                    .h(px(6.0))
-                    .bg(color)
-                    .cursor(CursorStyle::ResizeUpDown)
-                    .hover(|s| s.bg(hover_color))
-                    .flex_shrink_0()
-                    .on_mouse_down(MouseButton::Left, cx.listener(|this, event: &MouseDownEvent, _window, _cx| {
+    fn render_dock_drag_handle(
+        &self,
+        color: Rgba,
+        hover_color: Rgba,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        div().child(
+            div()
+                .id("dock-drag-handle")
+                .w_full()
+                .h(px(6.0))
+                .bg(color)
+                .cursor(CursorStyle::ResizeUpDown)
+                .hover(|s| s.bg(hover_color))
+                .flex_shrink_0()
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, event: &MouseDownEvent, _window, _cx| {
                         this.is_dragging_dock = true;
                         this.dock_drag_start_y = event.position.y.into();
                         this.dock_drag_start_height = this.dock.height;
-                    }))
-                    .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _window, cx| {
-                        if this.is_dragging_dock {
-                            let y: f32 = event.position.y.into();
-                            let delta = this.dock_drag_start_y - y;
-                            let new_height = (this.dock_drag_start_height + delta).clamp(100.0, 1200.0);
-                            this.dock.height = new_height;
-                            cx.notify();
-                        }
-                    }))
-                    .on_mouse_up(MouseButton::Left, cx.listener(|this, _event: &MouseUpEvent, _window, _cx| {
+                    }),
+                )
+                .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _window, cx| {
+                    if this.is_dragging_dock {
+                        let y: f32 = event.position.y.into();
+                        let delta = this.dock_drag_start_y - y;
+                        let new_height = (this.dock_drag_start_height + delta).clamp(100.0, 1200.0);
+                        this.dock.height = new_height;
+                        cx.notify();
+                    }
+                }))
+                .on_mouse_up(
+                    MouseButton::Left,
+                    cx.listener(|this, _event: &MouseUpEvent, _window, _cx| {
                         this.is_dragging_dock = false;
-                    }))
-            )
+                    }),
+                ),
+        )
     }
 
     /// Render the cluster context info bar shown between tab bar and content.
@@ -10250,9 +10801,7 @@ impl AppShell {
         bar = bar.child(fullscreen_btn);
 
         // Collapse button (chevron down)
-        let collapse_id = ElementId::Name(
-            SharedString::from("dock-collapse-btn"),
-        );
+        let collapse_id = ElementId::Name(SharedString::from("dock-collapse-btn"));
         let collapse_btn = div()
             .id(collapse_id)
             .px_2()
@@ -10280,9 +10829,7 @@ impl AppShell {
         for (idx, tab) in self.dock.tabs.iter().enumerate() {
             let is_active = Some(tab.id) == active_id;
             let tab_uuid = tab.id;
-            let label_id = ElementId::Name(
-                SharedString::from(format!("dock-tab-collapsed-{idx}")),
-            );
+            let label_id = ElementId::Name(SharedString::from(format!("dock-tab-collapsed-{idx}")));
             let label_el = div()
                 .id(label_id)
                 .text_xs()
@@ -10327,13 +10874,9 @@ impl AppShell {
             let is_active = Some(tab.id) == active_id;
             let tab_uuid = tab.id;
 
-            let tab_el_id = ElementId::Name(
-                SharedString::from(format!("dock-tab-{idx}")),
-            );
+            let tab_el_id = ElementId::Name(SharedString::from(format!("dock-tab-{idx}")));
 
-            let close_id = ElementId::Name(
-                SharedString::from(format!("dock-tab-close-{idx}")),
-            );
+            let close_id = ElementId::Name(SharedString::from(format!("dock-tab-close-{idx}")));
 
             let close_btn = div()
                 .id(close_id)
@@ -10384,8 +10927,8 @@ impl AppShell {
 
     /// Render the active tab content area with the actual terminal or log viewer component.
     fn render_dock_content(&self, text_dim: Rgba, cx: &mut Context<Self>) -> Div {
-        let active_tab = self.dock.active_tab_id
-            .and_then(|id| self.dock.tabs.iter().find(|t| t.id == id));
+        let active_tab =
+            self.dock.active_tab_id.and_then(|id| self.dock.tabs.iter().find(|t| t.id == id));
 
         let Some(tab) = active_tab else {
             return div()
@@ -10403,11 +10946,7 @@ impl AppShell {
         match &tab.kind {
             DockTabKind::Terminal { .. } => {
                 if let Some(entity) = self.terminal_views.get(&tab_id) {
-                    div()
-                        .flex_1()
-                        .size_full()
-                        .overflow_hidden()
-                        .child(entity.clone())
+                    div().flex_1().size_full().overflow_hidden().child(entity.clone())
                 } else {
                     div()
                         .flex_1()
@@ -10421,11 +10960,7 @@ impl AppShell {
             }
             DockTabKind::LogViewer { .. } => {
                 if let Some(entity) = self.log_viewer_views.get(&tab_id) {
-                    div()
-                        .flex_1()
-                        .size_full()
-                        .overflow_hidden()
-                        .child(entity.clone())
+                    div().flex_1().size_full().overflow_hidden().child(entity.clone())
                 } else {
                     div()
                         .flex_1()
@@ -10437,9 +10972,7 @@ impl AppShell {
                         .child("Log viewer initializing...")
                 }
             }
-            DockTabKind::PortForwardManager => {
-                self.render_port_forward_panel(cx)
-            }
+            DockTabKind::PortForwardManager => self.render_port_forward_panel(cx),
         }
     }
 }
@@ -10465,11 +10998,7 @@ impl AppShell {
 
         let state = self.crd_browser.get(cluster_context);
 
-        let mut container = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .bg(bg);
+        let mut container = div().flex().flex_col().flex_1().bg(bg);
 
         let crds = state.map(|s| s.filtered_crds()).unwrap_or_default();
         let total = state.map(|s| s.total_count()).unwrap_or(0);
@@ -10577,28 +11106,54 @@ impl AppShell {
                 .py_1()
                 .border_b_1()
                 .border_color(border)
-                .child(div().w(px(200.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Kind"))
-                .child(div().w(px(200.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Group"))
-                .child(div().w(px(100.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Version"))
-                .child(div().w(px(100.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Scope"))
-                .child(div().flex_1().text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Full Name")),
+                .child(
+                    div()
+                        .w(px(200.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Kind"),
+                )
+                .child(
+                    div()
+                        .w(px(200.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Group"),
+                )
+                .child(
+                    div()
+                        .w(px(100.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Version"),
+                )
+                .child(
+                    div()
+                        .w(px(100.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Scope"),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Full Name"),
+                ),
         );
 
         // CRD rows
         for crd in &crds {
-            let scope_label = if crd.scope == CrdScope::Namespaced {
-                "Namespaced"
-            } else {
-                "Cluster"
-            };
-            let version = crd.preferred_version()
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "—".to_string());
+            let scope_label =
+                if crd.scope == CrdScope::Namespaced { "Namespaced" } else { "Cluster" };
+            let version =
+                crd.preferred_version().map(|v| v.to_string()).unwrap_or_else(|| "—".to_string());
 
             container = container.child(
                 div()
@@ -10609,16 +11164,37 @@ impl AppShell {
                     .py_1()
                     .border_b_1()
                     .border_color(border)
-                    .child(div().w(px(200.0)).text_xs().text_color(text)
-                        .child(SharedString::from(crd.kind.clone())))
-                    .child(div().w(px(200.0)).text_xs().text_color(text_secondary)
-                        .child(SharedString::from(crd.group.clone())))
-                    .child(div().w(px(100.0)).text_xs().text_color(text_secondary)
-                        .child(SharedString::from(version)))
-                    .child(div().w(px(100.0)).text_xs().text_color(text_secondary)
-                        .child(scope_label))
-                    .child(div().flex_1().text_xs().text_color(text_secondary)
-                        .child(SharedString::from(crd.name.clone()))),
+                    .child(
+                        div()
+                            .w(px(200.0))
+                            .text_xs()
+                            .text_color(text)
+                            .child(SharedString::from(crd.kind.clone())),
+                    )
+                    .child(
+                        div()
+                            .w(px(200.0))
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .child(SharedString::from(crd.group.clone())),
+                    )
+                    .child(
+                        div()
+                            .w(px(100.0))
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .child(SharedString::from(version)),
+                    )
+                    .child(
+                        div().w(px(100.0)).text_xs().text_color(text_secondary).child(scope_label),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .child(SharedString::from(crd.name.clone())),
+                    ),
             );
         }
 
@@ -10648,11 +11224,7 @@ impl AppShell {
 
         let state = self.helm_releases.get(cluster_context);
 
-        let mut container = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .bg(bg);
+        let mut container = div().flex().flex_col().flex_1().bg(bg);
 
         // Toolbar with health badges
         let releases = state.map(|s| &s.releases[..]).unwrap_or(&[]);
@@ -10749,22 +11321,70 @@ impl AppShell {
                 .py_1()
                 .border_b_1()
                 .border_color(border)
-                .child(div().w(px(150.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Name"))
-                .child(div().w(px(100.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Namespace"))
-                .child(div().w(px(120.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Chart"))
-                .child(div().w(px(80.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Version"))
-                .child(div().w(px(80.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("App Version"))
-                .child(div().w(px(50.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Rev"))
-                .child(div().w(px(100.0)).text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Status"))
-                .child(div().flex_1().text_xs().font_weight(FontWeight::BOLD)
-                    .text_color(text_secondary).child("Last Deployed")),
+                .child(
+                    div()
+                        .w(px(150.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Name"),
+                )
+                .child(
+                    div()
+                        .w(px(100.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Namespace"),
+                )
+                .child(
+                    div()
+                        .w(px(120.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Chart"),
+                )
+                .child(
+                    div()
+                        .w(px(80.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Version"),
+                )
+                .child(
+                    div()
+                        .w(px(80.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("App Version"),
+                )
+                .child(
+                    div()
+                        .w(px(50.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Rev"),
+                )
+                .child(
+                    div()
+                        .w(px(100.0))
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Status"),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text_secondary)
+                        .child("Last Deployed"),
+                ),
         );
 
         // Release rows
@@ -10789,24 +11409,60 @@ impl AppShell {
                     .py_1()
                     .border_b_1()
                     .border_color(border)
-                    .child(div().w(px(150.0)).text_xs().text_color(text)
-                        .child(SharedString::from(release.name.clone())))
-                    .child(div().w(px(100.0)).text_xs().text_color(text_secondary)
-                        .child(SharedString::from(release.namespace.clone())))
-                    .child(div().w(px(120.0)).text_xs().text_color(text_secondary)
-                        .child(SharedString::from(release.chart_name.clone())))
-                    .child(div().w(px(80.0)).text_xs().text_color(text_secondary)
-                        .child(SharedString::from(release.chart_version.clone())))
-                    .child(div().w(px(80.0)).text_xs().text_color(text_secondary)
-                        .child(SharedString::from(
+                    .child(
+                        div()
+                            .w(px(150.0))
+                            .text_xs()
+                            .text_color(text)
+                            .child(SharedString::from(release.name.clone())),
+                    )
+                    .child(
+                        div()
+                            .w(px(100.0))
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .child(SharedString::from(release.namespace.clone())),
+                    )
+                    .child(
+                        div()
+                            .w(px(120.0))
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .child(SharedString::from(release.chart_name.clone())),
+                    )
+                    .child(
+                        div()
+                            .w(px(80.0))
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .child(SharedString::from(release.chart_version.clone())),
+                    )
+                    .child(div().w(px(80.0)).text_xs().text_color(text_secondary).child(
+                        SharedString::from(
                             release.app_version.as_deref().unwrap_or("—").to_string(),
-                        )))
-                    .child(div().w(px(50.0)).text_xs().text_color(text_secondary)
-                        .child(SharedString::from(release.revision.to_string())))
-                    .child(div().w(px(100.0)).text_xs().text_color(status_color)
-                        .child(SharedString::from(status_label.to_string())))
-                    .child(div().flex_1().text_xs().text_color(text_secondary)
-                        .child(SharedString::from(deployed))),
+                        ),
+                    ))
+                    .child(
+                        div()
+                            .w(px(50.0))
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .child(SharedString::from(release.revision.to_string())),
+                    )
+                    .child(
+                        div()
+                            .w(px(100.0))
+                            .text_xs()
+                            .text_color(status_color)
+                            .child(SharedString::from(status_label.to_string())),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_xs()
+                            .text_color(text_secondary)
+                            .child(SharedString::from(deployed)),
+                    ),
             );
         }
 
@@ -10822,33 +11478,28 @@ impl AppShell {
         bg: Rgba,
     ) -> Div {
         // For now, render a functional placeholder with guidance
-        div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .bg(bg)
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .items_center()
-                    .justify_center()
-                    .py_8()
-                    .gap(px(8.0))
-                    .child(
-                        div()
-                            .text_sm()
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(text)
-                            .child("Install Helm Chart"),
-                    )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(text_secondary)
-                            .child("Search for a chart to install"),
-                    ),
-            )
+        div().flex().flex_col().flex_1().bg(bg).child(
+            div()
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .py_8()
+                .gap(px(8.0))
+                .child(
+                    div()
+                        .text_sm()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(text)
+                        .child("Install Helm Chart"),
+                )
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(text_secondary)
+                        .child("Search for a chart to install"),
+                ),
+        )
     }
 }
 
@@ -10898,8 +11549,8 @@ impl AppShell {
             );
 
         // Entries list
-        let mut entries_div = div().id("pf-entries-scroll")
-            .flex().flex_col().w_full().flex_1().overflow_y_scroll();
+        let mut entries_div =
+            div().id("pf-entries-scroll").flex().flex_col().w_full().flex_1().overflow_y_scroll();
 
         if self.port_forward_panel.entries.is_empty() {
             entries_div = entries_div.child(
@@ -10914,9 +11565,8 @@ impl AppShell {
         } else {
             for (idx, entry) in self.port_forward_panel.entries.iter().enumerate() {
                 let port_text = SharedString::from(entry.port_display());
-                let pod_text = SharedString::from(
-                    format!("{}/{}", entry.namespace, entry.pod_name),
-                );
+                let pod_text =
+                    SharedString::from(format!("{}/{}", entry.namespace, entry.pod_name));
                 let state_label = SharedString::from(entry.state.label().to_string());
                 let state_color = match entry.state {
                     PortForwardDisplayState::Active => success,
@@ -10926,9 +11576,7 @@ impl AppShell {
                 };
 
                 let mut row = div()
-                    .id(ElementId::Name(SharedString::from(
-                        format!("pf-entry-{idx}"),
-                    )))
+                    .id(ElementId::Name(SharedString::from(format!("pf-entry-{idx}"))))
                     .flex()
                     .items_center()
                     .w_full()
@@ -10942,19 +11590,13 @@ impl AppShell {
                             .flex()
                             .flex_col()
                             .gap(px(2.0))
-                            .child(
-                                div().text_sm().text_color(text).child(port_text),
-                            )
-                            .child(
-                                div().text_xs().text_color(text_dim).child(pod_text),
-                            ),
+                            .child(div().text_sm().text_color(text).child(port_text))
+                            .child(div().text_xs().text_color(text_dim).child(pod_text)),
                     )
                     .child(div().px_2().text_xs().text_color(state_color).child(state_label));
 
                 if entry.is_active() || entry.state == PortForwardDisplayState::Starting {
-                    let stop_id = ElementId::Name(SharedString::from(
-                        format!("pf-stop-{idx}"),
-                    ));
+                    let stop_id = ElementId::Name(SharedString::from(format!("pf-stop-{idx}")));
                     let entry_id = entry.id.clone();
                     row = row.child(
                         div()
@@ -10992,14 +11634,7 @@ impl AppShell {
             }
         }
 
-        div()
-            .flex()
-            .flex_col()
-            .w_full()
-            .h_full()
-            .bg(bg)
-            .child(header)
-            .child(entries_div)
+        div().flex().flex_col().w_full().h_full().bg(bg).child(header).child(entries_div)
     }
 
     /// Open the port forward manager in the dock panel.
@@ -11117,7 +11752,8 @@ impl AppShell {
 
         // Create a LogViewerView entity for this tab with metadata.
         let mut log_state = LogViewerState::new(10_000);
-        let ns = namespace.map(|s| s.to_string())
+        let ns = namespace
+            .map(|s| s.to_string())
             .or_else(|| self.header.namespace_selector.active_namespace.clone());
         log_state.namespace = ns.clone().unwrap_or_default();
         log_state.pod_name = pod.to_string();
@@ -11143,8 +11779,8 @@ impl AppShell {
 
             cx.spawn(async move |_this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
                 use baeus_core::logs::{LogLine, LogStreamState, parse_k8s_log_timestamp};
-                use kube::api::{Api, LogParams};
                 use k8s_openapi::api::core::v1::Pod;
+                use kube::api::{Api, LogParams};
 
                 let api: Api<Pod> = if let Some(ref ns) = ns {
                     Api::namespaced(client, ns)
@@ -11163,11 +11799,13 @@ impl AppShell {
                     params.container = Some(container_name.clone());
                 }
 
-                let result = tokio_handle.spawn({
-                    let api = api.clone();
-                    let pod_name = pod_name.clone();
-                    async move { api.logs(&pod_name, &params).await }
-                }).await;
+                let result = tokio_handle
+                    .spawn({
+                        let api = api.clone();
+                        let pod_name = pod_name.clone();
+                        async move { api.logs(&pod_name, &params).await }
+                    })
+                    .await;
 
                 let mut last_timestamp: Option<chrono::DateTime<chrono::Utc>> = None;
 
@@ -11175,14 +11813,16 @@ impl AppShell {
                     Ok(Ok(logs)) => {
                         // Parse log lines with timestamps
                         let parsed_lines: Vec<(Option<chrono::DateTime<chrono::Utc>>, String)> =
-                            logs.lines().map(|line| {
-                                if let Some(ts) = parse_k8s_log_timestamp(line) {
-                                    let space_idx = line.find(' ').unwrap_or(0);
-                                    (Some(ts), line[space_idx + 1..].to_string())
-                                } else {
-                                    (None, line.to_string())
-                                }
-                            }).collect();
+                            logs.lines()
+                                .map(|line| {
+                                    if let Some(ts) = parse_k8s_log_timestamp(line) {
+                                        let space_idx = line.find(' ').unwrap_or(0);
+                                        (Some(ts), line[space_idx + 1..].to_string())
+                                    } else {
+                                        (None, line.to_string())
+                                    }
+                                })
+                                .collect();
 
                         // Get last timestamp for polling
                         for (ts, _) in parsed_lines.iter().rev() {
@@ -11192,26 +11832,30 @@ impl AppShell {
                             }
                         }
 
-                        entity_for_stream.update(cx, |view: &mut LogViewerView, _cx| {
-                            for (ts, content) in &parsed_lines {
-                                view.state.push_line(LogLine {
-                                    content: content.clone(),
-                                    container_name: container_name.clone(),
-                                    pod_name: pod_name.clone(),
-                                    timestamp: *ts,
-                                    source_color_index: 0,
-                                });
-                            }
-                            if let Some(lts) = last_timestamp {
-                                view.state.last_fetch_time = Some(lts.to_rfc3339());
-                            }
-                            view.state.set_stream_state(LogStreamState::Streaming);
-                        }).ok();
+                        entity_for_stream
+                            .update(cx, |view: &mut LogViewerView, _cx| {
+                                for (ts, content) in &parsed_lines {
+                                    view.state.push_line(LogLine {
+                                        content: content.clone(),
+                                        container_name: container_name.clone(),
+                                        pod_name: pod_name.clone(),
+                                        timestamp: *ts,
+                                        source_color_index: 0,
+                                    });
+                                }
+                                if let Some(lts) = last_timestamp {
+                                    view.state.last_fetch_time = Some(lts.to_rfc3339());
+                                }
+                                view.state.set_stream_state(LogStreamState::Streaming);
+                            })
+                            .ok();
                     }
                     _ => {
-                        entity_for_stream.update(cx, |view: &mut LogViewerView, _cx| {
-                            view.state.set_stream_state(LogStreamState::Error);
-                        }).ok();
+                        entity_for_stream
+                            .update(cx, |view: &mut LogViewerView, _cx| {
+                                view.state.set_stream_state(LogStreamState::Error);
+                            })
+                            .ok();
                         return;
                     }
                 }
@@ -11239,36 +11883,43 @@ impl AppShell {
 
                     if needs_refetch {
                         // Full re-fetch (e.g. previous container toggled)
-                        let refetch_result = tokio_handle.spawn({
-                            let api = api.clone();
-                            let pod_name = pod_name.clone();
-                            let container_name = container_name.clone();
-                            async move {
-                                let mut params = LogParams {
-                                    follow: false,
-                                    tail_lines: Some(500),
-                                    timestamps: true,
-                                    previous,
-                                    ..Default::default()
-                                };
-                                if !container_name.is_empty() {
-                                    params.container = Some(container_name);
+                        let refetch_result = tokio_handle
+                            .spawn({
+                                let api = api.clone();
+                                let pod_name = pod_name.clone();
+                                let container_name = container_name.clone();
+                                async move {
+                                    let mut params = LogParams {
+                                        follow: false,
+                                        tail_lines: Some(500),
+                                        timestamps: true,
+                                        previous,
+                                        ..Default::default()
+                                    };
+                                    if !container_name.is_empty() {
+                                        params.container = Some(container_name);
+                                    }
+                                    api.logs(&pod_name, &params).await
                                 }
-                                api.logs(&pod_name, &params).await
-                            }
-                        }).await;
+                            })
+                            .await;
 
                         match refetch_result {
                             Ok(Ok(logs)) => {
-                                let parsed_lines: Vec<(Option<chrono::DateTime<chrono::Utc>>, String)> =
-                                    logs.lines().map(|line| {
+                                let parsed_lines: Vec<(
+                                    Option<chrono::DateTime<chrono::Utc>>,
+                                    String,
+                                )> = logs
+                                    .lines()
+                                    .map(|line| {
                                         if let Some(ts) = parse_k8s_log_timestamp(line) {
                                             let space_idx = line.find(' ').unwrap_or(0);
                                             (Some(ts), line[space_idx + 1..].to_string())
                                         } else {
                                             (None, line.to_string())
                                         }
-                                    }).collect();
+                                    })
+                                    .collect();
 
                                 for (ts, _) in parsed_lines.iter().rev() {
                                     if let Some(t) = ts {
@@ -11279,23 +11930,25 @@ impl AppShell {
 
                                 let cn = container_name.clone();
                                 let pn = pod_name.clone();
-                                entity_for_stream.update(cx, |view: &mut LogViewerView, _cx| {
-                                    view.state.clear();
-                                    for (ts, content) in &parsed_lines {
-                                        view.state.push_line(LogLine {
-                                            content: content.clone(),
-                                            container_name: cn.clone(),
-                                            pod_name: pn.clone(),
-                                            timestamp: *ts,
-                                            source_color_index: 0,
-                                        });
-                                    }
-                                    if previous {
-                                        view.state.set_stream_state(LogStreamState::Stopped);
-                                    } else {
-                                        view.state.set_stream_state(LogStreamState::Streaming);
-                                    }
-                                }).ok();
+                                entity_for_stream
+                                    .update(cx, |view: &mut LogViewerView, _cx| {
+                                        view.state.clear();
+                                        for (ts, content) in &parsed_lines {
+                                            view.state.push_line(LogLine {
+                                                content: content.clone(),
+                                                container_name: cn.clone(),
+                                                pod_name: pn.clone(),
+                                                timestamp: *ts,
+                                                source_color_index: 0,
+                                            });
+                                        }
+                                        if previous {
+                                            view.state.set_stream_state(LogStreamState::Stopped);
+                                        } else {
+                                            view.state.set_stream_state(LogStreamState::Streaming);
+                                        }
+                                    })
+                                    .ok();
 
                                 // If showing previous container, don't continue polling
                                 if previous {
@@ -11304,9 +11957,11 @@ impl AppShell {
                                 continue;
                             }
                             _ => {
-                                entity_for_stream.update(cx, |view: &mut LogViewerView, _cx| {
-                                    view.state.set_stream_state(LogStreamState::Error);
-                                }).ok();
+                                entity_for_stream
+                                    .update(cx, |view: &mut LogViewerView, _cx| {
+                                        view.state.set_stream_state(LogStreamState::Error);
+                                    })
+                                    .ok();
                                 continue;
                             }
                         }
@@ -11314,24 +11969,26 @@ impl AppShell {
 
                     let since_time = last_timestamp;
                     // Sleep + fetch inside tokio runtime (can't use tokio::time::sleep on main thread)
-                    let poll_result = tokio_handle.spawn({
-                        let api = api.clone();
-                        let pod_name = pod_name.clone();
-                        let container_name = container_name.clone();
-                        async move {
-                            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-                            let mut params = LogParams {
-                                follow: false,
-                                timestamps: true,
-                                since_time,
-                                ..Default::default()
-                            };
-                            if !container_name.is_empty() {
-                                params.container = Some(container_name);
+                    let poll_result = tokio_handle
+                        .spawn({
+                            let api = api.clone();
+                            let pod_name = pod_name.clone();
+                            let container_name = container_name.clone();
+                            async move {
+                                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                                let mut params = LogParams {
+                                    follow: false,
+                                    timestamps: true,
+                                    since_time,
+                                    ..Default::default()
+                                };
+                                if !container_name.is_empty() {
+                                    params.container = Some(container_name);
+                                }
+                                api.logs(&pod_name, &params).await
                             }
-                            api.logs(&pod_name, &params).await
-                        }
-                    }).await;
+                        })
+                        .await;
 
                     match poll_result {
                         Ok(Ok(logs)) if !logs.is_empty() => {
@@ -11345,7 +12002,8 @@ impl AppShell {
                                         } else {
                                             (None, line.to_string())
                                         }
-                                    }).collect();
+                                    })
+                                    .collect();
 
                             if parsed_lines.is_empty() {
                                 continue;
@@ -11362,42 +12020,45 @@ impl AppShell {
                             let container_name = container_name.clone();
                             let pod_name = pod_name.clone();
                             let lts = last_timestamp;
-                            entity_for_stream.update(cx, |view: &mut LogViewerView, _cx| {
-                                // Skip the first line if it duplicates the last line
-                                // (sinceTime is inclusive)
-                                let skip = if !parsed_lines.is_empty() {
-                                    if let Some(last) = view.state.buffer.lines().last() {
-                                        parsed_lines[0].1 == last.content
-                                            && parsed_lines[0].0 == last.timestamp
+                            entity_for_stream
+                                .update(cx, |view: &mut LogViewerView, _cx| {
+                                    // Skip the first line if it duplicates the last line
+                                    // (sinceTime is inclusive)
+                                    let skip = if !parsed_lines.is_empty() {
+                                        if let Some(last) = view.state.buffer.lines().last() {
+                                            parsed_lines[0].1 == last.content
+                                                && parsed_lines[0].0 == last.timestamp
+                                        } else {
+                                            false
+                                        }
                                     } else {
                                         false
+                                    };
+                                    for (i, (ts, content)) in parsed_lines.iter().enumerate() {
+                                        if i == 0 && skip {
+                                            continue;
+                                        }
+                                        view.state.push_line(LogLine {
+                                            content: content.clone(),
+                                            container_name: container_name.clone(),
+                                            pod_name: pod_name.clone(),
+                                            timestamp: *ts,
+                                            source_color_index: 0,
+                                        });
                                     }
-                                } else {
-                                    false
-                                };
-                                for (i, (ts, content)) in parsed_lines.iter().enumerate() {
-                                    if i == 0 && skip {
-                                        continue;
+                                    if let Some(lts) = lts {
+                                        view.state.last_fetch_time = Some(lts.to_rfc3339());
                                     }
-                                    view.state.push_line(LogLine {
-                                        content: content.clone(),
-                                        container_name: container_name.clone(),
-                                        pod_name: pod_name.clone(),
-                                        timestamp: *ts,
-                                        source_color_index: 0,
-                                    });
-                                }
-                                if let Some(lts) = lts {
-                                    view.state.last_fetch_time = Some(lts.to_rfc3339());
-                                }
-                            }).ok();
+                                })
+                                .ok();
                         }
                         _ => {
                             // Non-fatal: just skip this poll cycle
                         }
                     }
                 }
-            }).detach();
+            })
+            .detach();
         }
     }
 
@@ -11430,7 +12091,8 @@ impl AppShell {
         std::fs::create_dir_all(&config_dir)
             .map_err(|e| format!("Failed to create EKS kubeconfig dir: {e}"))?;
 
-        let safe_name: String = context_name.chars()
+        let safe_name: String = context_name
+            .chars()
             .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
             .collect();
         let path = config_dir.join(format!("{safe_name}.yaml"));
@@ -11501,10 +12163,14 @@ users:
         }
 
         // For EKS clusters, write a temp kubeconfig so the terminal can use it.
-        if cluster_context.starts_with("eks:") && !self.kubeconfig_paths.contains_key(cluster_context) {
+        if cluster_context.starts_with("eks:")
+            && !self.kubeconfig_paths.contains_key(cluster_context)
+        {
             if let Some((cluster, _creds, role_arn)) = self.eks_cluster_data.get(cluster_context) {
                 if let Ok(path) = self.generate_eks_kubeconfig_file_with_role(
-                    cluster_context, cluster, role_arn.as_deref(),
+                    cluster_context,
+                    cluster,
+                    role_arn.as_deref(),
                 ) {
                     self.kubeconfig_paths.insert(cluster_context.to_string(), path);
                 }
@@ -11544,7 +12210,8 @@ users:
         }
 
         // Spawn a real PTY process with cluster-scoped env vars.
-        let env_refs: Vec<(&str, &str)> = env_vars.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+        let env_refs: Vec<(&str, &str)> =
+            env_vars.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
         match PtyProcess::spawn_shell_with_env(24, 80, &env_refs) {
             Ok(pty) => {
                 let output_buf: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
@@ -11578,7 +12245,8 @@ users:
 
                 // Set connection state to Connected.
                 entity.update(cx, |view, _cx| {
-                    view.state.connection_state = crate::components::terminal_view::TerminalConnectionState::Connected;
+                    view.state.connection_state =
+                        crate::components::terminal_view::TerminalConnectionState::Connected;
                 });
 
                 // If an active cluster context is set, switch kubectl to that context.
@@ -11588,9 +12256,15 @@ users:
                     let switch_cmd = if cluster.starts_with("eks:") {
                         // EKS cluster — set KUBECONFIG to temp file if it exists
                         if let Some(path) = kubeconfig_paths_for_terminal.get(&cluster) {
-                            format!("export KUBECONFIG='{}' && kubectl config use-context '{}' && clear\n", path, cluster)
+                            format!(
+                                "export KUBECONFIG='{}' && kubectl config use-context '{}' && clear\n",
+                                path, cluster
+                            )
                         } else {
-                            format!("echo 'EKS cluster {} — no kubeconfig available (reconnect via EKS wizard)' && clear\n", cluster)
+                            format!(
+                                "echo 'EKS cluster {} — no kubeconfig available (reconnect via EKS wizard)' && clear\n",
+                                cluster
+                            )
                         }
                     } else {
                         format!("kubectl config use-context {} && clear\n", cluster)
@@ -11613,9 +12287,7 @@ users:
                 let writer_for_poll = writer;
                 cx.spawn(async move |_this, cx| {
                     loop {
-                        cx.background_executor()
-                            .timer(std::time::Duration::from_millis(16))
-                            .await;
+                        cx.background_executor().timer(std::time::Duration::from_millis(16)).await;
 
                         // Drain output buffer and feed to emulator.
                         let data = {
@@ -11623,28 +12295,26 @@ users:
                                 Ok(b) => b,
                                 Err(_) => break,
                             };
-                            if buf.is_empty() {
-                                Vec::new()
-                            } else {
-                                std::mem::take(&mut *buf)
-                            }
+                            if buf.is_empty() { Vec::new() } else { std::mem::take(&mut *buf) }
                         };
 
                         let alive = cx.update(|cx| {
-                            entity_weak.update(cx, |view, cx| {
-                                if !data.is_empty() {
-                                    view.process_output(&data);
-                                }
-                                // Drain pending keyboard input and write to PTY.
-                                let input = view.take_pending_input();
-                                if !input.is_empty() {
-                                    if let Ok(mut w) = writer_for_poll.lock() {
-                                        let _ = std::io::Write::write_all(&mut *w, &input);
-                                        let _ = std::io::Write::flush(&mut *w);
+                            entity_weak
+                                .update(cx, |view, cx| {
+                                    if !data.is_empty() {
+                                        view.process_output(&data);
                                     }
-                                }
-                                cx.notify();
-                            }).is_ok()
+                                    // Drain pending keyboard input and write to PTY.
+                                    let input = view.take_pending_input();
+                                    if !input.is_empty() {
+                                        if let Ok(mut w) = writer_for_poll.lock() {
+                                            let _ = std::io::Write::write_all(&mut *w, &input);
+                                            let _ = std::io::Write::flush(&mut *w);
+                                        }
+                                    }
+                                    cx.notify();
+                                })
+                                .is_ok()
                         });
 
                         match alive {
@@ -11658,9 +12328,10 @@ users:
             Err(e) => {
                 tracing::error!("Failed to spawn PTY: {e}");
                 entity.update(cx, |view, _cx| {
-                    view.state.connection_state = crate::components::terminal_view::TerminalConnectionState::Error(
-                        format!("Failed to spawn shell: {e}"),
-                    );
+                    view.state.connection_state =
+                        crate::components::terminal_view::TerminalConnectionState::Error(format!(
+                            "Failed to spawn shell: {e}"
+                        ));
                 });
             }
         }
@@ -11669,9 +12340,11 @@ users:
     /// Tear down the terminal for a cluster if no workspace tabs remain for it.
     fn cleanup_cluster_terminal_if_last(&mut self, cluster_context: &str) {
         // Check if any remaining workspace tabs belong to this cluster.
-        let has_remaining = self.workspace.tabs.iter().any(|tab| {
-            tab.target.cluster_context() == Some(cluster_context)
-        });
+        let has_remaining = self
+            .workspace
+            .tabs
+            .iter()
+            .any(|tab| tab.target.cluster_context() == Some(cluster_context));
         if has_remaining {
             return;
         }

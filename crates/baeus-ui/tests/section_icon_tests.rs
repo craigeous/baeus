@@ -64,7 +64,10 @@ fn test_all_section_icons_have_svg_paths() {
     for icon in icons {
         let path = icon.path();
         assert!(path.ends_with(".svg"), "SectionIcon::{icon:?} path doesn't end with .svg: {path}");
-        assert!(path.starts_with("icons/"), "SectionIcon::{icon:?} path doesn't start with icons/: {path}");
+        assert!(
+            path.starts_with("icons/"),
+            "SectionIcon::{icon:?} path doesn't start with icons/: {path}"
+        );
     }
 }
 

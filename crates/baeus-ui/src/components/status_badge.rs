@@ -1,4 +1,4 @@
-use gpui::{div, px, prelude::*, Context, SharedString, Window};
+use gpui::{Context, SharedString, Window, div, prelude::*, px};
 use serde::{Deserialize, Serialize};
 
 use crate::theme::Color;
@@ -46,12 +46,7 @@ pub struct StatusBadge {
 impl StatusBadge {
     /// Creates a new status badge with its label auto-derived from the variant.
     pub fn new(variant: BadgeVariant) -> Self {
-        Self {
-            label: variant.label().to_string(),
-            variant,
-            tooltip: None,
-            is_dark: true,
-        }
+        Self { label: variant.label().to_string(), variant, tooltip: None, is_dark: true }
     }
 
     /// Sets an optional tooltip on the badge, consuming and returning self for chaining.
@@ -115,20 +110,9 @@ impl Render for StatusBadge {
             .items_center()
             .gap(px(6.0))
             // Colored status dot
-            .child(
-                div()
-                    .w(px(8.0))
-                    .h(px(8.0))
-                    .rounded_full()
-                    .bg(dot_color),
-            )
+            .child(div().w(px(8.0)).h(px(8.0)).rounded_full().bg(dot_color))
             // Label text
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(text_color)
-                    .child(label),
-            )
+            .child(div().text_sm().text_color(text_color).child(label))
     }
 }
 
@@ -157,12 +141,9 @@ mod tests {
 
     #[test]
     fn test_with_tooltip() {
-        let badge = StatusBadge::new(BadgeVariant::Error)
-            .with_tooltip("Connection refused on port 6443");
-        assert_eq!(
-            badge.tooltip.as_deref(),
-            Some("Connection refused on port 6443")
-        );
+        let badge =
+            StatusBadge::new(BadgeVariant::Error).with_tooltip("Connection refused on port 6443");
+        assert_eq!(badge.tooltip.as_deref(), Some("Connection refused on port 6443"));
         assert_eq!(badge.variant, BadgeVariant::Error);
         assert_eq!(badge.label, "Error");
     }
@@ -356,16 +337,9 @@ mod tests {
             let badge = StatusBadge::new(variant);
             for is_dark in [true, false] {
                 let hex = badge.color(is_dark).to_hex();
-                assert!(
-                    hex.starts_with('#'),
-                    "Hex color should start with '#': {hex}"
-                );
+                assert!(hex.starts_with('#'), "Hex color should start with '#': {hex}");
                 // Opaque colors should be #rrggbb (7 chars)
-                assert_eq!(
-                    hex.len(),
-                    7,
-                    "Opaque badge color hex should be 7 chars: {hex}"
-                );
+                assert_eq!(hex.len(), 7, "Opaque badge color hex should be 7 chars: {hex}");
             }
         }
     }
@@ -426,15 +400,14 @@ mod tests {
         ];
 
         for is_dark in [true, false] {
-            let colors: Vec<Color> = colored_variants
-                .iter()
-                .map(|v| StatusBadge::new(*v).color(is_dark))
-                .collect();
+            let colors: Vec<Color> =
+                colored_variants.iter().map(|v| StatusBadge::new(*v).color(is_dark)).collect();
 
             for i in 0..colors.len() {
                 for j in (i + 1)..colors.len() {
                     assert_ne!(
-                        colors[i], colors[j],
+                        colors[i],
+                        colors[j],
                         "Variants {:?} and {:?} should have distinct colors in {} mode",
                         colored_variants[i],
                         colored_variants[j],

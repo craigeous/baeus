@@ -1,4 +1,4 @@
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 use serde::{Deserialize, Serialize};
 
 use crate::theme::Theme;
@@ -65,10 +65,7 @@ impl Default for NotificationState {
 impl NotificationState {
     /// Creates a new empty notification state with max_visible = 5.
     pub fn new() -> Self {
-        Self {
-            notifications: Vec::new(),
-            max_visible: 5,
-        }
+        Self { notifications: Vec::new(), max_visible: 5 }
     }
 
     /// Pushes a new notification onto the stack.
@@ -117,12 +114,7 @@ impl NotificationState {
     /// Returns non-dismissed notifications, limited to `max_visible`.
     /// Most recent notifications are returned first.
     pub fn visible(&self) -> Vec<&Notification> {
-        self.notifications
-            .iter()
-            .filter(|n| !n.dismissed)
-            .rev()
-            .take(self.max_visible)
-            .collect()
+        self.notifications.iter().filter(|n| !n.dismissed).rev().take(self.max_visible).collect()
     }
 
     /// Removes all dismissed notifications from the internal list (garbage collection).
@@ -132,9 +124,7 @@ impl NotificationState {
 
     /// Returns true if there are any undismissed Error notifications.
     pub fn has_errors(&self) -> bool {
-        self.notifications
-            .iter()
-            .any(|n| !n.dismissed && n.level == NotificationLevel::Error)
+        self.notifications.iter().any(|n| !n.dismissed && n.level == NotificationLevel::Error)
     }
 
     /// Returns the count of undismissed notifications.
@@ -244,19 +234,11 @@ impl NotificationViewComponent {
     }
 
     fn render_title(&self, text_color: Rgba, title: SharedString) -> gpui::Div {
-        div()
-            .text_sm()
-            .font_weight(gpui::FontWeight::SEMIBOLD)
-            .text_color(text_color)
-            .child(title)
+        div().text_sm().font_weight(gpui::FontWeight::SEMIBOLD).text_color(text_color).child(title)
     }
 
     fn render_message(&self, text_color: Rgba, message: SharedString) -> gpui::Div {
-        div()
-            .text_xs()
-            .text_color(text_color)
-            .mt_1()
-            .child(message)
+        div().text_xs().text_color(text_color).mt_1().child(message)
     }
 
     fn render_dismiss_button(&self, text_color: Rgba, id: String) -> gpui::Stateful<gpui::Div> {
@@ -292,13 +274,8 @@ impl Render for NotificationViewComponent {
         // Collect notification data before building the div tree to avoid borrow issues
         let notification_data: Vec<Notification> = visible.into_iter().cloned().collect();
 
-        let mut stack = div()
-            .absolute()
-            .top(px(16.0))
-            .right(px(16.0))
-            .flex()
-            .flex_col()
-            .gap(px(8.0));
+        let mut stack =
+            div().absolute().top(px(16.0)).right(px(16.0)).flex().flex_col().gap(px(8.0));
 
         for (i, notification) in notification_data.iter().enumerate() {
             stack = stack.child(self.render_notification_card(notification, &colors, i));

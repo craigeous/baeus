@@ -143,22 +143,37 @@ impl ResourceIcon {
 
     pub fn category(&self) -> ResourceCategory {
         match self {
-            Self::Pod | Self::Deployment | Self::StatefulSet | Self::DaemonSet
-            | Self::ReplicaSet | Self::Job | Self::CronJob
+            Self::Pod
+            | Self::Deployment
+            | Self::StatefulSet
+            | Self::DaemonSet
+            | Self::ReplicaSet
+            | Self::Job
+            | Self::CronJob
             | Self::HorizontalPodAutoscaler => ResourceCategory::Workloads,
-            Self::Service | Self::Ingress | Self::NetworkPolicy | Self::Endpoints
-            | Self::EndpointSlice | Self::IngressClass => {
-                ResourceCategory::Network
+            Self::Service
+            | Self::Ingress
+            | Self::NetworkPolicy
+            | Self::Endpoints
+            | Self::EndpointSlice
+            | Self::IngressClass => ResourceCategory::Network,
+            Self::ConfigMap | Self::Secret | Self::ResourceQuota | Self::LimitRange => {
+                ResourceCategory::Configuration
             }
-            Self::ConfigMap | Self::Secret | Self::ResourceQuota
-            | Self::LimitRange => ResourceCategory::Configuration,
             Self::PersistentVolume | Self::PersistentVolumeClaim | Self::StorageClass => {
                 ResourceCategory::Storage
             }
-            Self::Namespace | Self::Node | Self::PriorityClass | Self::Lease
-            | Self::PodDisruptionBudget | Self::ValidatingWebhookConfiguration
+            Self::Namespace
+            | Self::Node
+            | Self::PriorityClass
+            | Self::Lease
+            | Self::PodDisruptionBudget
+            | Self::ValidatingWebhookConfiguration
             | Self::MutatingWebhookConfiguration => ResourceCategory::Cluster,
-            Self::ServiceAccount | Self::Role | Self::ClusterRole | Self::RoleBinding
+            Self::ServiceAccount
+            | Self::Role
+            | Self::ClusterRole
+            | Self::RoleBinding
             | Self::ClusterRoleBinding => ResourceCategory::Rbac,
             Self::HelmRelease | Self::HelmChart => ResourceCategory::Helm,
             Self::Event => ResourceCategory::Monitoring,
@@ -457,29 +472,17 @@ mod tests {
     #[test]
     fn test_resource_icon_from_kind() {
         assert_eq!(ResourceIcon::from_kind("Pod"), ResourceIcon::Pod);
-        assert_eq!(
-            ResourceIcon::from_kind("Deployment"),
-            ResourceIcon::Deployment
-        );
+        assert_eq!(ResourceIcon::from_kind("Deployment"), ResourceIcon::Deployment);
         assert_eq!(ResourceIcon::from_kind("Service"), ResourceIcon::Service);
-        assert_eq!(
-            ResourceIcon::from_kind("UnknownKind"),
-            ResourceIcon::Unknown
-        );
+        assert_eq!(ResourceIcon::from_kind("UnknownKind"), ResourceIcon::Unknown);
     }
 
     #[test]
     fn test_resource_icon_category() {
         assert_eq!(ResourceIcon::Pod.category(), ResourceCategory::Workloads);
         assert_eq!(ResourceIcon::Service.category(), ResourceCategory::Network);
-        assert_eq!(
-            ResourceIcon::ConfigMap.category(),
-            ResourceCategory::Configuration
-        );
-        assert_eq!(
-            ResourceIcon::PersistentVolume.category(),
-            ResourceCategory::Storage
-        );
+        assert_eq!(ResourceIcon::ConfigMap.category(), ResourceCategory::Configuration);
+        assert_eq!(ResourceIcon::PersistentVolume.category(), ResourceCategory::Storage);
         assert_eq!(ResourceIcon::Node.category(), ResourceCategory::Cluster);
         assert_eq!(ResourceIcon::Role.category(), ResourceCategory::Rbac);
     }

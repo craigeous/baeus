@@ -7,8 +7,7 @@
 
 use baeus_ui::theme::Theme;
 use baeus_ui::views::port_forward::{
-    PortForwardEntry, PortForwardState, PortForwardStatus, PortForwardView,
-    PORT_FORWARD_COLUMNS,
+    PORT_FORWARD_COLUMNS, PortForwardEntry, PortForwardState, PortForwardStatus, PortForwardView,
 };
 use uuid::Uuid;
 
@@ -199,7 +198,8 @@ fn test_entry_is_active() {
 
 #[test]
 fn test_entry_is_stopped() {
-    let entry = make_entry_with_status("nginx", "default", "Pod", 80, 8080, PortForwardStatus::Stopped);
+    let entry =
+        make_entry_with_status("nginx", "default", "Pod", 80, 8080, PortForwardStatus::Stopped);
     assert!(!entry.is_active());
     assert!(entry.is_stopped());
     assert!(!entry.is_error());
@@ -207,7 +207,8 @@ fn test_entry_is_stopped() {
 
 #[test]
 fn test_entry_is_error() {
-    let entry = make_entry_with_status("nginx", "default", "Pod", 80, 8080, PortForwardStatus::Error);
+    let entry =
+        make_entry_with_status("nginx", "default", "Pod", 80, 8080, PortForwardStatus::Error);
     assert!(!entry.is_active());
     assert!(!entry.is_stopped());
     assert!(entry.is_error());
@@ -242,7 +243,8 @@ fn test_entry_serialization_roundtrip() {
 
 #[test]
 fn test_status_serialization_roundtrip() {
-    for status in [PortForwardStatus::Active, PortForwardStatus::Stopped, PortForwardStatus::Error] {
+    for status in [PortForwardStatus::Active, PortForwardStatus::Stopped, PortForwardStatus::Error]
+    {
         let json = serde_json::to_string(&status).unwrap();
         let deser: PortForwardStatus = serde_json::from_str(&json).unwrap();
         assert_eq!(deser, status);
@@ -455,10 +457,7 @@ fn test_stop_action_terminates_forward() {
 
     assert!(view.stop_forward(id));
     assert_eq!(view.last_stopped_id, Some(id));
-    assert_eq!(
-        view.state.get_forward(id).unwrap().status,
-        PortForwardStatus::Stopped
-    );
+    assert_eq!(view.state.get_forward(id).unwrap().status, PortForwardStatus::Stopped);
 }
 
 #[test]
@@ -532,10 +531,7 @@ fn test_full_workflow() {
     // Stop second forward
     view.stop_forward(id2);
     assert_eq!(view.state.active_count(), 2);
-    assert_eq!(
-        view.state.get_forward(id2).unwrap().status,
-        PortForwardStatus::Stopped
-    );
+    assert_eq!(view.state.get_forward(id2).unwrap().status, PortForwardStatus::Stopped);
 
     // Remove third forward
     view.state.remove_forward(id3);

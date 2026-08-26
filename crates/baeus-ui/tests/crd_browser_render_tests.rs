@@ -59,31 +59,11 @@ fn sample_crd_with_description(
 
 fn sample_crds() -> Vec<CrdSchema> {
     vec![
-        sample_crd(
-            "certificates",
-            "cert-manager.io",
-            "Certificate",
-            CrdScope::Namespaced,
-        ),
+        sample_crd("certificates", "cert-manager.io", "Certificate", CrdScope::Namespaced),
         sample_crd("issuers", "cert-manager.io", "Issuer", CrdScope::Namespaced),
-        sample_crd(
-            "clusterissuers",
-            "cert-manager.io",
-            "ClusterIssuer",
-            CrdScope::Cluster,
-        ),
-        sample_crd(
-            "virtualmachines",
-            "kubevirt.io",
-            "VirtualMachine",
-            CrdScope::Namespaced,
-        ),
-        sample_crd(
-            "ingressroutes",
-            "traefik.containo.us",
-            "IngressRoute",
-            CrdScope::Namespaced,
-        ),
+        sample_crd("clusterissuers", "cert-manager.io", "ClusterIssuer", CrdScope::Cluster),
+        sample_crd("virtualmachines", "kubevirt.io", "VirtualMachine", CrdScope::Namespaced),
+        sample_crd("ingressroutes", "traefik.containo.us", "IngressRoute", CrdScope::Namespaced),
     ]
 }
 
@@ -130,11 +110,7 @@ fn test_renders_crd_with_kind_names() {
     // Verify CRDs have kind names
     assert!(component.state.crds.iter().any(|c| c.kind == "Certificate"));
     assert!(component.state.crds.iter().any(|c| c.kind == "Issuer"));
-    assert!(component
-        .state
-        .crds
-        .iter()
-        .any(|c| c.kind == "ClusterIssuer"));
+    assert!(component.state.crds.iter().any(|c| c.kind == "ClusterIssuer"));
 }
 
 #[test]
@@ -235,10 +211,7 @@ fn test_selected_crd_detail_has_full_info() {
     assert_eq!(selected.group, "cert-manager.io");
     assert_eq!(selected.kind, "Certificate");
     assert_eq!(selected.scope, CrdScope::Namespaced);
-    assert_eq!(
-        selected.description.as_deref(),
-        Some("Manages TLS certificates")
-    );
+    assert_eq!(selected.description.as_deref(), Some("Manages TLS certificates"));
 }
 
 #[test]
@@ -270,10 +243,7 @@ fn test_error_state_display() {
     let component = CrdBrowserViewComponent::new(state, theme);
 
     assert!(!component.state.loading);
-    assert_eq!(
-        component.state.error.as_deref(),
-        Some("Failed to discover CRDs")
-    );
+    assert_eq!(component.state.error.as_deref(), Some("Failed to discover CRDs"));
 }
 
 #[test]
@@ -459,12 +429,7 @@ fn test_selection_cleared_on_filter_change() {
 #[test]
 fn test_crd_entry_with_scope_badge_namespaced() {
     let mut state = CrdBrowserState::default();
-    let crd = sample_crd(
-        "certificates",
-        "cert-manager.io",
-        "Certificate",
-        CrdScope::Namespaced,
-    );
+    let crd = sample_crd("certificates", "cert-manager.io", "Certificate", CrdScope::Namespaced);
     state.set_crds(vec![crd]);
     let theme = Theme::dark();
     let component = CrdBrowserViewComponent::new(state, theme);
@@ -477,12 +442,7 @@ fn test_crd_entry_with_scope_badge_namespaced() {
 #[test]
 fn test_crd_entry_with_scope_badge_cluster() {
     let mut state = CrdBrowserState::default();
-    let crd = sample_crd(
-        "clusterissuers",
-        "cert-manager.io",
-        "ClusterIssuer",
-        CrdScope::Cluster,
-    );
+    let crd = sample_crd("clusterissuers", "cert-manager.io", "ClusterIssuer", CrdScope::Cluster);
     state.set_crds(vec![crd]);
     let theme = Theme::dark();
     let component = CrdBrowserViewComponent::new(state, theme);
@@ -508,21 +468,13 @@ fn test_detail_panel_shows_description() {
     let component = CrdBrowserViewComponent::new(state, theme);
 
     let selected = component.state.selected().unwrap();
-    assert_eq!(
-        selected.description.as_deref(),
-        Some("Manages X.509 certificates for TLS")
-    );
+    assert_eq!(selected.description.as_deref(), Some("Manages X.509 certificates for TLS"));
 }
 
 #[test]
 fn test_detail_panel_with_no_description() {
     let mut state = CrdBrowserState::default();
-    let crd = sample_crd(
-        "certificates",
-        "cert-manager.io",
-        "Certificate",
-        CrdScope::Namespaced,
-    );
+    let crd = sample_crd("certificates", "cert-manager.io", "Certificate", CrdScope::Namespaced);
     state.set_crds(vec![crd]);
     state.select_crd("certificates.cert-manager.io");
     let theme = Theme::dark();
@@ -547,12 +499,7 @@ fn test_multiple_groups_renders_correctly() {
 fn test_single_group_renders_correctly() {
     let mut state = CrdBrowserState::default();
     let crds = vec![
-        sample_crd(
-            "certificates",
-            "cert-manager.io",
-            "Certificate",
-            CrdScope::Namespaced,
-        ),
+        sample_crd("certificates", "cert-manager.io", "Certificate", CrdScope::Namespaced),
         sample_crd("issuers", "cert-manager.io", "Issuer", CrdScope::Namespaced),
     ];
     state.set_crds(crds);

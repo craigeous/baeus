@@ -6,8 +6,8 @@
 // (T354 will add `is_preview` field for preview tab support.)
 
 use baeus_ui::icons::ResourceCategory;
-use baeus_ui::layout::workspace::WorkspaceState;
 use baeus_ui::layout::NavigationTarget;
+use baeus_ui::layout::workspace::WorkspaceState;
 
 const TEST_CLUSTER: &str = "test-cluster";
 
@@ -48,9 +48,7 @@ fn events_target() -> NavigationTarget {
 }
 
 fn helm_target() -> NavigationTarget {
-    NavigationTarget::HelmReleases {
-        cluster_context: TEST_CLUSTER.to_string(),
-    }
+    NavigationTarget::HelmReleases { cluster_context: TEST_CLUSTER.to_string() }
 }
 
 fn detail_target(kind: &str, name: &str) -> NavigationTarget {
@@ -298,11 +296,7 @@ fn test_tab_label_for_helm_releases() {
 fn test_tab_labels_include_cluster_context() {
     let mut ws = WorkspaceState::default();
 
-    let targets = vec![
-        pod_list_target(),
-        events_target(),
-        helm_target(),
-    ];
+    let targets = vec![pod_list_target(), events_target(), helm_target()];
 
     for target in targets {
         let id = ws.open_tab(target);
@@ -374,10 +368,7 @@ fn test_switching_between_multiple_tabs() {
 
     // Switch to dashboard
     ws.activate_tab(dashboard_id);
-    assert_eq!(
-        ws.active_tab().unwrap().label,
-        "test-cluster - Overview"
-    );
+    assert_eq!(ws.active_tab().unwrap().label, "test-cluster - Overview");
 
     // Switch to pods
     ws.activate_tab(pod_id);

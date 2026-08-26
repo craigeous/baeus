@@ -3,7 +3,7 @@
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 
-use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 
 /// A running PTY process backed by `portable-pty`.
 pub struct PtyProcess {
@@ -25,15 +25,14 @@ impl PtyProcess {
     /// Spawn a shell with additional environment variables.
     ///
     /// Each entry is a `(key, value)` pair set in the child process environment.
-    pub fn spawn_shell_with_env(rows: u16, cols: u16, env: &[(&str, &str)]) -> anyhow::Result<Self> {
+    pub fn spawn_shell_with_env(
+        rows: u16,
+        cols: u16,
+        env: &[(&str, &str)],
+    ) -> anyhow::Result<Self> {
         let pty_system = native_pty_system();
 
-        let pair = pty_system.openpty(PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        })?;
+        let pair = pty_system.openpty(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })?;
 
         #[cfg(not(target_os = "windows"))]
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
@@ -83,12 +82,7 @@ impl PtyProcess {
 
     /// Resize the PTY to new dimensions.
     pub fn resize(&self, rows: u16, cols: u16) -> anyhow::Result<()> {
-        self.master.resize(PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        })?;
+        self.master.resize(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })?;
         Ok(())
     }
 
@@ -196,28 +190,19 @@ fn validate_shell_path(shell: &str) -> String {
 
     // Must be absolute
     if !path.is_absolute() {
-        tracing::warn!(
-            "Shell path '{}' is not absolute, falling back to cmd.exe",
-            shell
-        );
+        tracing::warn!("Shell path '{}' is not absolute, falling back to cmd.exe", shell);
         return r"C:\Windows\System32\cmd.exe".to_string();
     }
 
     // Must not contain path traversal
     if shell.contains("..") {
-        tracing::warn!(
-            "Shell path '{}' contains '..', falling back to cmd.exe",
-            shell
-        );
+        tracing::warn!("Shell path '{}' contains '..', falling back to cmd.exe", shell);
         return r"C:\Windows\System32\cmd.exe".to_string();
     }
 
     // Must end with .exe
     if !shell.to_lowercase().ends_with(".exe") {
-        tracing::warn!(
-            "Shell path '{}' does not end with .exe, falling back to cmd.exe",
-            shell
-        );
+        tracing::warn!("Shell path '{}' does not end with .exe, falling back to cmd.exe", shell);
         return r"C:\Windows\System32\cmd.exe".to_string();
     }
 
@@ -230,12 +215,8 @@ fn validate_shell_path(shell: &str) -> String {
     }
 
     // Fall back to COMSPEC if set, otherwise cmd.exe
-    let fallback = std::env::var("COMSPEC")
-        .unwrap_or_else(|_| r"C:\Windows\System32\cmd.exe".to_string());
-    tracing::warn!(
-        "Shell '{}' is not in the allowlist, falling back to '{}'",
-        shell,
-        fallback
-    );
+    let fallback =
+        std::env::var("COMSPEC").unwrap_or_else(|_| r"C:\Windows\System32\cmd.exe".to_string());
+    tracing::warn!("Shell '{}' is not in the allowlist, falling back to '{}'", shell, fallback);
     fallback
 }

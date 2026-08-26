@@ -1,4 +1,4 @@
-use gpui::{div, px, prelude::*, Context, Rgba, SharedString, Window};
+use gpui::{Context, Rgba, SharedString, Window, div, prelude::*, px};
 use serde::{Deserialize, Serialize};
 
 use crate::theme::Theme;
@@ -134,10 +134,7 @@ impl ConfirmDialogState {
                 "You are about to open a terminal session in pod '{}' (container: {})",
                 pod_name, c
             ),
-            None => format!(
-                "You are about to open a terminal session in pod '{}'",
-                pod_name
-            ),
+            None => format!("You are about to open a terminal session in pod '{}'", pod_name),
         };
         Self::new("Exec into Pod", &message, DialogSeverity::Warning)
             .with_confirm_label("Open Terminal")
@@ -154,12 +151,8 @@ impl ConfirmDialogState {
         local_port: Option<u16>,
         remote_port: Option<u16>,
     ) -> Self {
-        let local_str = local_port
-            .map(|p| p.to_string())
-            .unwrap_or_else(|| "<auto>".to_string());
-        let remote_str = remote_port
-            .map(|p| p.to_string())
-            .unwrap_or_else(|| "<auto>".to_string());
+        let local_str = local_port.map(|p| p.to_string()).unwrap_or_else(|| "<auto>".to_string());
+        let remote_str = remote_port.map(|p| p.to_string()).unwrap_or_else(|| "<auto>".to_string());
         let message = format!(
             "Forward traffic from local port {} to {}/{} port {}",
             local_str, resource_kind, resource_name, remote_str
@@ -196,13 +189,7 @@ impl ConfirmDialogView {
 
     /// Render the backdrop overlay.
     fn render_backdrop(&self, backdrop_color: Rgba) -> gpui::Div {
-        div()
-            .absolute()
-            .top_0()
-            .left_0()
-            .w_full()
-            .h_full()
-            .bg(backdrop_color)
+        div().absolute().top_0().left_0().w_full().h_full().bg(backdrop_color)
     }
 
     /// Render the dialog box container.
@@ -224,32 +211,19 @@ impl ConfirmDialogView {
     /// Render the dialog header with title.
     fn render_dialog_header(&self, colors: &DialogColors) -> gpui::Div {
         let title = SharedString::from(self.state.title.clone());
-        div()
-            .px_4()
-            .py_3()
-            .border_b_1()
-            .border_color(colors.border)
-            .child(
-                div()
-                    .text_base()
-                    .font_weight(gpui::FontWeight::BOLD)
-                    .text_color(colors.text_primary)
-                    .child(title),
-            )
+        div().px_4().py_3().border_b_1().border_color(colors.border).child(
+            div()
+                .text_base()
+                .font_weight(gpui::FontWeight::BOLD)
+                .text_color(colors.text_primary)
+                .child(title),
+        )
     }
 
     /// Render the dialog body with message.
     fn render_dialog_body(&self, colors: &DialogColors) -> gpui::Div {
         let message = SharedString::from(self.state.message.clone());
-        div()
-            .px_4()
-            .py_3()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_secondary)
-                    .child(message),
-            )
+        div().px_4().py_3().child(div().text_sm().text_color(colors.text_secondary).child(message))
     }
 
     /// Render the dialog footer with buttons.

@@ -1,8 +1,8 @@
 // Tests extracted from crates/baeus-ui/src/layout/sidebar.rs
 
 use baeus_ui::icons::{ResourceCategory, ResourceIcon};
-use baeus_ui::layout::sidebar::*;
 use baeus_ui::layout::NavigationTarget;
+use baeus_ui::layout::sidebar::*;
 use uuid::Uuid;
 
 #[test]
@@ -36,11 +36,7 @@ fn test_update_badge() {
     let mut state = SidebarState::default();
     state.update_badge("Pod", Some(42));
 
-    let pod_item = state.sections[0]
-        .items
-        .iter()
-        .find(|i| i.kind == "Pod")
-        .unwrap();
+    let pod_item = state.sections[0].items.iter().find(|i| i.kind == "Pod").unwrap();
     assert_eq!(pod_item.badge_count, Some(42));
 }
 
@@ -175,7 +171,10 @@ fn test_find_kind_category() {
     assert_eq!(state.find_kind_category("HelmRelease"), Some(ResourceCategory::Helm));
     assert_eq!(state.find_kind_category("HelmChart"), Some(ResourceCategory::Helm));
     assert_eq!(state.find_kind_category("Plugin"), Some(ResourceCategory::Plugins));
-    assert_eq!(state.find_kind_category("CustomResourceDefinition"), Some(ResourceCategory::Custom));
+    assert_eq!(
+        state.find_kind_category("CustomResourceDefinition"),
+        Some(ResourceCategory::Custom)
+    );
     assert_eq!(state.find_kind_category("Unknown"), None);
 }
 
@@ -194,11 +193,8 @@ fn test_helm_section_exists() {
 #[test]
 fn test_helm_section_items() {
     let state = SidebarState::default();
-    let helm_section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Helm)
-        .unwrap();
+    let helm_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
 
     let kinds: Vec<&str> = helm_section.items.iter().map(|i| i.kind.as_str()).collect();
     assert!(kinds.contains(&"HelmRelease"));
@@ -212,11 +208,8 @@ fn test_helm_section_items() {
 #[test]
 fn test_helm_section_icons() {
     let state = SidebarState::default();
-    let helm_section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Helm)
-        .unwrap();
+    let helm_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
 
     let releases_item = helm_section.items.iter().find(|i| i.kind == "HelmRelease").unwrap();
     assert_eq!(releases_item.icon, ResourceIcon::HelmRelease);
@@ -252,15 +245,18 @@ fn test_navigate_to_helm_chart() {
 #[test]
 fn test_helm_section_toggle() {
     let mut state = SidebarState::default();
-    let helm_section = state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
+    let helm_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
     assert!(!helm_section.expanded);
 
     state.toggle_section(ResourceCategory::Helm);
-    let helm_section = state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
+    let helm_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
     assert!(helm_section.expanded);
 
     state.toggle_section(ResourceCategory::Helm);
-    let helm_section = state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
+    let helm_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
     assert!(!helm_section.expanded);
 }
 
@@ -269,12 +265,14 @@ fn test_helm_section_auto_expand_on_navigate() {
     let mut state = SidebarState::default();
     state.collapse_all();
 
-    let helm_collapsed = state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
+    let helm_collapsed =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
     assert!(!helm_collapsed.expanded);
 
     state.set_active_kind("HelmRelease");
 
-    let helm_expanded = state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
+    let helm_expanded =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
     assert!(helm_expanded.expanded);
 }
 
@@ -283,7 +281,8 @@ fn test_helm_section_badge_update() {
     let mut state = SidebarState::default();
     state.update_badge("HelmRelease", Some(12));
 
-    let helm_section = state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
+    let helm_section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Helm).unwrap();
     let releases_item = helm_section.items.iter().find(|i| i.kind == "HelmRelease").unwrap();
     assert_eq!(releases_item.badge_count, Some(12));
 }
@@ -293,10 +292,7 @@ fn test_helm_section_badge_update() {
 #[test]
 fn test_monitoring_section_exists() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Monitoring);
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Monitoring);
     assert!(section.is_some());
     let section = section.unwrap();
     assert!(!section.expanded);
@@ -306,11 +302,8 @@ fn test_monitoring_section_exists() {
 #[test]
 fn test_monitoring_section_has_events() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Monitoring)
-        .unwrap();
+    let section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Monitoring).unwrap();
 
     let event_item = section.items.iter().find(|i| i.kind == "Event");
     assert!(event_item.is_some());
@@ -336,20 +329,14 @@ fn test_monitoring_section_auto_expand_on_navigate() {
     let mut state = SidebarState::default();
     state.collapse_all();
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Monitoring)
-        .unwrap();
+    let section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Monitoring).unwrap();
     assert!(!section.expanded);
 
     state.set_active_kind("Event");
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Monitoring)
-        .unwrap();
+    let section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Monitoring).unwrap();
     assert!(section.expanded);
 }
 
@@ -358,11 +345,8 @@ fn test_monitoring_section_badge_update() {
     let mut state = SidebarState::default();
     state.update_badge("Event", Some(47));
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Monitoring)
-        .unwrap();
+    let section =
+        state.sections.iter().find(|s| s.category == ResourceCategory::Monitoring).unwrap();
     let event_item = section.items.iter().find(|i| i.kind == "Event").unwrap();
     assert_eq!(event_item.badge_count, Some(47));
 }
@@ -372,10 +356,7 @@ fn test_monitoring_section_badge_update() {
 #[test]
 fn test_custom_section_exists() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Custom);
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Custom);
     assert!(section.is_some());
     let section = section.unwrap();
     assert!(!section.expanded); // collapsed by default
@@ -385,16 +366,9 @@ fn test_custom_section_exists() {
 #[test]
 fn test_custom_section_has_crd_item() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Custom)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Custom).unwrap();
 
-    let crd_item = section
-        .items
-        .iter()
-        .find(|i| i.kind == "CustomResourceDefinition");
+    let crd_item = section.items.iter().find(|i| i.kind == "CustomResourceDefinition");
     assert!(crd_item.is_some());
     let crd_item = crd_item.unwrap();
     assert_eq!(crd_item.label, "Custom Resources");
@@ -418,47 +392,27 @@ fn test_custom_section_auto_expand_on_navigate() {
     let mut state = SidebarState::default();
     state.collapse_all();
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Custom)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Custom).unwrap();
     assert!(!section.expanded);
 
     state.set_active_kind("CustomResourceDefinition");
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Custom)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Custom).unwrap();
     assert!(section.expanded);
 }
 
 #[test]
 fn test_custom_section_toggle() {
     let mut state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Custom)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Custom).unwrap();
     assert!(!section.expanded);
 
     state.toggle_section(ResourceCategory::Custom);
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Custom)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Custom).unwrap();
     assert!(section.expanded);
 
     state.toggle_section(ResourceCategory::Custom);
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Custom)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Custom).unwrap();
     assert!(!section.expanded);
 }
 
@@ -467,16 +421,8 @@ fn test_custom_section_badge_update() {
     let mut state = SidebarState::default();
     state.update_badge("CustomResourceDefinition", Some(15));
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Custom)
-        .unwrap();
-    let crd_item = section
-        .items
-        .iter()
-        .find(|i| i.kind == "CustomResourceDefinition")
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Custom).unwrap();
+    let crd_item = section.items.iter().find(|i| i.kind == "CustomResourceDefinition").unwrap();
     assert_eq!(crd_item.badge_count, Some(15));
 }
 
@@ -487,10 +433,7 @@ fn test_custom_section_badge_update() {
 #[test]
 fn test_network_section_exists() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network);
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network);
     assert!(section.is_some());
     let section = section.unwrap();
     assert!(!section.expanded); // collapsed by default
@@ -499,11 +442,7 @@ fn test_network_section_exists() {
 #[test]
 fn test_network_section_has_all_items() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
 
     assert_eq!(section.items.len(), 6);
 
@@ -517,11 +456,7 @@ fn test_network_section_has_all_items() {
 #[test]
 fn test_network_section_item_labels() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
 
     let labels: Vec<&str> = section.items.iter().map(|i| i.label.as_str()).collect();
     assert!(labels.contains(&"Services"));
@@ -533,11 +468,7 @@ fn test_network_section_item_labels() {
 #[test]
 fn test_network_section_item_icons() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
 
     let svc = section.items.iter().find(|i| i.kind == "Service").unwrap();
     assert_eq!(svc.icon, ResourceIcon::Service);
@@ -593,47 +524,27 @@ fn test_network_section_auto_expand_on_navigate() {
     let mut state = SidebarState::default();
     state.collapse_all();
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(!section.expanded);
 
     state.set_active_kind("Ingress");
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(section.expanded);
 }
 
 #[test]
 fn test_network_section_toggle() {
     let mut state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(!section.expanded);
 
     state.toggle_section(ResourceCategory::Network);
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(section.expanded);
 
     state.toggle_section(ResourceCategory::Network);
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     assert!(!section.expanded);
 }
 
@@ -643,11 +554,7 @@ fn test_network_section_badge_update() {
     state.update_badge("Service", Some(25));
     state.update_badge("Ingress", Some(3));
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Network)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Network).unwrap();
     let svc = section.items.iter().find(|i| i.kind == "Service").unwrap();
     assert_eq!(svc.badge_count, Some(25));
     let ing = section.items.iter().find(|i| i.kind == "Ingress").unwrap();
@@ -657,10 +564,7 @@ fn test_network_section_badge_update() {
 #[test]
 fn test_storage_section_exists() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage);
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage);
     assert!(section.is_some());
     let section = section.unwrap();
     assert!(!section.expanded); // collapsed by default
@@ -669,11 +573,7 @@ fn test_storage_section_exists() {
 #[test]
 fn test_storage_section_has_all_items() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
 
     assert_eq!(section.items.len(), 3);
 
@@ -686,11 +586,7 @@ fn test_storage_section_has_all_items() {
 #[test]
 fn test_storage_section_item_labels() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
 
     let labels: Vec<&str> = section.items.iter().map(|i| i.label.as_str()).collect();
     assert!(labels.contains(&"Persistent Volumes"));
@@ -701,11 +597,7 @@ fn test_storage_section_item_labels() {
 #[test]
 fn test_storage_section_item_icons() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
 
     let pv = section.items.iter().find(|i| i.kind == "PersistentVolume").unwrap();
     assert_eq!(pv.icon, ResourceIcon::PersistentVolume);
@@ -746,47 +638,27 @@ fn test_storage_section_auto_expand_on_navigate() {
     let mut state = SidebarState::default();
     state.collapse_all();
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(!section.expanded);
 
     state.set_active_kind("PersistentVolumeClaim");
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(section.expanded);
 }
 
 #[test]
 fn test_storage_section_toggle() {
     let mut state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(!section.expanded);
 
     state.toggle_section(ResourceCategory::Storage);
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(section.expanded);
 
     state.toggle_section(ResourceCategory::Storage);
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     assert!(!section.expanded);
 }
 
@@ -796,11 +668,7 @@ fn test_storage_section_badge_update() {
     state.update_badge("PersistentVolumeClaim", Some(8));
     state.update_badge("StorageClass", Some(2));
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Storage)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Storage).unwrap();
     let pvc = section.items.iter().find(|i| i.kind == "PersistentVolumeClaim").unwrap();
     assert_eq!(pvc.badge_count, Some(8));
     let sc = section.items.iter().find(|i| i.kind == "StorageClass").unwrap();
@@ -1003,7 +871,10 @@ fn test_clear_active_kind_clears_map() {
 
 #[test]
 fn test_namespace_map_navigation_target_label() {
-    assert_eq!(NavigationTarget::NamespaceMap { cluster_context: "test".to_string() }.label(), "test - Resource Map");
+    assert_eq!(
+        NavigationTarget::NamespaceMap { cluster_context: "test".to_string() }.label(),
+        "test - Resource Map"
+    );
 }
 
 // --- T131: Plugins sidebar section ---
@@ -1011,10 +882,7 @@ fn test_namespace_map_navigation_target_label() {
 #[test]
 fn test_plugins_section_exists() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Plugins);
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Plugins);
     assert!(section.is_some());
     let section = section.unwrap();
     assert!(!section.expanded); // collapsed by default
@@ -1024,11 +892,7 @@ fn test_plugins_section_exists() {
 #[test]
 fn test_plugins_section_has_plugin_item() {
     let state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Plugins)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Plugins).unwrap();
 
     let plugin_item = section.items.iter().find(|i| i.kind == "Plugin");
     assert!(plugin_item.is_some());
@@ -1054,47 +918,27 @@ fn test_plugins_section_auto_expand_on_navigate() {
     let mut state = SidebarState::default();
     state.collapse_all();
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Plugins)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Plugins).unwrap();
     assert!(!section.expanded);
 
     state.set_active_kind("Plugin");
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Plugins)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Plugins).unwrap();
     assert!(section.expanded);
 }
 
 #[test]
 fn test_plugins_section_toggle() {
     let mut state = SidebarState::default();
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Plugins)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Plugins).unwrap();
     assert!(!section.expanded);
 
     state.toggle_section(ResourceCategory::Plugins);
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Plugins)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Plugins).unwrap();
     assert!(section.expanded);
 
     state.toggle_section(ResourceCategory::Plugins);
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Plugins)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Plugins).unwrap();
     assert!(!section.expanded);
 }
 
@@ -1103,11 +947,7 @@ fn test_plugins_section_badge_update() {
     let mut state = SidebarState::default();
     state.update_badge("Plugin", Some(5));
 
-    let section = state
-        .sections
-        .iter()
-        .find(|s| s.category == ResourceCategory::Plugins)
-        .unwrap();
+    let section = state.sections.iter().find(|s| s.category == ResourceCategory::Plugins).unwrap();
     let plugin_item = section.items.iter().find(|i| i.kind == "Plugin").unwrap();
     assert_eq!(plugin_item.badge_count, Some(5));
 }

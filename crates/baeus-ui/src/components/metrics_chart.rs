@@ -1,4 +1,4 @@
-use gpui::{div, px, prelude::*, Context, ElementId, FontWeight, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, FontWeight, Rgba, SharedString, Window, div, prelude::*, px};
 use serde::{Deserialize, Serialize};
 
 use crate::theme::Theme;
@@ -24,7 +24,6 @@ pub enum MetricsAvailability {
     Loading,
 }
 
-
 impl MetricsAvailability {
     /// Returns `true` when metrics data can be displayed.
     pub fn is_available(&self) -> bool {
@@ -44,9 +43,7 @@ impl MetricsAvailability {
     /// Construct the Unavailable variant from an HTTP status code or
     /// connection error description.
     pub fn from_error(error: &str) -> Self {
-        Self::Unavailable {
-            message: error.to_string(),
-        }
+        Self::Unavailable { message: error.to_string() }
     }
 
     /// Human-readable header for the unavailable panel.
@@ -106,12 +103,7 @@ pub struct MetricSeries {
 
 impl MetricSeries {
     pub fn new(label: &str, kind: MetricKind) -> Self {
-        Self {
-            label: label.to_string(),
-            kind,
-            data: Vec::new(),
-            capacity: None,
-        }
+        Self { label: label.to_string(), kind, data: Vec::new(), capacity: None }
     }
 
     pub fn with_capacity(mut self, capacity: f64) -> Self {
@@ -120,10 +112,7 @@ impl MetricSeries {
     }
 
     pub fn push(&mut self, timestamp_secs: f64, value: f64) {
-        self.data.push(MetricDataPoint {
-            timestamp_secs,
-            value,
-        });
+        self.data.push(MetricDataPoint { timestamp_secs, value });
     }
 
     pub fn latest_value(&self) -> Option<f64> {
@@ -131,17 +120,11 @@ impl MetricSeries {
     }
 
     pub fn max_value(&self) -> Option<f64> {
-        self.data
-            .iter()
-            .map(|d| d.value)
-            .reduce(f64::max)
+        self.data.iter().map(|d| d.value).reduce(f64::max)
     }
 
     pub fn min_value(&self) -> Option<f64> {
-        self.data
-            .iter()
-            .map(|d| d.value)
-            .reduce(f64::min)
+        self.data.iter().map(|d| d.value).reduce(f64::min)
     }
 
     pub fn average_value(&self) -> Option<f64> {
@@ -223,10 +206,7 @@ impl Default for MetricsChartState {
 
 impl MetricsChartState {
     pub fn new(style: ChartStyle) -> Self {
-        Self {
-            chart_style: style,
-            ..Default::default()
-        }
+        Self { chart_style: style, ..Default::default() }
     }
 
     pub fn add_series(&mut self, series: MetricSeries) {
@@ -243,9 +223,7 @@ impl MetricsChartState {
 
     pub fn set_unavailable(&mut self, message: &str) {
         self.metrics_available = false;
-        self.availability = MetricsAvailability::Unavailable {
-            message: message.to_string(),
-        };
+        self.availability = MetricsAvailability::Unavailable { message: message.to_string() };
         self.empty_state_message = Some(message.to_string());
     }
 
@@ -294,8 +272,7 @@ impl MetricsChartState {
 
     /// Returns true if the chart should show the empty/unavailable state.
     pub fn should_show_empty_state(&self) -> bool {
-        self.availability.is_unavailable()
-            || (!self.has_data() && self.series.is_empty())
+        self.availability.is_unavailable() || (!self.has_data() && self.series.is_empty())
     }
 
     /// Returns the appropriate empty state title.
@@ -333,15 +310,10 @@ impl MetricsChartState {
         timestamp: f64,
         value: f64,
     ) {
-        if let Some(series) = self
-            .series
-            .iter_mut()
-            .find(|s| s.label == series_label)
-        {
+        if let Some(series) = self.series.iter_mut().find(|s| s.label == series_label) {
             series.push(timestamp, value);
         } else {
-            let mut new_series =
-                MetricSeries::new(series_label, kind);
+            let mut new_series = MetricSeries::new(series_label, kind);
             new_series.push(timestamp, value);
             self.series.push(new_series);
         }
@@ -407,14 +379,8 @@ struct ChartColors {
 }
 
 /// Available time range presets (in seconds).
-const TIME_RANGE_PRESETS: &[(u64, &str)] = &[
-    (300, "5m"),
-    (900, "15m"),
-    (1800, "30m"),
-    (3600, "1h"),
-    (14400, "4h"),
-    (86400, "24h"),
-];
+const TIME_RANGE_PRESETS: &[(u64, &str)] =
+    &[(300, "5m"), (900, "15m"), (1800, "30m"), (3600, "1h"), (14400, "4h"), (86400, "24h")];
 
 /// GPUI-renderable metrics chart component.
 ///
@@ -434,8 +400,7 @@ impl MetricsChartComponent {
 
     /// Returns the palette color for a series index.
     pub fn series_color(index: usize) -> crate::theme::Color {
-        let (r, g, b) =
-            SERIES_PALETTE[index % SERIES_PALETTE.len()];
+        let (r, g, b) = SERIES_PALETTE[index % SERIES_PALETTE.len()];
         crate::theme::Color::rgb(r, g, b)
     }
 
@@ -450,19 +415,11 @@ impl MetricsChartComponent {
 
     /// Compute maximum value across all series for Y-axis scaling.
     pub fn max_across_series(&self) -> f64 {
-        self.state
-            .series
-            .iter()
-            .filter_map(|s| s.max_value())
-            .reduce(f64::max)
-            .unwrap_or(100.0)
+        self.state.series.iter().filter_map(|s| s.max_value()).reduce(f64::max).unwrap_or(100.0)
     }
 
     /// Format a value for display based on the series' MetricKind.
-    pub fn format_value(
-        kind: MetricKind,
-        value: f64,
-    ) -> String {
+    pub fn format_value(kind: MetricKind, value: f64) -> String {
         match kind {
             MetricKind::Cpu => format_cpu(value as u64),
             MetricKind::Memory => format_bytes(value as u64),
@@ -472,12 +429,7 @@ impl MetricsChartComponent {
     /// Compute Y-axis labels (5 ticks from 0 to max).
     pub fn y_axis_labels(&self) -> Vec<String> {
         let max = self.max_across_series();
-        let kind = self
-            .state
-            .series
-            .first()
-            .map(|s| s.kind)
-            .unwrap_or(MetricKind::Cpu);
+        let kind = self.state.series.first().map(|s| s.kind).unwrap_or(MetricKind::Cpu);
         (0..=4)
             .map(|i| {
                 let val = max * (i as f64 / 4.0);
@@ -506,16 +458,8 @@ impl MetricsChartComponent {
             surface: self.theme.colors.surface.to_gpui(),
             border: self.theme.colors.border.to_gpui(),
             accent: self.theme.colors.accent.to_gpui(),
-            text_primary: self
-                .theme
-                .colors
-                .text_primary
-                .to_gpui(),
-            text_secondary: self
-                .theme
-                .colors
-                .text_secondary
-                .to_gpui(),
+            text_primary: self.theme.colors.text_primary.to_gpui(),
+            text_secondary: self.theme.colors.text_secondary.to_gpui(),
             text_muted: self.theme.colors.text_muted.to_gpui(),
             warning: self.theme.colors.warning.to_gpui(),
             info: self.theme.colors.info.to_gpui(),
@@ -525,10 +469,7 @@ impl MetricsChartComponent {
     // -- Render helpers (each returns Div) --
 
     /// Chart header with style selector and time range.
-    fn render_chart_header(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
+    fn render_chart_header(&self, colors: &ChartColors) -> gpui::Div {
         let style_sel = self.render_style_selector(colors);
         let time_sel = self.render_time_range_selector(colors);
 
@@ -548,27 +489,13 @@ impl MetricsChartComponent {
     }
 
     /// Style selector pills (Line / Area / Bar).
-    fn render_style_selector(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
-        let mut row = div()
-            .flex()
-            .flex_row()
-            .gap(px(4.0));
+    fn render_style_selector(&self, colors: &ChartColors) -> gpui::Div {
+        let mut row = div().flex().flex_row().gap(px(4.0));
 
         for style in ChartStyle::all() {
             let active = *style == self.state.chart_style;
-            let tc = if active {
-                colors.accent
-            } else {
-                colors.text_muted
-            };
-            let bg = if active {
-                colors.surface
-            } else {
-                colors.background
-            };
+            let tc = if active { colors.accent } else { colors.text_muted };
+            let bg = if active { colors.surface } else { colors.background };
             let id = format!("style-{}", style.label());
             let pill = div()
                 .id(ElementId::Name(SharedString::from(id)))
@@ -587,22 +514,12 @@ impl MetricsChartComponent {
     }
 
     /// Time range selector pills.
-    fn render_time_range_selector(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
-        let mut row = div()
-            .flex()
-            .flex_row()
-            .gap(px(4.0));
+    fn render_time_range_selector(&self, colors: &ChartColors) -> gpui::Div {
+        let mut row = div().flex().flex_row().gap(px(4.0));
 
         for (secs, label) in TIME_RANGE_PRESETS {
             let active = *secs == self.state.time_range_secs;
-            let tc = if active {
-                colors.accent
-            } else {
-                colors.text_muted
-            };
+            let tc = if active { colors.accent } else { colors.text_muted };
             let id = format!("time-{label}");
             let pill = div()
                 .id(ElementId::Name(SharedString::from(id)))
@@ -620,17 +537,9 @@ impl MetricsChartComponent {
     }
 
     /// Y-axis labels column.
-    fn render_y_axis(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
+    fn render_y_axis(&self, colors: &ChartColors) -> gpui::Div {
         let labels = self.y_axis_labels();
-        let mut col = div()
-            .flex()
-            .flex_col()
-            .justify_between()
-            .pr_2()
-            .py_1();
+        let mut col = div().flex().flex_col().justify_between().pr_2().py_1();
 
         // Reverse so highest is at top.
         for lbl in labels.iter().rev() {
@@ -646,17 +555,9 @@ impl MetricsChartComponent {
     }
 
     /// X-axis time labels row.
-    fn render_x_axis(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
+    fn render_x_axis(&self, colors: &ChartColors) -> gpui::Div {
         let labels = self.x_axis_labels();
-        let mut row = div()
-            .flex()
-            .flex_row()
-            .justify_between()
-            .pt_1()
-            .pl(px(40.0));
+        let mut row = div().flex().flex_row().justify_between().pt_1().pl(px(40.0));
 
         for lbl in &labels {
             row = row.child(
@@ -671,24 +572,12 @@ impl MetricsChartComponent {
     }
 
     /// Main chart area with bar-indicator visualization for each series.
-    fn render_chart_area(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
+    fn render_chart_area(&self, colors: &ChartColors) -> gpui::Div {
         let max = self.max_across_series();
-        let mut col = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .gap(px(4.0))
-            .py_1();
+        let mut col = div().flex().flex_col().flex_1().gap(px(4.0)).py_1();
 
-        for (i, series) in
-            self.state.series.iter().enumerate()
-        {
-            let bar = self.render_series_bar(
-                series, i, max, colors,
-            );
+        for (i, series) in self.state.series.iter().enumerate() {
+            let bar = self.render_series_bar(series, i, max, colors);
             col = col.child(bar);
         }
 
@@ -706,14 +595,8 @@ impl MetricsChartComponent {
         let sc = Self::series_color(index).to_gpui();
         let label = SharedString::from(series.label.clone());
         let current = series.latest_value().unwrap_or(0.0);
-        let pct = if max_value > 0.0 {
-            (current / max_value * 100.0).min(100.0)
-        } else {
-            0.0
-        };
-        let val_text = SharedString::from(
-            Self::format_value(series.kind, current),
-        );
+        let pct = if max_value > 0.0 { (current / max_value * 100.0).min(100.0) } else { 0.0 };
+        let val_text = SharedString::from(Self::format_value(series.kind, current));
 
         let fill_width = pct as f32 * 2.0; // scale to px
 
@@ -722,44 +605,21 @@ impl MetricsChartComponent {
             .flex_row()
             .items_center()
             .gap(px(8.0))
-            .child(
-                div()
-                    .w(px(80.0))
-                    .text_xs()
-                    .text_color(sc)
-                    .child(label),
-            )
+            .child(div().w(px(80.0)).text_xs().text_color(sc).child(label))
             .child(
                 div()
                     .flex_1()
                     .h(px(16.0))
                     .rounded(px(2.0))
                     .bg(colors.surface)
-                    .child(
-                        div()
-                            .h_full()
-                            .w(px(fill_width))
-                            .rounded(px(2.0))
-                            .bg(sc),
-                    ),
+                    .child(div().h_full().w(px(fill_width)).rounded(px(2.0)).bg(sc)),
             )
-            .child(
-                div()
-                    .w(px(60.0))
-                    .text_xs()
-                    .text_color(colors.text_secondary)
-                    .child(val_text),
-            )
+            .child(div().w(px(60.0)).text_xs().text_color(colors.text_secondary).child(val_text))
     }
 
     /// Legend showing series labels with color indicators.
-    fn render_legend(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
-        if !self.state.show_legend
-            || self.state.series.is_empty()
-        {
+    fn render_legend(&self, colors: &ChartColors) -> gpui::Div {
+        if !self.state.show_legend || self.state.series.is_empty() {
             return div();
         }
 
@@ -773,32 +633,17 @@ impl MetricsChartComponent {
             .border_t_1()
             .border_color(colors.border);
 
-        for (i, series) in
-            self.state.series.iter().enumerate()
-        {
+        for (i, series) in self.state.series.iter().enumerate() {
             let sc = Self::series_color(i).to_gpui();
-            let lbl = SharedString::from(
-                series.label.clone(),
-            );
+            let lbl = SharedString::from(series.label.clone());
 
             let item = div()
                 .flex()
                 .flex_row()
                 .items_center()
                 .gap(px(4.0))
-                .child(
-                    div()
-                        .w(px(10.0))
-                        .h(px(10.0))
-                        .rounded(px(2.0))
-                        .bg(sc),
-                )
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(colors.text_secondary)
-                        .child(lbl),
-                );
+                .child(div().w(px(10.0)).h(px(10.0)).rounded(px(2.0)).bg(sc))
+                .child(div().text_xs().text_color(colors.text_secondary).child(lbl));
 
             row = row.child(item);
         }
@@ -807,11 +652,7 @@ impl MetricsChartComponent {
     }
 
     /// Series summary row: current value, usage %, min/max/avg.
-    fn render_series_summary(
-        &self,
-        series: &MetricSeries,
-        colors: &ChartColors,
-    ) -> gpui::Div {
+    fn render_series_summary(&self, series: &MetricSeries, colors: &ChartColors) -> gpui::Div {
         let current = series
             .latest_value()
             .map(|v| Self::format_value(series.kind, v))
@@ -828,14 +669,10 @@ impl MetricsChartComponent {
             .average_value()
             .map(|v| Self::format_value(series.kind, v))
             .unwrap_or_else(|| "-".to_string());
-        let pct = series
-            .usage_percent()
-            .map(|p| format!("{p:.1}%"))
-            .unwrap_or_else(|| "-".to_string());
+        let pct =
+            series.usage_percent().map(|p| format!("{p:.1}%")).unwrap_or_else(|| "-".to_string());
 
-        let label = SharedString::from(
-            series.label.clone(),
-        );
+        let label = SharedString::from(series.label.clone());
 
         div()
             .flex()
@@ -844,37 +681,16 @@ impl MetricsChartComponent {
             .gap(px(16.0))
             .px_3()
             .py_1()
-            .child(
-                div()
-                    .w(px(80.0))
-                    .text_xs()
-                    .text_color(colors.text_primary)
-                    .child(label),
-            )
-            .child(self.summary_stat(
-                "Current", &current, colors,
-            ))
-            .child(self.summary_stat(
-                "Usage", &pct, colors,
-            ))
-            .child(self.summary_stat(
-                "Min", &min, colors,
-            ))
-            .child(self.summary_stat(
-                "Max", &max, colors,
-            ))
-            .child(self.summary_stat(
-                "Avg", &avg, colors,
-            ))
+            .child(div().w(px(80.0)).text_xs().text_color(colors.text_primary).child(label))
+            .child(self.summary_stat("Current", &current, colors))
+            .child(self.summary_stat("Usage", &pct, colors))
+            .child(self.summary_stat("Min", &min, colors))
+            .child(self.summary_stat("Max", &max, colors))
+            .child(self.summary_stat("Avg", &avg, colors))
     }
 
     /// A single stat label + value pair.
-    fn summary_stat(
-        &self,
-        label: &str,
-        value: &str,
-        colors: &ChartColors,
-    ) -> gpui::Div {
+    fn summary_stat(&self, label: &str, value: &str, colors: &ChartColors) -> gpui::Div {
         div()
             .flex()
             .flex_col()
@@ -882,49 +698,30 @@ impl MetricsChartComponent {
                 div()
                     .text_xs()
                     .text_color(colors.text_muted)
-                    .child(SharedString::from(
-                        label.to_string(),
-                    )),
+                    .child(SharedString::from(label.to_string())),
             )
             .child(
                 div()
                     .text_xs()
                     .text_color(colors.text_primary)
-                    .child(SharedString::from(
-                        value.to_string(),
-                    )),
+                    .child(SharedString::from(value.to_string())),
             )
     }
 
     /// Render all series summaries.
-    fn render_series_summaries(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
-        let mut col = div()
-            .flex()
-            .flex_col()
-            .gap(px(2.0))
-            .border_t_1()
-            .border_color(colors.border);
+    fn render_series_summaries(&self, colors: &ChartColors) -> gpui::Div {
+        let mut col = div().flex().flex_col().gap(px(2.0)).border_t_1().border_color(colors.border);
 
         for series in &self.state.series {
-            col = col.child(
-                self.render_series_summary(series, colors),
-            );
+            col = col.child(self.render_series_summary(series, colors));
         }
 
         col
     }
 
     /// Empty state / metrics unavailable (T070 + T365: graceful degradation).
-    fn render_empty_state(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
-        let title = SharedString::from(
-            self.state.empty_state_title().to_string(),
-        );
+    fn render_empty_state(&self, colors: &ChartColors) -> gpui::Div {
+        let title = SharedString::from(self.state.empty_state_title().to_string());
 
         let mut container = div()
             .flex()
@@ -945,27 +742,18 @@ impl MetricsChartComponent {
         if self.state.availability.is_unavailable() {
             // T365: Detailed unavailable panel with explanation,
             // install command, and "Check Again" button.
-            let explanation = SharedString::from(
-                MetricsAvailability::explanation(),
-            );
-            let install_cmd = SharedString::from(
-                MetricsAvailability::install_command(),
-            );
+            let explanation = SharedString::from(MetricsAvailability::explanation());
+            let install_cmd = SharedString::from(MetricsAvailability::install_command());
 
             // Show the specific error message from the server if present.
-            if let MetricsAvailability::Unavailable {
-                ref message,
-            } = self.state.availability
-            {
+            if let MetricsAvailability::Unavailable { ref message } = self.state.availability {
                 if !message.is_empty() {
                     container = container.child(
                         div()
                             .max_w(px(480.0))
                             .text_xs()
                             .text_color(colors.warning)
-                            .child(SharedString::from(
-                                message.clone(),
-                            )),
+                            .child(SharedString::from(message.clone())),
                     );
                 }
             }
@@ -985,9 +773,7 @@ impl MetricsChartComponent {
                         .max_w(px(480.0))
                         .text_xs()
                         .text_color(colors.text_secondary)
-                        .child(SharedString::from(
-                            "Install metrics-server with:",
-                        )),
+                        .child(SharedString::from("Install metrics-server with:")),
                 )
                 // Command block
                 .child(
@@ -1006,30 +792,17 @@ impl MetricsChartComponent {
                 // "Check Again" button
                 .child(
                     div()
-                        .id(ElementId::Name(
-                            SharedString::from(
-                                "check-metrics-btn",
-                            ),
-                        ))
+                        .id(ElementId::Name(SharedString::from("check-metrics-btn")))
                         .px_3()
                         .py_1()
                         .rounded(px(4.0))
                         .bg(colors.accent)
                         .cursor_pointer()
                         .text_xs()
-                        .text_color(
-                            crate::theme::Color::rgb(
-                                255, 255, 255,
-                            )
-                            .to_gpui(),
-                        )
-                        .child(SharedString::from(
-                            "Check Again",
-                        )),
+                        .text_color(crate::theme::Color::rgb(255, 255, 255).to_gpui())
+                        .child(SharedString::from("Check Again")),
                 );
-        } else if let Some(ref msg) =
-            self.state.empty_state_message
-        {
+        } else if let Some(ref msg) = self.state.empty_state_message {
             container = container.child(
                 div()
                     .text_xs()
@@ -1042,24 +815,13 @@ impl MetricsChartComponent {
     }
 
     /// Loading indicator.
-    fn render_loading(
-        &self,
-        colors: &ChartColors,
-    ) -> gpui::Div {
-        div()
-            .flex()
-            .items_center()
-            .justify_center()
-            .flex_1()
-            .py(px(32.0))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child(SharedString::from(
-                        "Loading metrics...",
-                    )),
-            )
+    fn render_loading(&self, colors: &ChartColors) -> gpui::Div {
+        div().flex().items_center().justify_center().flex_1().py(px(32.0)).child(
+            div()
+                .text_sm()
+                .text_color(colors.text_muted)
+                .child(SharedString::from("Loading metrics...")),
+        )
     }
 }
 
@@ -1081,11 +843,7 @@ fn format_duration_label(secs: u64) -> String {
 // ---------------------------------------------------------------------------
 
 impl Render for MetricsChartComponent {
-    fn render(
-        &mut self,
-        _window: &mut Window,
-        _cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         let colors = self.colors();
 
         let mut base = div()
@@ -1098,13 +856,10 @@ impl Render for MetricsChartComponent {
 
         base = base.child(self.render_chart_header(&colors));
 
-        if self.state.is_loading()
-            || self.state.availability.is_loading()
-        {
+        if self.state.is_loading() || self.state.availability.is_loading() {
             base = base.child(self.render_loading(&colors));
         } else if self.state.should_show_empty_state() {
-            base =
-                base.child(self.render_empty_state(&colors));
+            base = base.child(self.render_empty_state(&colors));
         } else {
             let chart_row = div()
                 .flex()
@@ -1116,9 +871,7 @@ impl Render for MetricsChartComponent {
             base = base
                 .child(chart_row)
                 .child(self.render_x_axis(&colors))
-                .child(
-                    self.render_series_summaries(&colors),
-                )
+                .child(self.render_series_summaries(&colors))
                 .child(self.render_legend(&colors));
         }
 
@@ -1154,8 +907,7 @@ mod tests {
 
     #[test]
     fn test_metric_series_with_capacity() {
-        let series = MetricSeries::new("node-1", MetricKind::Cpu)
-            .with_capacity(4000.0);
+        let series = MetricSeries::new("node-1", MetricKind::Cpu).with_capacity(4000.0);
         assert_eq!(series.capacity, Some(4000.0));
     }
 
@@ -1185,8 +937,7 @@ mod tests {
 
     #[test]
     fn test_usage_percent() {
-        let mut series = MetricSeries::new("node-1", MetricKind::Cpu)
-            .with_capacity(4000.0);
+        let mut series = MetricSeries::new("node-1", MetricKind::Cpu).with_capacity(4000.0);
         series.push(1000.0, 1500.0);
 
         let pct = series.usage_percent().unwrap();
@@ -1202,8 +953,7 @@ mod tests {
 
     #[test]
     fn test_usage_percent_zero_capacity() {
-        let mut series = MetricSeries::new("node-1", MetricKind::Cpu)
-            .with_capacity(0.0);
+        let mut series = MetricSeries::new("node-1", MetricKind::Cpu).with_capacity(0.0);
         series.push(1000.0, 100.0);
         assert!(series.usage_percent().is_none());
     }
@@ -1246,10 +996,7 @@ mod tests {
         let mut state = MetricsChartState::default();
         state.set_unavailable("metrics-server is not installed");
         assert!(!state.metrics_available);
-        assert_eq!(
-            state.empty_state_message.as_deref(),
-            Some("metrics-server is not installed")
-        );
+        assert_eq!(state.empty_state_message.as_deref(), Some("metrics-server is not installed"));
 
         state.set_available();
         assert!(state.metrics_available);
@@ -1299,10 +1046,7 @@ mod tests {
     fn test_empty_state_title_unavailable() {
         let mut state = MetricsChartState::default();
         state.set_unavailable("not installed");
-        assert_eq!(
-            state.empty_state_title(),
-            MetricsAvailability::header()
-        );
+        assert_eq!(state.empty_state_title(), MetricsAvailability::header());
     }
 
     #[test]
@@ -1348,9 +1092,7 @@ mod tests {
 
     #[test]
     fn test_metrics_availability_unavailable() {
-        let avail = MetricsAvailability::Unavailable {
-            message: "HTTP 404 Not Found".to_string(),
-        };
+        let avail = MetricsAvailability::Unavailable { message: "HTTP 404 Not Found".to_string() };
         assert!(avail.is_unavailable());
         assert!(!avail.is_available());
         assert!(!avail.is_loading());
@@ -1366,8 +1108,7 @@ mod tests {
 
     #[test]
     fn test_metrics_availability_from_error() {
-        let avail =
-            MetricsAvailability::from_error("connection refused");
+        let avail = MetricsAvailability::from_error("connection refused");
         assert!(avail.is_unavailable());
         if let MetricsAvailability::Unavailable { message } = &avail {
             assert_eq!(message, "connection refused");
@@ -1378,53 +1119,24 @@ mod tests {
 
     #[test]
     fn test_metrics_availability_static_strings() {
-        assert_eq!(
-            MetricsAvailability::header(),
-            "Metrics server is not available"
-        );
-        assert!(
-            MetricsAvailability::explanation()
-                .contains("metrics-server")
-        );
-        assert!(
-            MetricsAvailability::install_command()
-                .contains("kubectl apply")
-        );
-        assert!(
-            MetricsAvailability::install_command()
-                .contains("components.yaml")
-        );
+        assert_eq!(MetricsAvailability::header(), "Metrics server is not available");
+        assert!(MetricsAvailability::explanation().contains("metrics-server"));
+        assert!(MetricsAvailability::install_command().contains("kubectl apply"));
+        assert!(MetricsAvailability::install_command().contains("components.yaml"));
     }
 
     #[test]
     fn test_metrics_availability_equality() {
+        assert_eq!(MetricsAvailability::Available, MetricsAvailability::Available);
+        assert_eq!(MetricsAvailability::Loading, MetricsAvailability::Loading);
         assert_eq!(
-            MetricsAvailability::Available,
-            MetricsAvailability::Available
+            MetricsAvailability::Unavailable { message: "x".to_string() },
+            MetricsAvailability::Unavailable { message: "x".to_string() }
         );
-        assert_eq!(
-            MetricsAvailability::Loading,
-            MetricsAvailability::Loading
-        );
-        assert_eq!(
-            MetricsAvailability::Unavailable {
-                message: "x".to_string()
-            },
-            MetricsAvailability::Unavailable {
-                message: "x".to_string()
-            }
-        );
+        assert_ne!(MetricsAvailability::Available, MetricsAvailability::Loading);
         assert_ne!(
-            MetricsAvailability::Available,
-            MetricsAvailability::Loading
-        );
-        assert_ne!(
-            MetricsAvailability::Unavailable {
-                message: "a".to_string()
-            },
-            MetricsAvailability::Unavailable {
-                message: "b".to_string()
-            },
+            MetricsAvailability::Unavailable { message: "a".to_string() },
+            MetricsAvailability::Unavailable { message: "b".to_string() },
         );
     }
 
@@ -1443,9 +1155,7 @@ mod tests {
         state.set_unavailable("HTTP 404");
         assert!(state.availability.is_unavailable());
         assert!(!state.metrics_available);
-        if let MetricsAvailability::Unavailable { message } =
-            &state.availability
-        {
+        if let MetricsAvailability::Unavailable { message } = &state.availability {
             assert_eq!(message, "HTTP 404");
         } else {
             panic!("expected Unavailable");
@@ -1470,15 +1180,10 @@ mod tests {
         assert!(state.availability.is_loading());
         assert!(!state.metrics_available);
 
-        state.set_availability(MetricsAvailability::Unavailable {
-            message: "503".to_string(),
-        });
+        state.set_availability(MetricsAvailability::Unavailable { message: "503".to_string() });
         assert!(state.availability.is_unavailable());
         assert!(!state.metrics_available);
-        assert_eq!(
-            state.empty_state_message.as_deref(),
-            Some("503")
-        );
+        assert_eq!(state.empty_state_message.as_deref(), Some("503"));
 
         state.set_availability(MetricsAvailability::Available);
         assert!(state.availability.is_available());
@@ -1515,13 +1220,8 @@ mod tests {
     #[test]
     fn test_empty_state_title_uses_header_when_unavailable() {
         let mut state = MetricsChartState::default();
-        state.set_availability(MetricsAvailability::Unavailable {
-            message: "err".to_string(),
-        });
-        assert_eq!(
-            state.empty_state_title(),
-            "Metrics server is not available"
-        );
+        state.set_availability(MetricsAvailability::Unavailable { message: "err".to_string() });
+        assert_eq!(state.empty_state_title(), "Metrics server is not available");
     }
 
     #[test]

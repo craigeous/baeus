@@ -30,11 +30,7 @@ fn sample_rows() -> Vec<TableRow> {
     vec![
         TableRow {
             uid: "uid-1".to_string(),
-            cells: vec![
-                "nginx-pod".to_string(),
-                "default".to_string(),
-                "Running".to_string(),
-            ],
+            cells: vec!["nginx-pod".to_string(), "default".to_string(), "Running".to_string()],
             selected: false,
             kind: "Pod".to_string(),
             name: "nginx-pod".to_string(),
@@ -44,11 +40,7 @@ fn sample_rows() -> Vec<TableRow> {
         },
         TableRow {
             uid: "uid-2".to_string(),
-            cells: vec![
-                "redis-pod".to_string(),
-                "cache".to_string(),
-                "Pending".to_string(),
-            ],
+            cells: vec!["redis-pod".to_string(), "cache".to_string(), "Pending".to_string()],
             selected: false,
             kind: "Pod".to_string(),
             name: "redis-pod".to_string(),
@@ -58,11 +50,7 @@ fn sample_rows() -> Vec<TableRow> {
         },
         TableRow {
             uid: "uid-3".to_string(),
-            cells: vec![
-                "api-deploy".to_string(),
-                "production".to_string(),
-                "Running".to_string(),
-            ],
+            cells: vec!["api-deploy".to_string(), "production".to_string(), "Running".to_string()],
             selected: false,
             kind: "Deployment".to_string(),
             name: "api-deploy".to_string(),
@@ -72,11 +60,7 @@ fn sample_rows() -> Vec<TableRow> {
         },
         TableRow {
             uid: "uid-4".to_string(),
-            cells: vec![
-                "cluster-role".to_string(),
-                "".to_string(),
-                "Active".to_string(),
-            ],
+            cells: vec!["cluster-role".to_string(), "".to_string(), "Active".to_string()],
             selected: false,
             kind: "ClusterRole".to_string(),
             name: "cluster-role".to_string(),

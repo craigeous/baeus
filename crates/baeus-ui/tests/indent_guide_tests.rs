@@ -1,8 +1,8 @@
 //! Tests for the navigator indent guide computation and tree flattening.
 
-use baeus_ui::layout::indent_guides::{compute_indent_guides, IndentGuideLayout};
-use baeus_ui::layout::sidebar::{NavigatorFlatEntry, SidebarState};
 use baeus_ui::icons::ResourceCategory;
+use baeus_ui::layout::indent_guides::{IndentGuideLayout, compute_indent_guides};
+use baeus_ui::layout::sidebar::{NavigatorFlatEntry, SidebarState};
 use uuid::Uuid;
 
 // ---------------------------------------------------------------------------
@@ -27,14 +27,7 @@ fn test_single_leaf_produces_one_guide() {
     }];
     let guides = compute_indent_guides(&entries);
     assert_eq!(guides.len(), 1);
-    assert_eq!(
-        guides[0],
-        IndentGuideLayout {
-            depth: 1,
-            start_row: 0,
-            end_row: 0,
-        }
-    );
+    assert_eq!(guides[0], IndentGuideLayout { depth: 1, start_row: 0, end_row: 0 });
 }
 
 #[test]
@@ -67,14 +60,7 @@ fn test_all_leaves_one_depth1_guide() {
     ];
     let guides = compute_indent_guides(&entries);
     assert_eq!(guides.len(), 1);
-    assert_eq!(
-        guides[0],
-        IndentGuideLayout {
-            depth: 1,
-            start_row: 0,
-            end_row: 2,
-        }
-    );
+    assert_eq!(guides[0], IndentGuideLayout { depth: 1, start_row: 0, end_row: 2 });
 }
 
 #[test]
@@ -255,16 +241,14 @@ fn test_multiple_expanded_branches_produce_separate_depth2_guides() {
 fn test_last_sibling_terminates_guide() {
     // Two entries at depth 1, first is last_sibling=true (unusual but possible)
     // This tests that the guide terminates correctly
-    let entries = vec![
-        NavigatorFlatEntry::Leaf {
-            depth: 1,
-            label: "Only".into(),
-            target_kind: "Node".into(),
-            cluster_id: Uuid::nil(),
-            context_name: "test".into(),
-            is_last_sibling: true,
-        },
-    ];
+    let entries = vec![NavigatorFlatEntry::Leaf {
+        depth: 1,
+        label: "Only".into(),
+        target_kind: "Node".into(),
+        cluster_id: Uuid::nil(),
+        context_name: "test".into(),
+        is_last_sibling: true,
+    }];
     let guides = compute_indent_guides(&entries);
     assert_eq!(guides.len(), 1);
     assert_eq!(guides[0].start_row, 0);
@@ -273,16 +257,14 @@ fn test_last_sibling_terminates_guide() {
 
 #[test]
 fn test_collapsed_category_has_no_depth2_guides() {
-    let entries = vec![
-        NavigatorFlatEntry::CategoryHeader {
-            depth: 1,
-            label: "Workloads".into(),
-            category: ResourceCategory::Workloads,
-            cluster_id: Uuid::nil(),
-            expanded: false,
-            is_last_sibling: true,
-        },
-    ];
+    let entries = vec![NavigatorFlatEntry::CategoryHeader {
+        depth: 1,
+        label: "Workloads".into(),
+        category: ResourceCategory::Workloads,
+        cluster_id: Uuid::nil(),
+        expanded: false,
+        is_last_sibling: true,
+    }];
     let guides = compute_indent_guides(&entries);
     // Only depth-1 guide, no depth-2
     let depth2: Vec<_> = guides.iter().filter(|g| g.depth == 2).collect();
@@ -326,7 +308,8 @@ fn test_flatten_expanded_category_has_depth2_children() {
     for entry in entries.iter().filter(|e| e.depth() == 2) {
         assert!(
             matches!(entry, NavigatorFlatEntry::ResourceKind { .. }),
-            "Expected ResourceKind at depth 2, got {:?}", entry,
+            "Expected ResourceKind at depth 2, got {:?}",
+            entry,
         );
     }
 }
@@ -342,15 +325,9 @@ fn test_flatten_is_last_sibling_correct_for_top_level() {
     // Only the very last entry should have is_last_sibling=true
     for (i, entry) in entries.iter().enumerate() {
         if i == entries.len() - 1 {
-            assert!(
-                entry.is_last_sibling(),
-                "Last entry should be is_last_sibling=true",
-            );
+            assert!(entry.is_last_sibling(), "Last entry should be is_last_sibling=true",);
         } else {
-            assert!(
-                !entry.is_last_sibling(),
-                "Entry {} should be is_last_sibling=false", i,
-            );
+            assert!(!entry.is_last_sibling(), "Entry {} should be is_last_sibling=false", i,);
         }
     }
 }
@@ -363,23 +340,18 @@ fn test_flatten_is_last_sibling_correct_for_depth2() {
     let entries = state.flatten_navigator_tree(&cluster);
 
     // Find the depth-2 entries (Workloads children)
-    let depth2: Vec<_> = entries
-        .iter()
-        .filter(|e| e.depth() == 2)
-        .collect();
+    let depth2: Vec<_> = entries.iter().filter(|e| e.depth() == 2).collect();
     assert!(!depth2.is_empty());
 
     // Only the last depth-2 entry should have is_last_sibling=true
     for (i, entry) in depth2.iter().enumerate() {
         if i == depth2.len() - 1 {
-            assert!(
-                entry.is_last_sibling(),
-                "Last depth-2 entry should be is_last_sibling=true",
-            );
+            assert!(entry.is_last_sibling(), "Last depth-2 entry should be is_last_sibling=true",);
         } else {
             assert!(
                 !entry.is_last_sibling(),
-                "Depth-2 entry {} should be is_last_sibling=false", i,
+                "Depth-2 entry {} should be is_last_sibling=false",
+                i,
             );
         }
     }
@@ -410,7 +382,10 @@ fn test_flatten_category_header_has_correct_expanded_state() {
 
     // Find the Workloads category header
     let workloads_header = entries.iter().find(|e| {
-        matches!(e, NavigatorFlatEntry::CategoryHeader { category: ResourceCategory::Workloads, .. })
+        matches!(
+            e,
+            NavigatorFlatEntry::CategoryHeader { category: ResourceCategory::Workloads, .. }
+        )
     });
     assert!(workloads_header.is_some());
 

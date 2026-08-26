@@ -1,4 +1,4 @@
-use baeus_ui::layout::sidebar::{tree_connector_prefix, NavigatorNode, SidebarState};
+use baeus_ui::layout::sidebar::{NavigatorNode, SidebarState, tree_connector_prefix};
 
 #[test]
 fn test_tree_connector_depth_0() {
@@ -31,18 +31,9 @@ fn test_tree_connector_depth_2_parent_no_more() {
 
 #[test]
 fn test_tree_connector_depth_3() {
-    assert_eq!(
-        tree_connector_prefix(3, false, &[true, true]),
-        "│  │  ├─ "
-    );
-    assert_eq!(
-        tree_connector_prefix(3, true, &[true, false]),
-        "│     └─ "
-    );
-    assert_eq!(
-        tree_connector_prefix(3, false, &[false, true]),
-        "   │  ├─ "
-    );
+    assert_eq!(tree_connector_prefix(3, false, &[true, true]), "│  │  ├─ ");
+    assert_eq!(tree_connector_prefix(3, true, &[true, false]), "│     └─ ");
+    assert_eq!(tree_connector_prefix(3, false, &[false, true]), "   │  ├─ ");
 }
 
 #[test]
@@ -66,32 +57,23 @@ fn test_navigator_tree_first_is_overview() {
 #[test]
 fn test_navigator_tree_has_workloads_branch() {
     let tree = SidebarState::navigator_tree();
-    let has_workloads = tree
-        .iter()
-        .any(|n| matches!(n, NavigatorNode::Branch { label: "Workloads", .. }));
+    let has_workloads =
+        tree.iter().any(|n| matches!(n, NavigatorNode::Branch { label: "Workloads", .. }));
     assert!(has_workloads, "Tree should contain Workloads branch");
 }
 
 #[test]
 fn test_navigator_tree_events_is_leaf() {
     let tree = SidebarState::navigator_tree();
-    let events = tree
-        .iter()
-        .find(|n| matches!(n, NavigatorNode::Leaf { label: "Events", .. }));
+    let events = tree.iter().find(|n| matches!(n, NavigatorNode::Leaf { label: "Events", .. }));
     assert!(events.is_some(), "Events should be a leaf node");
 }
 
 #[test]
 fn test_navigator_tree_leaf_and_branch_count() {
     let tree = SidebarState::navigator_tree();
-    let leaf_count = tree
-        .iter()
-        .filter(|n| matches!(n, NavigatorNode::Leaf { .. }))
-        .count();
-    let branch_count = tree
-        .iter()
-        .filter(|n| matches!(n, NavigatorNode::Branch { .. }))
-        .count();
+    let leaf_count = tree.iter().filter(|n| matches!(n, NavigatorNode::Leaf { .. })).count();
+    let branch_count = tree.iter().filter(|n| matches!(n, NavigatorNode::Branch { .. })).count();
     assert_eq!(leaf_count, 5); // Overview, Topology, Nodes, Namespaces, Events
     assert_eq!(branch_count, 8); // Workloads, Config, Network, Storage, Helm, Access Control, ArgoCD, Custom Resources
 }

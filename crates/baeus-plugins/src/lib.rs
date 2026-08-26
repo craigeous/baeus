@@ -182,9 +182,9 @@ impl Plugin {
                 Ok(())
             }
             PluginState::Enabled => Ok(()),
-            PluginState::Error(msg) => Err(PluginError::LoadFailed(format!(
-                "cannot enable plugin in error state: {msg}"
-            ))),
+            PluginState::Error(msg) => {
+                Err(PluginError::LoadFailed(format!("cannot enable plugin in error state: {msg}")))
+            }
         }
     }
 
@@ -217,18 +217,12 @@ mod tests {
             description: "A test plugin for unit testing".to_string(),
             author: "Test Author".to_string(),
             min_app_version: "0.1.0".to_string(),
-            permissions: vec![
-                PluginPermission::ReadResources,
-                PluginPermission::RegisterViews,
-            ],
+            permissions: vec![PluginPermission::ReadResources, PluginPermission::RegisterViews],
         }
     }
 
     fn sample_plugin() -> Plugin {
-        Plugin::new(
-            sample_manifest(),
-            "/plugins/test-plugin.dylib".to_string(),
-        )
+        Plugin::new(sample_manifest(), "/plugins/test-plugin.dylib".to_string())
     }
 
     // --- T122: Plugin type tests ---
@@ -347,10 +341,7 @@ mod tests {
         plugin.set_error("something went wrong".to_string());
 
         assert!(plugin.is_error());
-        assert_eq!(
-            plugin.state,
-            PluginState::Error("something went wrong".to_string())
-        );
+        assert_eq!(plugin.state, PluginState::Error("something went wrong".to_string()));
     }
 
     #[test]
@@ -371,7 +362,7 @@ mod tests {
 
     #[test]
     fn test_plugin_permission_all_variants() {
-        let permissions = vec![
+        let permissions = [
             PluginPermission::ReadResources,
             PluginPermission::WriteResources,
             PluginPermission::RegisterViews,

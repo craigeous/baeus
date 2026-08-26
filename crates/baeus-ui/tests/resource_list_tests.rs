@@ -1,20 +1,13 @@
-use baeus_ui::views::resource_list::*;
+use baeus_core::rbac::{PermissionCheck, PermissionResult, RbacCache, RbacVerb};
 use baeus_ui::components::resource_table::columns_for_kind as table_columns_for_kind;
 use baeus_ui::theme::{Color, Theme};
-use baeus_core::rbac::{PermissionCheck, PermissionResult, RbacCache, RbacVerb};
+use baeus_ui::views::resource_list::*;
 
 // --- QuickAction tests ---
 
 #[test]
 fn test_quick_action_labels() {
-    assert_eq!(
-        QuickAction::Scale {
-            current_replicas: 1,
-            desired_replicas: 3
-        }
-        .label(),
-        "Scale"
-    );
+    assert_eq!(QuickAction::Scale { current_replicas: 1, desired_replicas: 3 }.label(), "Scale");
     assert_eq!(QuickAction::Restart.label(), "Restart");
     assert_eq!(QuickAction::Delete.label(), "Delete");
     assert_eq!(QuickAction::Cordon.label(), "Cordon");
@@ -28,11 +21,7 @@ fn test_quick_action_labels() {
 fn test_is_destructive() {
     assert!(QuickAction::Delete.is_destructive());
     assert!(!QuickAction::Restart.is_destructive());
-    assert!(!QuickAction::Scale {
-        current_replicas: 0,
-        desired_replicas: 0
-    }
-    .is_destructive());
+    assert!(!QuickAction::Scale { current_replicas: 0, desired_replicas: 0 }.is_destructive());
     assert!(!QuickAction::Cordon.is_destructive());
     assert!(!QuickAction::Uncordon.is_destructive());
     assert!(!QuickAction::ViewLogs.is_destructive());
@@ -42,11 +31,9 @@ fn test_is_destructive() {
 
 #[test]
 fn test_requires_confirmation() {
-    assert!(QuickAction::Scale {
-        current_replicas: 1,
-        desired_replicas: 3
-    }
-    .requires_confirmation());
+    assert!(
+        QuickAction::Scale { current_replicas: 1, desired_replicas: 3 }.requires_confirmation()
+    );
     assert!(QuickAction::Restart.requires_confirmation());
     assert!(QuickAction::Delete.requires_confirmation());
     assert!(QuickAction::Cordon.requires_confirmation());
@@ -71,13 +58,7 @@ fn test_actions_for_pod() {
 fn test_actions_for_deployment() {
     let actions = actions_for_kind("Deployment");
     assert_eq!(actions.len(), 4);
-    assert_eq!(
-        actions[0],
-        QuickAction::Scale {
-            current_replicas: 0,
-            desired_replicas: 0
-        }
-    );
+    assert_eq!(actions[0], QuickAction::Scale { current_replicas: 0, desired_replicas: 0 });
     assert_eq!(actions[1], QuickAction::Restart);
     assert_eq!(actions[2], QuickAction::EditYaml);
     assert_eq!(actions[3], QuickAction::Delete);
@@ -87,13 +68,7 @@ fn test_actions_for_deployment() {
 fn test_actions_for_statefulset() {
     let actions = actions_for_kind("StatefulSet");
     assert_eq!(actions.len(), 4);
-    assert_eq!(
-        actions[0],
-        QuickAction::Scale {
-            current_replicas: 0,
-            desired_replicas: 0
-        }
-    );
+    assert_eq!(actions[0], QuickAction::Scale { current_replicas: 0, desired_replicas: 0 });
     assert_eq!(actions[1], QuickAction::Restart);
 }
 
@@ -310,10 +285,7 @@ fn test_is_workload_kind() {
 
 #[test]
 fn test_quick_action_serialization() {
-    let action = QuickAction::Scale {
-        current_replicas: 3,
-        desired_replicas: 5,
-    };
+    let action = QuickAction::Scale { current_replicas: 3, desired_replicas: 5 };
     let json = serde_json::to_string(&action).unwrap();
     let deserialized: QuickAction = serde_json::from_str(&json).unwrap();
     assert_eq!(action, deserialized);
@@ -345,30 +317,18 @@ fn test_full_workflow() {
 
     // Select a resource
     state.select_resource("deploy-uid-001");
-    assert_eq!(
-        state.selected_resource_uid.as_deref(),
-        Some("deploy-uid-001")
-    );
+    assert_eq!(state.selected_resource_uid.as_deref(), Some("deploy-uid-001"));
 
     // Request a scale action
     state.request_action(
         "deploy-uid-001",
-        QuickAction::Scale {
-            current_replicas: 2,
-            desired_replicas: 5,
-        },
+        QuickAction::Scale { current_replicas: 2, desired_replicas: 5 },
     );
 
     // Take and verify the pending action
     let (uid, action) = state.take_pending_action().unwrap();
     assert_eq!(uid, "deploy-uid-001");
-    assert_eq!(
-        action,
-        QuickAction::Scale {
-            current_replicas: 2,
-            desired_replicas: 5
-        }
-    );
+    assert_eq!(action, QuickAction::Scale { current_replicas: 2, desired_replicas: 5 });
     assert!(action.requires_confirmation());
     assert!(!action.is_destructive());
 }
@@ -379,10 +339,7 @@ fn test_error_workflow() {
 
     state.set_loading(true);
     state.set_error("forbidden: access denied".to_string());
-    assert_eq!(
-        state.error.as_deref(),
-        Some("forbidden: access denied")
-    );
+    assert_eq!(state.error.as_deref(), Some("forbidden: access denied"));
 
     state.clear_error();
     assert!(state.error.is_none());
@@ -406,28 +363,14 @@ fn test_action_status_executing() {
 
 #[test]
 fn test_action_status_completed() {
-    let status = ActionStatus::Completed {
-        message: "Deleted successfully".to_string(),
-    };
-    assert_eq!(
-        status,
-        ActionStatus::Completed {
-            message: "Deleted successfully".to_string()
-        }
-    );
+    let status = ActionStatus::Completed { message: "Deleted successfully".to_string() };
+    assert_eq!(status, ActionStatus::Completed { message: "Deleted successfully".to_string() });
 }
 
 #[test]
 fn test_action_status_failed() {
-    let status = ActionStatus::Failed {
-        error: "forbidden".to_string(),
-    };
-    assert_eq!(
-        status,
-        ActionStatus::Failed {
-            error: "forbidden".to_string()
-        }
-    );
+    let status = ActionStatus::Failed { error: "forbidden".to_string() };
+    assert_eq!(status, ActionStatus::Failed { error: "forbidden".to_string() });
 }
 
 #[test]
@@ -464,10 +407,7 @@ fn test_submit_action_scale_requires_confirmation() {
         "my-deploy",
         Some("default"),
         "Deployment",
-        QuickAction::Scale {
-            current_replicas: 1,
-            desired_replicas: 5,
-        },
+        QuickAction::Scale { current_replicas: 1, desired_replicas: 5 },
     );
     assert_eq!(req.status, ActionStatus::PendingConfirmation);
 }
@@ -475,26 +415,14 @@ fn test_submit_action_scale_requires_confirmation() {
 #[test]
 fn test_submit_action_non_confirmation_starts_executing() {
     let mut state = ResourceListState::new("Pod", "v1");
-    let req = state.submit_action(
-        "uid-4",
-        "my-pod",
-        Some("default"),
-        "Pod",
-        QuickAction::ViewLogs,
-    );
+    let req = state.submit_action("uid-4", "my-pod", Some("default"), "Pod", QuickAction::ViewLogs);
     assert_eq!(req.status, ActionStatus::Executing);
 }
 
 #[test]
 fn test_submit_action_exec_starts_executing() {
     let mut state = ResourceListState::new("Pod", "v1");
-    let req = state.submit_action(
-        "uid-5",
-        "my-pod",
-        Some("default"),
-        "Pod",
-        QuickAction::Exec,
-    );
+    let req = state.submit_action("uid-5", "my-pod", Some("default"), "Pod", QuickAction::Exec);
     assert_eq!(req.status, ActionStatus::Executing);
 }
 
@@ -566,9 +494,7 @@ fn test_complete_action() {
     let req = state.current_action().unwrap();
     assert_eq!(
         req.status,
-        ActionStatus::Completed {
-            message: "Logs streaming started".to_string()
-        }
+        ActionStatus::Completed { message: "Logs streaming started".to_string() }
     );
 }
 
@@ -581,12 +507,7 @@ fn test_fail_action() {
     state.fail_action("RBAC: forbidden");
 
     let req = state.current_action().unwrap();
-    assert_eq!(
-        req.status,
-        ActionStatus::Failed {
-            error: "RBAC: forbidden".to_string()
-        }
-    );
+    assert_eq!(req.status, ActionStatus::Failed { error: "RBAC: forbidden".to_string() });
 }
 
 #[test]
@@ -635,26 +556,18 @@ fn test_full_action_execution_lifecycle() {
         QuickAction::Delete,
     );
     assert!(state.has_pending_confirmation());
-    assert_eq!(
-        state.current_action().unwrap().status,
-        ActionStatus::PendingConfirmation
-    );
+    assert_eq!(state.current_action().unwrap().status, ActionStatus::PendingConfirmation);
 
     // 2. Confirm it
     state.confirm_action();
     assert!(!state.has_pending_confirmation());
-    assert_eq!(
-        state.current_action().unwrap().status,
-        ActionStatus::Executing
-    );
+    assert_eq!(state.current_action().unwrap().status, ActionStatus::Executing);
 
     // 3. Complete it
     state.complete_action("Deployment nginx-deploy deleted");
     assert_eq!(
         state.current_action().unwrap().status,
-        ActionStatus::Completed {
-            message: "Deployment nginx-deploy deleted".to_string()
-        }
+        ActionStatus::Completed { message: "Deployment nginx-deploy deleted".to_string() }
     );
 
     // 4. Clear it
@@ -671,12 +584,7 @@ fn test_action_execution_failure_lifecycle() {
     state.fail_action("API server returned 500");
 
     let req = state.current_action().unwrap();
-    assert_eq!(
-        req.status,
-        ActionStatus::Failed {
-            error: "API server returned 500".to_string()
-        }
-    );
+    assert_eq!(req.status, ActionStatus::Failed { error: "API server returned 500".to_string() });
 }
 
 // ===================================================================
@@ -719,10 +627,7 @@ fn test_kind_to_plural_unknown_returns_unknown() {
 fn test_verb_for_action() {
     assert_eq!(verb_for_action(&QuickAction::Delete), RbacVerb::Delete);
     assert_eq!(
-        verb_for_action(&QuickAction::Scale {
-            current_replicas: 0,
-            desired_replicas: 0
-        }),
+        verb_for_action(&QuickAction::Scale { current_replicas: 0, desired_replicas: 0 }),
         RbacVerb::Update
     );
     assert_eq!(verb_for_action(&QuickAction::Restart), RbacVerb::Update);
@@ -736,24 +641,15 @@ fn test_verb_for_action() {
 #[test]
 fn test_resource_for_action_regular() {
     assert_eq!(resource_for_action("Pod", &QuickAction::Delete), "pods");
-    assert_eq!(
-        resource_for_action("Deployment", &QuickAction::Restart),
-        "deployments"
-    );
+    assert_eq!(resource_for_action("Deployment", &QuickAction::Restart), "deployments");
     assert_eq!(
         resource_for_action(
             "Deployment",
-            &QuickAction::Scale {
-                current_replicas: 0,
-                desired_replicas: 0
-            }
+            &QuickAction::Scale { current_replicas: 0, desired_replicas: 0 }
         ),
         "deployments"
     );
-    assert_eq!(
-        resource_for_action("Deployment", &QuickAction::EditYaml),
-        "deployments"
-    );
+    assert_eq!(resource_for_action("Deployment", &QuickAction::EditYaml), "deployments");
 }
 
 #[test]
@@ -770,10 +666,7 @@ fn test_resource_for_action_cordon_uncordon() {
 
 #[test]
 fn test_resource_for_action_unknown_kind() {
-    assert_eq!(
-        resource_for_action("Widget", &QuickAction::Delete),
-        "widgets"
-    );
+    assert_eq!(resource_for_action("Widget", &QuickAction::Delete), "widgets");
 }
 
 #[test]
@@ -1110,10 +1003,7 @@ fn test_set_validation_error() {
     assert!(state.validation_error.is_none());
 
     state.set_validation_error("missing required field: spec.containers");
-    assert_eq!(
-        state.validation_error.as_deref(),
-        Some("missing required field: spec.containers")
-    );
+    assert_eq!(state.validation_error.as_deref(), Some("missing required field: spec.containers"));
 }
 
 #[test]
@@ -1188,11 +1078,9 @@ fn test_create_dialog_full_workflow() {
     assert!(dialog.yaml_template.contains("namespace: staging"));
 
     // Modify YAML through the show_create_dialog field
-    state
-        .show_create_dialog
-        .as_mut()
-        .unwrap()
-        .set_yaml("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\ndata:\n  foo: bar");
+    state.show_create_dialog.as_mut().unwrap().set_yaml(
+        "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\ndata:\n  foo: bar",
+    );
 
     // Validate
     assert!(state.show_create_dialog.as_mut().unwrap().validate());
@@ -1219,10 +1107,7 @@ fn test_default_template_is_valid_yaml_for_all_kinds() {
 
     for (kind, api_version) in test_cases {
         let mut state = CreateResourceState::new(kind, api_version, Some("test"));
-        assert!(
-            state.validate(),
-            "Default template for {kind} should be valid YAML"
-        );
+        assert!(state.validate(), "Default template for {kind} should be valid YAML");
     }
 }
 
@@ -1352,8 +1237,13 @@ fn test_columns_for_unknown_kind_returns_default() {
 #[test]
 fn test_columns_all_have_name_first() {
     let kinds = vec![
-        "Service", "Ingress", "NetworkPolicy", "Endpoints",
-        "PersistentVolume", "PersistentVolumeClaim", "StorageClass",
+        "Service",
+        "Ingress",
+        "NetworkPolicy",
+        "Endpoints",
+        "PersistentVolume",
+        "PersistentVolumeClaim",
+        "StorageClass",
     ];
     for kind in kinds {
         let cols = columns_for_kind(kind);
@@ -1365,8 +1255,13 @@ fn test_columns_all_have_name_first() {
 #[test]
 fn test_columns_all_have_age_last() {
     let kinds = vec![
-        "Service", "Ingress", "NetworkPolicy", "Endpoints",
-        "PersistentVolume", "PersistentVolumeClaim", "StorageClass",
+        "Service",
+        "Ingress",
+        "NetworkPolicy",
+        "Endpoints",
+        "PersistentVolume",
+        "PersistentVolumeClaim",
+        "StorageClass",
     ];
     for kind in kinds {
         let cols = columns_for_kind(kind);
@@ -1464,20 +1359,14 @@ fn test_view_search_state_initially_empty() {
 fn test_view_with_light_theme() {
     let state = ResourceListState::new("Pod", "v1");
     let view = ResourceListView::new(state, Theme::light());
-    assert_eq!(
-        view.theme.colors.background,
-        Color::rgb(255, 255, 255)
-    );
+    assert_eq!(view.theme.colors.background, Color::rgb(255, 255, 255));
 }
 
 #[test]
 fn test_view_with_dark_theme() {
     let state = ResourceListState::new("Pod", "v1");
     let view = ResourceListView::new(state, Theme::dark());
-    assert_eq!(
-        view.theme.colors.background,
-        Color::rgb(0x1e, 0x21, 0x24)
-    );
+    assert_eq!(view.theme.colors.background, Color::rgb(0x1e, 0x21, 0x24));
 }
 
 #[test]

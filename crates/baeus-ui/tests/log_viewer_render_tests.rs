@@ -10,9 +10,7 @@
 // - Settings toggles (timestamps, wrap, auto-scroll) work
 
 use baeus_core::logs::{LogDownloadFormat, LogLine, LogStreamState};
-use baeus_ui::components::log_viewer::{
-    LogDownloadState, LogViewerState, LogViewerView,
-};
+use baeus_ui::components::log_viewer::{LogDownloadState, LogViewerState, LogViewerView};
 use baeus_ui::theme::Theme;
 use chrono::Utc;
 
@@ -26,11 +24,7 @@ fn make_line(content: &str, container: &str) -> LogLine {
     }
 }
 
-fn make_line_with_color(
-    content: &str,
-    container: &str,
-    color_idx: usize,
-) -> LogLine {
+fn make_line_with_color(content: &str, container: &str, color_idx: usize) -> LogLine {
     LogLine {
         timestamp: Some(Utc::now()),
         content: content.to_string(),
@@ -233,15 +227,8 @@ fn test_filter_hides_container() {
     view.state.push_line(make_line("b", "sidecar"));
     view.state.push_line(make_line("c", "app"));
 
-    view.state.set_container_filter(vec![
-        "app".to_string(),
-        "sidecar".to_string(),
-    ]);
-    view.state
-        .container_filter
-        .as_mut()
-        .unwrap()
-        .toggle("sidecar");
+    view.state.set_container_filter(vec!["app".to_string(), "sidecar".to_string()]);
+    view.state.container_filter.as_mut().unwrap().toggle("sidecar");
 
     let visible = view.state.visible_lines();
     assert_eq!(visible.len(), 2);
@@ -254,22 +241,11 @@ fn test_filter_show_all_restores() {
     view.state.push_line(make_line("a", "app"));
     view.state.push_line(make_line("b", "sidecar"));
 
-    view.state.set_container_filter(vec![
-        "app".to_string(),
-        "sidecar".to_string(),
-    ]);
-    view.state
-        .container_filter
-        .as_mut()
-        .unwrap()
-        .toggle("sidecar");
+    view.state.set_container_filter(vec!["app".to_string(), "sidecar".to_string()]);
+    view.state.container_filter.as_mut().unwrap().toggle("sidecar");
     assert_eq!(view.state.visible_lines().len(), 1);
 
-    view.state
-        .container_filter
-        .as_mut()
-        .unwrap()
-        .show_all();
+    view.state.container_filter.as_mut().unwrap().show_all();
     assert_eq!(view.state.visible_lines().len(), 2);
 }
 
@@ -279,15 +255,8 @@ fn test_filter_hide_all_shows_nothing() {
     view.state.push_line(make_line("a", "app"));
     view.state.push_line(make_line("b", "sidecar"));
 
-    view.state.set_container_filter(vec![
-        "app".to_string(),
-        "sidecar".to_string(),
-    ]);
-    view.state
-        .container_filter
-        .as_mut()
-        .unwrap()
-        .hide_all();
+    view.state.set_container_filter(vec!["app".to_string(), "sidecar".to_string()]);
+    view.state.container_filter.as_mut().unwrap().hide_all();
     assert_eq!(view.state.visible_lines().len(), 0);
 }
 
@@ -335,49 +304,34 @@ fn test_error_state_label() {
 fn test_streaming_state_color_is_success() {
     let mut view = make_view();
     view.start_streaming();
-    assert_eq!(
-        view.stream_state_color(),
-        Theme::dark().colors.success,
-    );
+    assert_eq!(view.stream_state_color(), Theme::dark().colors.success,);
 }
 
 #[test]
 fn test_paused_state_color_is_warning() {
     let mut view = make_view();
     view.pause_streaming();
-    assert_eq!(
-        view.stream_state_color(),
-        Theme::dark().colors.warning,
-    );
+    assert_eq!(view.stream_state_color(), Theme::dark().colors.warning,);
 }
 
 #[test]
 fn test_stopped_state_color_is_text_secondary() {
     let mut view = make_view();
     view.stop_streaming();
-    assert_eq!(
-        view.stream_state_color(),
-        Theme::dark().colors.text_secondary,
-    );
+    assert_eq!(view.stream_state_color(), Theme::dark().colors.text_secondary,);
 }
 
 #[test]
 fn test_error_state_color_is_error() {
     let mut view = make_view();
     view.state.set_stream_state(LogStreamState::Error);
-    assert_eq!(
-        view.stream_state_color(),
-        Theme::dark().colors.error,
-    );
+    assert_eq!(view.stream_state_color(), Theme::dark().colors.error,);
 }
 
 #[test]
 fn test_idle_state_color_is_text_muted() {
     let view = make_view();
-    assert_eq!(
-        view.stream_state_color(),
-        Theme::dark().colors.text_muted,
-    );
+    assert_eq!(view.stream_state_color(), Theme::dark().colors.text_muted,);
 }
 
 // ========================================================================
@@ -387,30 +341,21 @@ fn test_idle_state_color_is_text_muted() {
 #[test]
 fn test_default_download_format_is_plain_text() {
     let view = make_view();
-    assert!(matches!(
-        view.state.download_format,
-        LogDownloadFormat::PlainText
-    ));
+    assert!(matches!(view.state.download_format, LogDownloadFormat::PlainText));
 }
 
 #[test]
 fn test_set_download_format_json() {
     let mut view = make_view();
     view.state.set_download_format(LogDownloadFormat::Json);
-    assert!(matches!(
-        view.state.download_format,
-        LogDownloadFormat::Json
-    ));
+    assert!(matches!(view.state.download_format, LogDownloadFormat::Json));
 }
 
 #[test]
 fn test_set_download_format_csv() {
     let mut view = make_view();
     view.state.set_download_format(LogDownloadFormat::Csv);
-    assert!(matches!(
-        view.state.download_format,
-        LogDownloadFormat::Csv
-    ));
+    assert!(matches!(view.state.download_format, LogDownloadFormat::Csv));
 }
 
 #[test]
@@ -432,10 +377,7 @@ fn test_prepare_download_transitions_to_ready() {
     let mut view = make_view();
     view.state.push_line(make_line("test", "app"));
     view.state.prepare_download();
-    assert!(matches!(
-        view.state.download_state,
-        LogDownloadState::Ready(_)
-    ));
+    assert!(matches!(view.state.download_state, LogDownloadState::Ready(_)));
 }
 
 // ========================================================================
@@ -491,10 +433,7 @@ fn test_toggle_auto_scroll_off() {
 fn test_start_streaming_sets_state() {
     let mut view = make_view();
     view.start_streaming();
-    assert_eq!(
-        view.state.stream_state,
-        LogStreamState::Streaming
-    );
+    assert_eq!(view.state.stream_state, LogStreamState::Streaming);
 }
 
 #[test]
@@ -502,10 +441,7 @@ fn test_pause_streaming_sets_state() {
     let mut view = make_view();
     view.start_streaming();
     view.pause_streaming();
-    assert_eq!(
-        view.state.stream_state,
-        LogStreamState::Paused
-    );
+    assert_eq!(view.state.stream_state, LogStreamState::Paused);
 }
 
 #[test]
@@ -513,10 +449,7 @@ fn test_stop_streaming_sets_state() {
     let mut view = make_view();
     view.start_streaming();
     view.stop_streaming();
-    assert_eq!(
-        view.state.stream_state,
-        LogStreamState::Stopped
-    );
+    assert_eq!(view.state.stream_state, LogStreamState::Stopped);
 }
 
 #[test]
@@ -533,10 +466,7 @@ fn test_streaming_then_push_lines() {
     let mut view = make_view();
     view.start_streaming();
     for i in 0..5 {
-        view.push_line(make_line(
-            &format!("line {i}"),
-            "app",
-        ));
+        view.push_line(make_line(&format!("line {i}"), "app"));
     }
     assert_eq!(view.state.line_count(), 5);
     assert!(view.state.is_streaming());
@@ -579,41 +509,20 @@ fn test_container_color_wraps_around() {
 #[test]
 fn test_multi_container_visible_lines_with_filter() {
     let mut view = make_view();
-    view.state.push_line(make_line_with_color(
-        "nginx log 1",
-        "nginx",
-        0,
-    ));
-    view.state.push_line(make_line_with_color(
-        "istio log 1",
-        "istio-proxy",
-        1,
-    ));
-    view.state.push_line(make_line_with_color(
-        "nginx log 2",
-        "nginx",
-        0,
-    ));
+    view.state.push_line(make_line_with_color("nginx log 1", "nginx", 0));
+    view.state.push_line(make_line_with_color("istio log 1", "istio-proxy", 1));
+    view.state.push_line(make_line_with_color("nginx log 2", "nginx", 0));
 
-    view.state.set_container_filter(vec![
-        "nginx".to_string(),
-        "istio-proxy".to_string(),
-    ]);
+    view.state.set_container_filter(vec!["nginx".to_string(), "istio-proxy".to_string()]);
 
     // Both visible
     assert_eq!(view.state.visible_lines().len(), 3);
 
     // Toggle off istio-proxy
-    view.state
-        .container_filter
-        .as_mut()
-        .unwrap()
-        .toggle("istio-proxy");
+    view.state.container_filter.as_mut().unwrap().toggle("istio-proxy");
     let visible = view.state.visible_lines();
     assert_eq!(visible.len(), 2);
-    assert!(visible
-        .iter()
-        .all(|l| l.container_name == "nginx"));
+    assert!(visible.iter().all(|l| l.container_name == "nginx"));
 }
 
 #[test]
@@ -632,15 +541,8 @@ fn test_container_selector_filter_count() {
 #[test]
 fn test_container_selector_toggle_reduces_visible() {
     let mut view = make_view();
-    view.state.set_container_filter(vec![
-        "app".to_string(),
-        "sidecar".to_string(),
-    ]);
-    view.state
-        .container_filter
-        .as_mut()
-        .unwrap()
-        .toggle("sidecar");
+    view.state.set_container_filter(vec!["app".to_string(), "sidecar".to_string()]);
+    view.state.container_filter.as_mut().unwrap().toggle("sidecar");
     let filter = view.state.container_filter.as_ref().unwrap();
     assert_eq!(filter.visible_count(), 1);
     assert!(filter.is_visible("app"));
@@ -650,16 +552,8 @@ fn test_container_selector_toggle_reduces_visible() {
 #[test]
 fn test_source_color_index_preserved_in_visible_lines() {
     let mut view = make_view();
-    view.state.push_line(make_line_with_color(
-        "from app",
-        "app",
-        0,
-    ));
-    view.state.push_line(make_line_with_color(
-        "from sidecar",
-        "sidecar",
-        1,
-    ));
+    view.state.push_line(make_line_with_color("from app", "app", 0));
+    view.state.push_line(make_line_with_color("from sidecar", "sidecar", 1));
 
     let lines = view.state.visible_lines();
     assert_eq!(lines[0].source_color_index, 0);
@@ -679,27 +573,12 @@ fn test_full_log_viewer_workflow() {
     assert_eq!(view.stream_state_label(), "Streaming");
 
     // Set up containers
-    view.state.set_container_filter(vec![
-        "nginx".to_string(),
-        "istio-proxy".to_string(),
-    ]);
+    view.state.set_container_filter(vec!["nginx".to_string(), "istio-proxy".to_string()]);
 
     // Push log lines
-    view.push_line(make_line_with_color(
-        "INFO: nginx started",
-        "nginx",
-        0,
-    ));
-    view.push_line(make_line_with_color(
-        "ERROR: istio failed",
-        "istio-proxy",
-        1,
-    ));
-    view.push_line(make_line_with_color(
-        "WARN: nginx slow",
-        "nginx",
-        0,
-    ));
+    view.push_line(make_line_with_color("INFO: nginx started", "nginx", 0));
+    view.push_line(make_line_with_color("ERROR: istio failed", "istio-proxy", 1));
+    view.push_line(make_line_with_color("WARN: nginx slow", "nginx", 0));
 
     assert_eq!(view.state.line_count(), 3);
 
@@ -712,18 +591,9 @@ fn test_full_log_viewer_workflow() {
     let warn_line = make_line("WARN: test", "app");
     let info_line = make_line("INFO: test", "app");
 
-    assert_eq!(
-        view.level_color_for_line(&error_line),
-        Theme::dark().colors.error,
-    );
-    assert_eq!(
-        view.level_color_for_line(&warn_line),
-        Theme::dark().colors.warning,
-    );
-    assert_eq!(
-        view.level_color_for_line(&info_line),
-        Theme::dark().colors.info,
-    );
+    assert_eq!(view.level_color_for_line(&error_line), Theme::dark().colors.error,);
+    assert_eq!(view.level_color_for_line(&warn_line), Theme::dark().colors.warning,);
+    assert_eq!(view.level_color_for_line(&info_line), Theme::dark().colors.info,);
 
     // Pause
     view.pause_streaming();
@@ -735,10 +605,7 @@ fn test_full_log_viewer_workflow() {
 
     // Set download format
     view.state.set_download_format(LogDownloadFormat::Json);
-    assert!(matches!(
-        view.state.download_format,
-        LogDownloadFormat::Json,
-    ));
+    assert!(matches!(view.state.download_format, LogDownloadFormat::Json,));
 
     // Stop
     view.stop_streaming();

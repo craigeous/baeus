@@ -22,11 +22,7 @@ pub fn validate_yaml(text: &str) -> Result<Value, YamlError> {
     serde_yaml_ng::from_str(text).map_err(|e| {
         let msg = e.to_string();
         let (line, column) = parse_yaml_error_location(&msg);
-        YamlError {
-            message: msg,
-            line,
-            column,
-        }
+        YamlError { message: msg, line, column }
     })
 }
 
@@ -87,21 +83,14 @@ mod tests {
 
     #[test]
     fn test_yaml_error_display() {
-        let err = YamlError {
-            message: "syntax error".to_string(),
-            line: Some(5),
-            column: Some(10),
-        };
+        let err =
+            YamlError { message: "syntax error".to_string(), line: Some(5), column: Some(10) };
         assert_eq!(err.to_string(), "Line 5, Col 10: syntax error");
     }
 
     #[test]
     fn test_yaml_error_display_no_location() {
-        let err = YamlError {
-            message: "unknown error".to_string(),
-            line: None,
-            column: None,
-        };
+        let err = YamlError { message: "unknown error".to_string(), line: None, column: None };
         assert_eq!(err.to_string(), "unknown error");
     }
 

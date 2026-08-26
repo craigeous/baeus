@@ -15,3 +15,13 @@ first (through a new planning cycle).
 
 Active slice-plans live here; landed ones move to
 [`archive/`](archive/README.md).
+
+## Active
+
+_None at present._ Slice B (watch cancellation + EKS token refresh) is next.
+
+## Archived
+
+- [`archive/slice-a-ci-hardening.md`](archive/slice-a-ci-hardening.md) —
+  Status: Archived — CI & release hygiene (spec 06 findings 0006-H1, H2, H3,
+  H4). Code-eval PASS; PR landing on branch `slice/a-ci-hardening`.

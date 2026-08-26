@@ -40,10 +40,7 @@ impl Color {
         if self.a == 255 {
             format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
         } else {
-            format!(
-                "#{:02x}{:02x}{:02x}{:02x}",
-                self.r, self.g, self.b, self.a
-            )
+            format!("#{:02x}{:02x}{:02x}{:02x}", self.r, self.g, self.b, self.a)
         }
     }
 }
@@ -105,8 +102,8 @@ impl Theme {
                 selection: Color::rgba(59, 130, 246, 30),
                 table_stripe: Color::rgb(243, 244, 246),
                 table_selected: Color::rgb(229, 231, 235),
-                tab_bar_bg: Color::rgb(0xf3, 0xf4, 0xf6),     // #f3f4f6
-                tab_active_bg: Color::rgb(0xff, 0xff, 0xff),   // #ffffff
+                tab_bar_bg: Color::rgb(0xf3, 0xf4, 0xf6), // #f3f4f6
+                tab_active_bg: Color::rgb(0xff, 0xff, 0xff), // #ffffff
             },
         }
     }
@@ -115,26 +112,26 @@ impl Theme {
         Self {
             mode: ThemeMode::Dark,
             colors: ColorTokens {
-                background: Color::rgb(0x1e, 0x21, 0x24),      // #1e2124
-                surface: Color::rgb(0x26, 0x2b, 0x2f),          // #262b2f
-                surface_hover: Color::rgb(0x36, 0x39, 0x3e),    // #36393e
-                border: Color::rgb(0x4c, 0x50, 0x53),           // #4c5053
-                text_primary: Color::rgb(0xff, 0xff, 0xff),     // #ffffff
-                text_secondary: Color::rgb(0xa0, 0xa0, 0xa0),   // #a0a0a0
-                text_muted: Color::rgb(0x8e, 0x92, 0x97),       // #8e9297
-                accent: Color::rgb(0x00, 0xa7, 0xa0),           // #00a7a0 (teal)
-                accent_hover: Color::rgb(0x00, 0xc4, 0xbc),     // #00c4bc
-                success: Color::rgb(0x4c, 0xaf, 0x50),          // #4caf50
-                warning: Color::rgb(0xff, 0x98, 0x00),          // #ff9800
-                error: Color::rgb(0xce, 0x39, 0x33),            // #ce3933
-                info: Color::rgb(0x00, 0xa7, 0xa0),             // #00a7a0
-                sidebar_bg: Color::rgb(0x36, 0x39, 0x3e),       // #36393e
-                header_bg: Color::rgb(0x26, 0x2b, 0x2f),        // #262b2f
-                selection: Color::rgba(0x00, 0xa7, 0xa0, 40),   // rgba(0,167,160,40)
-                table_stripe: Color::rgb(0x2a, 0x2d, 0x33),     // #2a2d33
-                table_selected: Color::rgb(0x38, 0x3c, 0x42),   // #383c42
-                tab_bar_bg: Color::rgb(0x26, 0x2b, 0x2f),       // #262b2f
-                tab_active_bg: Color::rgb(0x1e, 0x21, 0x24),    // #1e2124
+                background: Color::rgb(0x1e, 0x21, 0x24),     // #1e2124
+                surface: Color::rgb(0x26, 0x2b, 0x2f),        // #262b2f
+                surface_hover: Color::rgb(0x36, 0x39, 0x3e),  // #36393e
+                border: Color::rgb(0x4c, 0x50, 0x53),         // #4c5053
+                text_primary: Color::rgb(0xff, 0xff, 0xff),   // #ffffff
+                text_secondary: Color::rgb(0xa0, 0xa0, 0xa0), // #a0a0a0
+                text_muted: Color::rgb(0x8e, 0x92, 0x97),     // #8e9297
+                accent: Color::rgb(0x00, 0xa7, 0xa0),         // #00a7a0 (teal)
+                accent_hover: Color::rgb(0x00, 0xc4, 0xbc),   // #00c4bc
+                success: Color::rgb(0x4c, 0xaf, 0x50),        // #4caf50
+                warning: Color::rgb(0xff, 0x98, 0x00),        // #ff9800
+                error: Color::rgb(0xce, 0x39, 0x33),          // #ce3933
+                info: Color::rgb(0x00, 0xa7, 0xa0),           // #00a7a0
+                sidebar_bg: Color::rgb(0x36, 0x39, 0x3e),     // #36393e
+                header_bg: Color::rgb(0x26, 0x2b, 0x2f),      // #262b2f
+                selection: Color::rgba(0x00, 0xa7, 0xa0, 40), // rgba(0,167,160,40)
+                table_stripe: Color::rgb(0x2a, 0x2d, 0x33),   // #2a2d33
+                table_selected: Color::rgb(0x38, 0x3c, 0x42), // #383c42
+                tab_bar_bg: Color::rgb(0x26, 0x2b, 0x2f),     // #262b2f
+                tab_active_bg: Color::rgb(0x1e, 0x21, 0x24),  // #1e2124
             },
         }
     }
@@ -172,10 +169,7 @@ impl ThemeManager {
             other => Theme::for_mode(other),
         };
         current.mode = mode;
-        Self {
-            current,
-            system_is_dark,
-        }
+        Self { current, system_is_dark }
     }
 
     pub fn current(&self) -> &Theme {
@@ -214,11 +208,7 @@ impl ThemeManager {
     pub fn update_system_appearance(&mut self, is_dark: bool) {
         self.system_is_dark = is_dark;
         if self.current.mode == ThemeMode::System {
-            self.current = if is_dark {
-                Theme::dark()
-            } else {
-                Theme::light()
-            };
+            self.current = if is_dark { Theme::dark() } else { Theme::light() };
             self.current.mode = ThemeMode::System;
         }
     }
@@ -281,10 +271,7 @@ mod tests {
         assert_eq!(manager.current().colors.background, Color::rgb(0x1e, 0x21, 0x24));
 
         manager.update_system_appearance(false);
-        assert_eq!(
-            manager.current().colors.background,
-            Color::rgb(255, 255, 255)
-        );
+        assert_eq!(manager.current().colors.background, Color::rgb(255, 255, 255));
         assert_eq!(manager.current().mode, ThemeMode::System);
     }
 

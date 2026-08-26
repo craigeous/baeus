@@ -29,9 +29,8 @@ impl AssetSource for BaeusAssets {
     }
 
     fn list(&self, path: &str) -> Result<Vec<SharedString>> {
-        let mut items: Vec<SharedString> = gpui_component_assets::Assets
-            .list(path)
-            .unwrap_or_default();
+        let mut items: Vec<SharedString> =
+            gpui_component_assets::Assets.list(path).unwrap_or_default();
 
         for entry in BaeusCustomAssets::iter() {
             if entry.starts_with(path) {

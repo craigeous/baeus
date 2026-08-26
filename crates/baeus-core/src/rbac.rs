@@ -48,12 +48,7 @@ impl PermissionCheck {
         api_group: impl Into<String>,
         namespace: Option<String>,
     ) -> Self {
-        Self {
-            verb,
-            resource: resource.into(),
-            api_group: api_group.into(),
-            namespace,
-        }
+        Self { verb, resource: resource.into(), api_group: api_group.into(), namespace }
     }
 
     /// Returns `true` if this is a cluster-scoped check (no namespace).
@@ -71,24 +66,15 @@ pub struct PermissionResult {
 
 impl PermissionResult {
     pub fn allowed() -> Self {
-        Self {
-            allowed: true,
-            reason: None,
-        }
+        Self { allowed: true, reason: None }
     }
 
     pub fn denied(reason: impl Into<String>) -> Self {
-        Self {
-            allowed: false,
-            reason: Some(reason.into()),
-        }
+        Self { allowed: false, reason: Some(reason.into()) }
     }
 
     pub fn denied_no_reason() -> Self {
-        Self {
-            allowed: false,
-            reason: None,
-        }
+        Self { allowed: false, reason: None }
     }
 }
 
@@ -101,9 +87,7 @@ pub struct RbacCache {
 
 impl RbacCache {
     pub fn new() -> Self {
-        Self {
-            cache: HashMap::new(),
-        }
+        Self { cache: HashMap::new() }
     }
 
     /// Look up a cached permission result.
@@ -152,9 +136,7 @@ impl RbacCache {
 
 /// Builds a SelfSubjectAccessReview resource attributes spec from a PermissionCheck.
 /// Returns (resource, verb, api_group, namespace) tuple suitable for the K8s API.
-pub fn build_access_review_attrs(
-    check: &PermissionCheck,
-) -> AccessReviewAttributes {
+pub fn build_access_review_attrs(check: &PermissionCheck) -> AccessReviewAttributes {
     AccessReviewAttributes {
         verb: check.verb.as_str().to_string(),
         resource: check.resource.clone(),
@@ -183,9 +165,7 @@ pub struct RbacChecker {
 
 impl RbacChecker {
     pub fn new() -> Self {
-        Self {
-            cache: RbacCache::new(),
-        }
+        Self { cache: RbacCache::new() }
     }
 
     /// Check a permission, returning the cached result if available.
@@ -231,7 +211,10 @@ impl RbacChecker {
     pub fn batch_check<'a>(
         &self,
         checks: &'a [PermissionCheck],
-    ) -> (Vec<(&'a PermissionCheck, PermissionResult)>, Vec<(&'a PermissionCheck, AccessReviewAttributes)>) {
+    ) -> (
+        Vec<(&'a PermissionCheck, PermissionResult)>,
+        Vec<(&'a PermissionCheck, AccessReviewAttributes)>,
+    ) {
         let mut cached = Vec::new();
         let mut uncached = Vec::new();
 
@@ -437,10 +420,7 @@ mod tests {
     fn test_permission_result_denied() {
         let result = PermissionResult::denied("RBAC: user lacks permission");
         assert!(!result.allowed);
-        assert_eq!(
-            result.reason.as_deref(),
-            Some("RBAC: user lacks permission")
-        );
+        assert_eq!(result.reason.as_deref(), Some("RBAC: user lacks permission"));
     }
 
     #[test]
@@ -530,17 +510,9 @@ mod tests {
     #[test]
     fn test_is_allowed_denied() {
         let mut cache = RbacCache::new();
-        cache.record(
-            deployments_create_kube_system(),
-            PermissionResult::denied("forbidden"),
-        );
+        cache.record(deployments_create_kube_system(), PermissionResult::denied("forbidden"));
 
-        let result = cache.is_allowed(
-            RbacVerb::Create,
-            "deployments",
-            "apps",
-            Some("kube-system"),
-        );
+        let result = cache.is_allowed(RbacVerb::Create, "deployments", "apps", Some("kube-system"));
         assert_eq!(result, Some(false));
     }
 
@@ -563,18 +535,10 @@ mod tests {
     fn test_cache_distinguishes_namespaces() {
         let mut cache = RbacCache::new();
 
-        let default_check = PermissionCheck::new(
-            RbacVerb::List,
-            "pods",
-            "",
-            Some("default".to_string()),
-        );
-        let kube_system_check = PermissionCheck::new(
-            RbacVerb::List,
-            "pods",
-            "",
-            Some("kube-system".to_string()),
-        );
+        let default_check =
+            PermissionCheck::new(RbacVerb::List, "pods", "", Some("default".to_string()));
+        let kube_system_check =
+            PermissionCheck::new(RbacVerb::List, "pods", "", Some("kube-system".to_string()));
 
         cache.record(default_check.clone(), PermissionResult::allowed());
         cache.record(kube_system_check.clone(), PermissionResult::denied("nope"));
@@ -588,18 +552,10 @@ mod tests {
     fn test_cache_distinguishes_verbs() {
         let mut cache = RbacCache::new();
 
-        let list_check = PermissionCheck::new(
-            RbacVerb::List,
-            "pods",
-            "",
-            Some("default".to_string()),
-        );
-        let delete_check = PermissionCheck::new(
-            RbacVerb::Delete,
-            "pods",
-            "",
-            Some("default".to_string()),
-        );
+        let list_check =
+            PermissionCheck::new(RbacVerb::List, "pods", "", Some("default".to_string()));
+        let delete_check =
+            PermissionCheck::new(RbacVerb::Delete, "pods", "", Some("default".to_string()));
 
         cache.record(list_check.clone(), PermissionResult::allowed());
         cache.record(delete_check.clone(), PermissionResult::denied("read-only"));
@@ -612,12 +568,8 @@ mod tests {
     fn test_cache_distinguishes_api_groups() {
         let mut cache = RbacCache::new();
 
-        let core_check = PermissionCheck::new(
-            RbacVerb::List,
-            "pods",
-            "",
-            Some("default".to_string()),
-        );
+        let core_check =
+            PermissionCheck::new(RbacVerb::List, "pods", "", Some("default".to_string()));
         let apps_check = PermissionCheck::new(
             RbacVerb::List,
             "deployments",
@@ -651,12 +603,7 @@ mod tests {
                 PermissionResult::allowed(),
             ),
             (
-                PermissionCheck::new(
-                    RbacVerb::Delete,
-                    "pods",
-                    "",
-                    Some("default".to_string()),
-                ),
+                PermissionCheck::new(RbacVerb::Delete, "pods", "", Some("default".to_string())),
                 PermissionResult::denied("read-only binding"),
             ),
             (
@@ -675,18 +622,9 @@ mod tests {
         }
 
         assert_eq!(cache.len(), 5);
-        assert_eq!(
-            cache.is_allowed(RbacVerb::List, "pods", "", Some("default")),
-            Some(true)
-        );
-        assert_eq!(
-            cache.is_allowed(RbacVerb::Delete, "pods", "", Some("default")),
-            Some(false)
-        );
-        assert_eq!(
-            cache.is_allowed(RbacVerb::Patch, "pods", "", Some("default")),
-            None
-        );
+        assert_eq!(cache.is_allowed(RbacVerb::List, "pods", "", Some("default")), Some(true));
+        assert_eq!(cache.is_allowed(RbacVerb::Delete, "pods", "", Some("default")), Some(false));
+        assert_eq!(cache.is_allowed(RbacVerb::Patch, "pods", "", Some("default")), None);
     }
 
     // --- RbacChecker tests (T045) ---

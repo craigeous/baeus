@@ -17,10 +17,7 @@ pub struct ResourceWatchBridge {
 impl ResourceWatchBridge {
     /// Create a new bridge wrapping the given informer manager.
     pub fn new(informer_manager: InformerManager) -> Self {
-        Self {
-            informer_manager,
-            watcher_ids: HashMap::new(),
-        }
+        Self { informer_manager, watcher_ids: HashMap::new() }
     }
 
     /// Register a watcher (informer) for a specific resource kind on a cluster.
@@ -65,16 +62,14 @@ impl ResourceWatchBridge {
     pub fn stop_watching(&mut self, cluster_id: &Uuid, kind: &str) {
         let key = (*cluster_id, kind.to_string());
         if let Some(informer_id) = self.watcher_ids.remove(&key) {
-            self.informer_manager
-                .set_state(&informer_id, InformerState::Stopped);
+            self.informer_manager.set_state(&informer_id, InformerState::Stopped);
             self.informer_manager.unregister(&informer_id);
         }
         // Clear the cache for this specific kind by replacing with empty vec,
         // then rely on the informer manager's cache cleanup.
         // We update the cache to empty to signal no resources, then the informer
         // is already unregistered.
-        self.informer_manager
-            .update_cache(*cluster_id, kind, Vec::new());
+        self.informer_manager.update_cache(*cluster_id, kind, Vec::new());
     }
 
     /// Return a sorted list of resource kinds currently being watched for a cluster.
@@ -160,10 +155,7 @@ mod tests {
         let mut bridge = make_bridge();
         let cluster = test_cluster_id();
         let id = bridge.register_watcher(cluster, "Pod", "v1", Some("default"));
-        assert_eq!(
-            bridge.informer_manager().state(&id),
-            Some(&InformerState::Running)
-        );
+        assert_eq!(bridge.informer_manager().state(&id), Some(&InformerState::Running));
         assert_eq!(bridge.informer_manager().active_count(), 1);
     }
 
@@ -266,13 +258,7 @@ mod tests {
         bridge.refresh_cache(
             cluster,
             "Deployment",
-            vec![Resource::new(
-                "deploy-1",
-                "default",
-                "Deployment",
-                "apps/v1",
-                cluster,
-            )],
+            vec![Resource::new("deploy-1", "default", "Deployment", "apps/v1", cluster)],
         );
 
         assert_eq!(bridge.cached_resources(&cluster, "Pod").len(), 2);
@@ -436,13 +422,7 @@ mod tests {
         bridge.refresh_cache(
             cluster,
             "Deployment",
-            vec![Resource::new(
-                "deploy-1",
-                "default",
-                "Deployment",
-                "apps/v1",
-                cluster,
-            )],
+            vec![Resource::new("deploy-1", "default", "Deployment", "apps/v1", cluster)],
         );
 
         bridge.stop_watching(&cluster, "Pod");
@@ -577,13 +557,7 @@ mod tests {
         bridge.refresh_cache(
             cluster,
             "Deployment",
-            vec![Resource::new(
-                "deploy-1",
-                "default",
-                "Deployment",
-                "apps/v1",
-                cluster,
-            )],
+            vec![Resource::new("deploy-1", "default", "Deployment", "apps/v1", cluster)],
         );
 
         assert_eq!(bridge.cached_resources(&cluster, "Pod").len(), 2);
@@ -609,10 +583,7 @@ mod tests {
 
         // The pod informer should be gone but the deploy informer remains
         assert!(bridge.informer_manager().state(&pod_id).is_none());
-        assert_eq!(
-            bridge.informer_manager().state(&deploy_id),
-            Some(&InformerState::Running)
-        );
+        assert_eq!(bridge.informer_manager().state(&deploy_id), Some(&InformerState::Running));
 
         // 5. Stop watching the last kind
         bridge.stop_watching(&cluster, "Deployment");

@@ -1,6 +1,6 @@
 //! Tests for the donut chart and resource count circle components.
 
-use baeus_ui::components::donut_chart::{resource_kind_color, DonutChart, ResourceCountCircle};
+use baeus_ui::components::donut_chart::{DonutChart, ResourceCountCircle, resource_kind_color};
 use baeus_ui::theme::Color;
 
 #[test]
@@ -33,18 +33,16 @@ fn test_donut_chart_pct_clamp() {
 
 #[test]
 fn test_resource_count_circle_fields() {
-    let circle = ResourceCountCircle {
-        kind: "Pods",
-        count: 42,
-        color: resource_kind_color("Pods"),
-    };
+    let circle =
+        ResourceCountCircle { kind: "Pods", count: 42, color: resource_kind_color("Pods") };
     assert_eq!(circle.count, 42);
     assert_eq!(circle.kind, "Pods");
 }
 
 #[test]
 fn test_resource_kind_colors_all() {
-    let kinds = ["Pods", "Deployments", "DaemonSets", "StatefulSets", "ReplicaSets", "Jobs", "CronJobs"];
+    let kinds =
+        ["Pods", "Deployments", "DaemonSets", "StatefulSets", "ReplicaSets", "Jobs", "CronJobs"];
     for kind in &kinds {
         let c = resource_kind_color(kind);
         // All should have full alpha

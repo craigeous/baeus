@@ -1,6 +1,6 @@
 use baeus_helm::charts::ChartEntry;
 use gpui::prelude::FluentBuilder as _;
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 
 use crate::theme::Theme;
 
@@ -17,11 +17,7 @@ pub struct ValuesEditorState {
 
 impl Default for ValuesEditorState {
     fn default() -> Self {
-        Self {
-            content: String::new(),
-            is_valid: true,
-            validation_error: None,
-        }
+        Self { content: String::new(), is_valid: true, validation_error: None }
     }
 }
 
@@ -224,20 +220,13 @@ pub struct HelmInstallViewComponent {
 }
 
 impl HelmInstallViewComponent {
-    pub fn new(
-        state: HelmInstallViewState,
-        theme: Theme,
-    ) -> Self {
+    pub fn new(state: HelmInstallViewState, theme: Theme) -> Self {
         Self { state, theme }
     }
 
     /// Returns a status label for the install button.
     pub fn install_button_label(&self) -> &'static str {
-        if self.state.installing {
-            "Installing..."
-        } else {
-            "Install"
-        }
+        if self.state.installing { "Installing..." } else { "Install" }
     }
 
     /// Returns whether the install button should be enabled.
@@ -247,9 +236,7 @@ impl HelmInstallViewComponent {
 
     /// Returns a label summarizing validation state.
     pub fn validation_label(&self) -> &str {
-        if let Some(ref err) =
-            self.state.values_editor.validation_error
-        {
+        if let Some(ref err) = self.state.values_editor.validation_error {
             err.as_str()
         } else if self.state.values_editor.is_valid {
             "Valid YAML"
@@ -259,20 +246,11 @@ impl HelmInstallViewComponent {
     }
 
     /// Search bar with query display and searching indicator.
-    fn render_search_bar(
-        &self,
-        colors: &InstallViewColors,
-    ) -> gpui::Div {
-        let query_text = if self
-            .state
-            .search_query
-            .is_empty()
-        {
+    fn render_search_bar(&self, colors: &InstallViewColors) -> gpui::Div {
+        let query_text = if self.state.search_query.is_empty() {
             SharedString::from("Search charts...")
         } else {
-            SharedString::from(
-                self.state.search_query.clone(),
-            )
+            SharedString::from(self.state.search_query.clone())
         };
 
         let tc = if self.state.search_query.is_empty() {
@@ -306,56 +284,28 @@ impl HelmInstallViewComponent {
                     .child(query_text),
             )
             .when(self.state.searching, |el| {
-                el.child(
-                    div()
-                        .text_xs()
-                        .text_color(colors.text_muted)
-                        .child("Searching..."),
-                )
+                el.child(div().text_xs().text_color(colors.text_muted).child("Searching..."))
             })
     }
 
     /// List of chart entries from search results.
-    fn render_results_list(
-        &self,
-        colors: &InstallViewColors,
-    ) -> gpui::Div {
+    fn render_results_list(&self, colors: &InstallViewColors) -> gpui::Div {
         if self.state.search_results.is_empty() {
             return div()
                 .flex()
                 .flex_col()
                 .py_4()
                 .items_center()
-                .child(
-                    div()
-                        .text_sm()
-                        .text_color(colors.text_muted)
-                        .child("No charts found"),
-                );
+                .child(div().text_sm().text_color(colors.text_muted).child("No charts found"));
         }
 
-        let sel_name =
-            self.state.selected_chart_name();
-        let mut list = div()
-            .flex()
-            .flex_col()
-            .overflow_hidden();
+        let sel_name = self.state.selected_chart_name();
+        let mut list = div().flex().flex_col().overflow_hidden();
 
-        for (i, chart) in
-            self.state.search_results.iter().enumerate()
-        {
-            let is_sel = sel_name
-                == Some(chart.name.as_str())
-                && self
-                    .state
-                    .selected_version
-                    .as_deref()
-                    == Some(chart.version.as_str());
-            list = list.child(
-                self.render_chart_entry(
-                    chart, i, is_sel, colors,
-                ),
-            );
+        for (i, chart) in self.state.search_results.iter().enumerate() {
+            let is_sel = sel_name == Some(chart.name.as_str())
+                && self.state.selected_version.as_deref() == Some(chart.version.as_str());
+            list = list.child(self.render_chart_entry(chart, i, is_sel, colors));
         }
 
         list
@@ -370,15 +320,8 @@ impl HelmInstallViewComponent {
         colors: &InstallViewColors,
     ) -> gpui::Stateful<gpui::Div> {
         let eid = format!("chart-{index}");
-        let bg = if selected {
-            colors.selection
-        } else {
-            colors.background
-        };
-        let desc = chart
-            .description
-            .as_deref()
-            .unwrap_or("");
+        let bg = if selected { colors.selection } else { colors.background };
+        let desc = chart.description.as_deref().unwrap_or("");
 
         div()
             .id(ElementId::Name(SharedString::from(eid)))
@@ -392,82 +335,49 @@ impl HelmInstallViewComponent {
             .bg(bg)
             .border_b_1()
             .border_color(colors.border)
-            .when(selected, |el| {
-                el.border_l_2()
-                    .border_color(colors.accent)
-            })
+            .when(selected, |el| el.border_l_2().border_color(colors.accent))
             .child(
                 div()
                     .flex_1()
                     .text_sm()
                     .text_color(colors.text_primary)
-                    .child(SharedString::from(
-                        chart.name.clone(),
-                    )),
+                    .child(SharedString::from(chart.name.clone())),
             )
             .child(
                 div()
                     .mr_2()
                     .text_xs()
                     .text_color(colors.text_secondary)
-                    .child(SharedString::from(
-                        chart.version.clone(),
-                    )),
+                    .child(SharedString::from(chart.version.clone())),
             )
             .child(
                 div()
                     .flex_1()
                     .text_xs()
                     .text_color(colors.text_muted)
-                    .child(SharedString::from(
-                        desc.to_string(),
-                    )),
+                    .child(SharedString::from(desc.to_string())),
             )
     }
 
     /// Detail panel for the selected chart.
-    fn render_chart_detail(
-        &self,
-        colors: &InstallViewColors,
-    ) -> gpui::Div {
+    fn render_chart_detail(&self, colors: &InstallViewColors) -> gpui::Div {
         let chart = match &self.state.selected_chart {
             Some(c) => c,
             None => {
-                return div()
-                    .flex()
-                    .flex_col()
-                    .flex_1()
-                    .items_center()
-                    .justify_center()
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(colors.text_muted)
-                            .child(
-                                "Select a chart to see details",
-                            ),
-                    );
+                return div().flex().flex_col().flex_1().items_center().justify_center().child(
+                    div()
+                        .text_sm()
+                        .text_color(colors.text_muted)
+                        .child("Select a chart to see details"),
+                );
             }
         };
 
-        let version_text = self
-            .state
-            .selected_version
-            .as_deref()
-            .unwrap_or(&chart.version);
-        let desc = chart
-            .description
-            .as_deref()
-            .unwrap_or("No description");
-        let home = chart
-            .home
-            .as_deref()
-            .unwrap_or("N/A");
-        let sources = if chart.sources.is_empty() {
-            "None".to_string()
-        } else {
-            chart.sources.join(", ")
-        };
+        let version_text = self.state.selected_version.as_deref().unwrap_or(&chart.version);
+        let desc = chart.description.as_deref().unwrap_or("No description");
+        let home = chart.home.as_deref().unwrap_or("N/A");
+        let sources =
+            if chart.sources.is_empty() { "None".to_string() } else { chart.sources.join(", ") };
 
         div()
             .flex()
@@ -479,38 +389,21 @@ impl HelmInstallViewComponent {
                 div()
                     .text_lg()
                     .text_color(colors.text_primary)
-                    .child(SharedString::from(
-                        chart.name.clone(),
-                    )),
+                    .child(SharedString::from(chart.name.clone())),
             )
             .child(
                 div()
                     .text_sm()
                     .text_color(colors.text_secondary)
-                    .child(SharedString::from(
-                        desc.to_string(),
-                    )),
+                    .child(SharedString::from(desc.to_string())),
             )
-            .child(self.render_detail_row(
-                "Version",
-                version_text,
-                colors,
-            ))
-            .child(self.render_detail_row(
-                "Home", home, colors,
-            ))
-            .child(self.render_detail_row(
-                "Sources", &sources, colors,
-            ))
+            .child(self.render_detail_row("Version", version_text, colors))
+            .child(self.render_detail_row("Home", home, colors))
+            .child(self.render_detail_row("Sources", &sources, colors))
     }
 
     /// Key-value detail row.
-    fn render_detail_row(
-        &self,
-        key: &str,
-        value: &str,
-        colors: &InstallViewColors,
-    ) -> gpui::Div {
+    fn render_detail_row(&self, key: &str, value: &str, colors: &InstallViewColors) -> gpui::Div {
         div()
             .flex()
             .flex_row()
@@ -519,54 +412,25 @@ impl HelmInstallViewComponent {
                 div()
                     .text_xs()
                     .text_color(colors.text_muted)
-                    .child(SharedString::from(
-                        format!("{key}:"),
-                    )),
+                    .child(SharedString::from(format!("{key}:"))),
             )
             .child(
                 div()
                     .text_xs()
                     .text_color(colors.text_primary)
-                    .child(SharedString::from(
-                        value.to_string(),
-                    )),
+                    .child(SharedString::from(value.to_string())),
             )
     }
 
     /// YAML values editor with validation status.
-    fn render_values_editor(
-        &self,
-        colors: &InstallViewColors,
-    ) -> gpui::Div {
-        let border_c = if self
-            .state
-            .values_editor
-            .is_valid
-        {
-            colors.border
+    fn render_values_editor(&self, colors: &InstallViewColors) -> gpui::Div {
+        let border_c = if self.state.values_editor.is_valid { colors.border } else { colors.error };
+        let content = if self.state.values_editor.content.is_empty() {
+            SharedString::from("# Enter custom values (YAML)")
         } else {
-            colors.error
+            SharedString::from(self.state.values_editor.content.clone())
         };
-        let content = if self
-            .state
-            .values_editor
-            .content
-            .is_empty()
-        {
-            SharedString::from(
-                "# Enter custom values (YAML)",
-            )
-        } else {
-            SharedString::from(
-                self.state.values_editor.content.clone(),
-            )
-        };
-        let tc = if self
-            .state
-            .values_editor
-            .content
-            .is_empty()
-        {
+        let tc = if self.state.values_editor.content.is_empty() {
             colors.text_muted
         } else {
             colors.text_primary
@@ -576,12 +440,7 @@ impl HelmInstallViewComponent {
             .flex()
             .flex_col()
             .gap(px(4.0))
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_secondary)
-                    .child("Values (YAML)"),
-            )
+            .child(div().text_xs().text_color(colors.text_secondary).child("Values (YAML)"))
             .child(
                 div()
                     .id("values-editor")
@@ -598,14 +457,9 @@ impl HelmInstallViewComponent {
                     .child(content),
             );
 
-        if let Some(ref err) =
-            self.state.values_editor.validation_error
-        {
+        if let Some(ref err) = self.state.values_editor.validation_error {
             editor = editor.child(
-                div()
-                    .text_xs()
-                    .text_color(colors.error)
-                    .child(SharedString::from(err.clone())),
+                div().text_xs().text_color(colors.error).child(SharedString::from(err.clone())),
             );
         }
 
@@ -613,31 +467,16 @@ impl HelmInstallViewComponent {
     }
 
     /// Install bar: namespace input, install button, progress.
-    fn render_install_bar(
-        &self,
-        colors: &InstallViewColors,
-    ) -> gpui::Div {
+    fn render_install_bar(&self, colors: &InstallViewColors) -> gpui::Div {
         let can = self.state.can_install();
-        let btn_c = if can {
-            colors.accent
-        } else {
-            colors.text_muted
-        };
-        let btn_label =
-            SharedString::from(self.install_button_label());
+        let btn_c = if can { colors.accent } else { colors.text_muted };
+        let btn_label = SharedString::from(self.install_button_label());
 
-        let ns_text = SharedString::from(
-            self.state.namespace.clone(),
-        );
-        let ns_tc = if self.state.namespace.is_empty() {
-            colors.text_muted
-        } else {
-            colors.text_primary
-        };
+        let ns_text = SharedString::from(self.state.namespace.clone());
+        let ns_tc =
+            if self.state.namespace.is_empty() { colors.text_muted } else { colors.text_primary };
 
-        let white =
-            crate::theme::Color::rgb(255, 255, 255)
-                .to_gpui();
+        let white = crate::theme::Color::rgb(255, 255, 255).to_gpui();
 
         let mut bar = div()
             .flex()
@@ -649,12 +488,7 @@ impl HelmInstallViewComponent {
             .gap(px(8.0))
             .border_t_1()
             .border_color(colors.border)
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_secondary)
-                    .child("Namespace:"),
-            )
+            .child(div().text_xs().text_color(colors.text_secondary).child("Namespace:"))
             .child(
                 div()
                     .id("namespace-input")
@@ -683,119 +517,45 @@ impl HelmInstallViewComponent {
             );
 
         if self.state.installing {
-            bar = bar.child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child("Installing..."),
-            );
+            bar = bar.child(div().text_xs().text_color(colors.text_muted).child("Installing..."));
         }
 
         bar
     }
 
     /// Error message display.
-    fn render_error(
-        &self,
-        colors: &InstallViewColors,
-    ) -> gpui::Div {
-        let msg = self
-            .state
-            .error
-            .as_deref()
-            .unwrap_or("Unknown error");
-        div()
-            .px_3()
-            .py_2()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.error)
-                    .child(SharedString::from(
-                        msg.to_string(),
-                    )),
-            )
+    fn render_error(&self, colors: &InstallViewColors) -> gpui::Div {
+        let msg = self.state.error.as_deref().unwrap_or("Unknown error");
+        div().px_3().py_2().child(
+            div().text_sm().text_color(colors.error).child(SharedString::from(msg.to_string())),
+        )
     }
 }
 
 impl Render for HelmInstallViewComponent {
-    fn render(
-        &mut self,
-        _window: &mut Window,
-        _cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         let colors = InstallViewColors {
-            background: self
-                .theme
-                .colors
-                .background
-                .to_gpui(),
-            surface: self
-                .theme
-                .colors
-                .surface
-                .to_gpui(),
-            border: self
-                .theme
-                .colors
-                .border
-                .to_gpui(),
-            accent: self
-                .theme
-                .colors
-                .accent
-                .to_gpui(),
-            success: self
-                .theme
-                .colors
-                .success
-                .to_gpui(),
-            warning: self
-                .theme
-                .colors
-                .warning
-                .to_gpui(),
-            error: self
-                .theme
-                .colors
-                .error
-                .to_gpui(),
-            text_primary: self
-                .theme
-                .colors
-                .text_primary
-                .to_gpui(),
-            text_secondary: self
-                .theme
-                .colors
-                .text_secondary
-                .to_gpui(),
-            text_muted: self
-                .theme
-                .colors
-                .text_muted
-                .to_gpui(),
-            selection: self
-                .theme
-                .colors
-                .selection
-                .to_gpui(),
+            background: self.theme.colors.background.to_gpui(),
+            surface: self.theme.colors.surface.to_gpui(),
+            border: self.theme.colors.border.to_gpui(),
+            accent: self.theme.colors.accent.to_gpui(),
+            success: self.theme.colors.success.to_gpui(),
+            warning: self.theme.colors.warning.to_gpui(),
+            error: self.theme.colors.error.to_gpui(),
+            text_primary: self.theme.colors.text_primary.to_gpui(),
+            text_secondary: self.theme.colors.text_secondary.to_gpui(),
+            text_muted: self.theme.colors.text_muted.to_gpui(),
+            selection: self.theme.colors.selection.to_gpui(),
         };
 
-        let mut root = div()
-            .flex()
-            .flex_col()
-            .size_full()
-            .bg(colors.background);
+        let mut root = div().flex().flex_col().size_full().bg(colors.background);
 
         // Search bar at top
-        root = root
-            .child(self.render_search_bar(&colors));
+        root = root.child(self.render_search_bar(&colors));
 
         // Error banner if present
         if self.state.error.is_some() {
-            root =
-                root.child(self.render_error(&colors));
+            root = root.child(self.render_error(&colors));
         }
 
         // Main content: left = results list, right = detail + values editor
@@ -811,11 +571,7 @@ impl Render for HelmInstallViewComponent {
                         .border_r_1()
                         .border_color(colors.border)
                         .overflow_hidden()
-                        .child(
-                            self.render_results_list(
-                                &colors,
-                            ),
-                        ),
+                        .child(self.render_results_list(&colors)),
                 )
                 .child(
                     div()
@@ -823,22 +579,13 @@ impl Render for HelmInstallViewComponent {
                         .flex_col()
                         .flex_1()
                         .overflow_hidden()
-                        .child(
-                            self.render_chart_detail(
-                                &colors,
-                            ),
-                        )
-                        .child(
-                            self.render_values_editor(
-                                &colors,
-                            ),
-                        ),
+                        .child(self.render_chart_detail(&colors))
+                        .child(self.render_values_editor(&colors)),
                 ),
         );
 
         // Install bar at bottom
-        root = root
-            .child(self.render_install_bar(&colors));
+        root = root.child(self.render_install_bar(&colors));
 
         root
     }
@@ -940,9 +687,11 @@ mod tests {
 
     #[test]
     fn test_set_search_results() {
-        let mut state = HelmInstallViewState::default();
-        state.searching = true;
-        state.error = Some("old error".to_string());
+        let mut state = HelmInstallViewState {
+            searching: true,
+            error: Some("old error".to_string()),
+            ..Default::default()
+        };
 
         state.set_search_results(sample_search_results());
 
@@ -1011,8 +760,8 @@ mod tests {
 
     #[test]
     fn test_clear() {
-        let mut state = HelmInstallViewState::default();
-        state.search_query = "nginx".to_string();
+        let mut state =
+            HelmInstallViewState { search_query: "nginx".to_string(), ..Default::default() };
         state.set_search_results(sample_search_results());
         state.select_chart(sample_chart("nginx", "15.4.0"));
         state.set_namespace("production");
@@ -1095,11 +844,12 @@ mod tests {
 
     #[test]
     fn test_full_install_workflow() {
-        let mut state = HelmInstallViewState::default();
-
         // 1. Search
-        state.search_query = "nginx".to_string();
-        state.searching = true;
+        let mut state = HelmInstallViewState {
+            search_query: "nginx".to_string(),
+            searching: true,
+            ..Default::default()
+        };
         assert!(!state.can_install());
 
         // 2. Receive results

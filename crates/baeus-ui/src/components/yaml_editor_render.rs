@@ -4,8 +4,8 @@
 //! separate module to keep `app_shell.rs` slim. Renders the YAML editor tab
 //! for resource detail views with edit/diff modes, toolbar, and status bar.
 
-use gpui::*;
 use gpui::prelude::FluentBuilder as _;
+use gpui::*;
 
 use crate::components::editor_view::{EditorMode, EditorRenderSnapshot, EditorViewState};
 use crate::layout::app_shell::{AppShell, ResourceDetailKey};
@@ -31,25 +31,29 @@ impl AppShell {
         // Get focus handle early so we can pass it to child renderers
         let maybe_fh = self.yaml_editor_focus_handles.get(key).cloned();
 
-        let mut container = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .min_h(px(0.0))
-            .w_full()
-            .bg(bg);
+        let mut container = div().flex().flex_col().flex_1().min_h(px(0.0)).w_full().bg(bg);
 
         // Toolbar
-        container = container.child(
-            self.render_yaml_toolbar(cx, key, text, text_secondary, surface, border, accent),
-        );
+        container = container.child(self.render_yaml_toolbar(
+            cx,
+            key,
+            text,
+            text_secondary,
+            surface,
+            border,
+            accent,
+        ));
 
         // Conflict banner
         if let Some(editor) = self.yaml_editors.get(key) {
             if editor.has_conflict() {
-                container = container.child(
-                    Self::render_yaml_conflict_banner(cx, key, editor, text_secondary, border),
-                );
+                container = container.child(Self::render_yaml_conflict_banner(
+                    cx,
+                    key,
+                    editor,
+                    text_secondary,
+                    border,
+                ));
             }
         }
 
@@ -58,32 +62,45 @@ impl AppShell {
             match editor.mode {
                 EditorMode::Edit => {
                     let snapshot = editor.render_snapshot();
-                    container = container.child(
-                        self.render_yaml_text_area_interactive(
-                            cx, key, &snapshot, text, text_secondary, bg, &maybe_fh,
-                        ),
-                    );
+                    container = container.child(self.render_yaml_text_area_interactive(
+                        cx,
+                        key,
+                        &snapshot,
+                        text,
+                        text_secondary,
+                        bg,
+                        &maybe_fh,
+                    ));
                 }
                 EditorMode::Diff => {
-                    container = container.child(
-                        Self::render_yaml_diff_view(editor, text, text_secondary, bg, border),
-                    );
+                    container = container.child(Self::render_yaml_diff_view(
+                        editor,
+                        text,
+                        text_secondary,
+                        bg,
+                        border,
+                    ));
                 }
             }
         }
 
         // Status bar
         if let Some(editor) = self.yaml_editors.get(key) {
-            container = container.child(
-                Self::render_yaml_status_bar(editor, text_secondary, surface, border, accent),
-            );
+            container = container.child(Self::render_yaml_status_bar(
+                editor,
+                text_secondary,
+                surface,
+                border,
+                accent,
+            ));
         }
 
         // Keyboard input
         let key_for_handler = key.clone();
         let mut stateful = container
             .id(ElementId::Name(SharedString::from(format!(
-                "yaml-editor-{}-{}", key.kind, key.name,
+                "yaml-editor-{}-{}",
+                key.kind, key.name,
             ))))
             .on_key_down(cx.listener(move |this, event: &KeyDownEvent, _window, cx| {
                 let is_cmd = event.keystroke.modifiers.platform;
@@ -91,7 +108,8 @@ impl AppShell {
 
                 // Cmd+S → apply (check before taking mutable borrow)
                 if is_cmd && key_str == "s" {
-                    let can_apply = this.yaml_editors
+                    let can_apply = this
+                        .yaml_editors
                         .get(&key_for_handler)
                         .map(|e| e.can_apply())
                         .unwrap_or(false);
@@ -124,11 +142,10 @@ impl AppShell {
         // Click anywhere on the editor to grab focus
         if let Some(fh) = maybe_fh {
             let fh_click = fh.clone();
-            stateful = stateful.on_click(
-                cx.listener(move |_this, _event: &ClickEvent, window, _cx| {
+            stateful =
+                stateful.on_click(cx.listener(move |_this, _event: &ClickEvent, window, _cx| {
                     window.focus(&fh_click);
-                }),
-            );
+                }));
         }
 
         stateful
@@ -146,29 +163,14 @@ impl AppShell {
         border: Rgba,
         accent: Rgba,
     ) -> Div {
-        let can_apply = self
-            .yaml_editors
-            .get(key)
-            .map(|e| e.can_apply())
-            .unwrap_or(false);
+        let can_apply = self.yaml_editors.get(key).map(|e| e.can_apply()).unwrap_or(false);
 
-        let is_dirty = self
-            .yaml_editors
-            .get(key)
-            .map(|e| e.is_dirty)
-            .unwrap_or(false);
+        let is_dirty = self.yaml_editors.get(key).map(|e| e.is_dirty).unwrap_or(false);
 
-        let is_diff = self
-            .yaml_editors
-            .get(key)
-            .map(|e| e.mode == EditorMode::Diff)
-            .unwrap_or(false);
+        let is_diff =
+            self.yaml_editors.get(key).map(|e| e.mode == EditorMode::Diff).unwrap_or(false);
 
-        let is_applying = self
-            .yaml_editors
-            .get(key)
-            .map(|e| e.applying)
-            .unwrap_or(false);
+        let is_applying = self.yaml_editors.get(key).map(|e| e.applying).unwrap_or(false);
 
         let apply_color = if can_apply { accent } else { text_secondary };
         let apply_label = if is_applying { "Applying..." } else { "Apply" };
@@ -274,19 +276,10 @@ impl AppShell {
         bg: Rgba,
         focus_handle: &Option<FocusHandle>,
     ) -> Stateful<Div> {
-        let muted = Rgba {
-            r: text_secondary.r,
-            g: text_secondary.g,
-            b: text_secondary.b,
-            a: 0.5,
-        };
+        let muted = Rgba { r: text_secondary.r, g: text_secondary.g, b: text_secondary.b, a: 0.5 };
         let error_bg = Color::rgba(239, 68, 68, 30).to_gpui();
-        let cursor_line_bg = Rgba {
-            r: text_secondary.r,
-            g: text_secondary.g,
-            b: text_secondary.b,
-            a: 0.08,
-        };
+        let cursor_line_bg =
+            Rgba { r: text_secondary.r, g: text_secondary.g, b: text_secondary.b, a: 0.08 };
         let cursor_color = self.theme.colors.accent.to_gpui();
 
         let mut body = div()
@@ -338,10 +331,7 @@ impl AppShell {
         let line_text = content.trim_end_matches('\n');
         let line_num = SharedString::from(format!("{}", idx + 1));
 
-        let has_error = snapshot
-            .error_line
-            .map(|l| l == idx + 1)
-            .unwrap_or(false);
+        let has_error = snapshot.error_line.map(|l| l == idx + 1).unwrap_or(false);
         let is_cursor_line = idx == snapshot.cursor_line;
 
         let mut row = div().flex().flex_row().w_full();
@@ -440,12 +430,7 @@ impl AppShell {
             SharedString::from(after.to_string())
         };
 
-        let mut row = div()
-            .flex_1()
-            .flex()
-            .flex_row()
-            .text_xs()
-            .text_color(text_color);
+        let mut row = div().flex_1().flex().flex_row().text_xs().text_color(text_color);
 
         // Text before cursor
         if !before.is_empty() {
@@ -453,13 +438,7 @@ impl AppShell {
         }
 
         // Cursor bar (2px wide)
-        row = row.child(
-            div()
-                .w(px(2.0))
-                .h(px(14.0))
-                .flex_shrink_0()
-                .bg(cursor_color),
-        );
+        row = row.child(div().w(px(2.0)).h(px(14.0)).flex_shrink_0().bg(cursor_color));
 
         // Text after cursor
         if !after.is_empty() {
@@ -478,19 +457,12 @@ impl AppShell {
         border: Rgba,
     ) -> Stateful<Div> {
         let diff = editor.compute_diff();
-        let muted = Rgba {
-            r: text_secondary.r,
-            g: text_secondary.g,
-            b: text_secondary.b,
-            a: 0.5,
-        };
+        let muted = Rgba { r: text_secondary.r, g: text_secondary.g, b: text_secondary.b, a: 0.5 };
         let added_bg = Color::rgba(34, 197, 94, 30).to_gpui();
         let removed_bg = Color::rgba(239, 68, 68, 30).to_gpui();
 
-        let summary_text = SharedString::from(format!(
-            "+{} -{}",
-            diff.added_count, diff.removed_count,
-        ));
+        let summary_text =
+            SharedString::from(format!("+{} -{}", diff.added_count, diff.removed_count,));
 
         let mut body = div()
             .id("yaml-diff-view")
@@ -511,9 +483,7 @@ impl AppShell {
                 .py_1()
                 .border_b_1()
                 .border_color(border)
-                .child(
-                    div().text_xs().text_color(text_secondary).child(summary_text),
-                ),
+                .child(div().text_xs().text_color(text_secondary).child(summary_text)),
         );
 
         use baeus_editor::diff::DiffLineKind;
@@ -530,14 +500,8 @@ impl AppShell {
                 DiffLineKind::Unchanged => " ",
             };
 
-            let old_n = dl
-                .old_line_number
-                .map(|n| format!("{n}"))
-                .unwrap_or_default();
-            let new_n = dl
-                .new_line_number
-                .map(|n| format!("{n}"))
-                .unwrap_or_default();
+            let old_n = dl.old_line_number.map(|n| format!("{n}")).unwrap_or_default();
+            let new_n = dl.new_line_number.map(|n| format!("{n}")).unwrap_or_default();
             let ct = SharedString::from(dl.content.clone());
 
             body = body.child(
@@ -617,9 +581,7 @@ impl AppShell {
             .border_b_1()
             .border_color(warning)
             // Message
-            .child(
-                div().flex_1().text_xs().text_color(warning).child(msg),
-            )
+            .child(div().flex_1().text_xs().text_color(warning).child(msg))
             // Accept Server button
             .child(
                 div()
@@ -675,10 +637,7 @@ impl AppShell {
         let (status_text, status_color) = if let Some(ref err) = editor.apply_error {
             (format!("Error: {err}"), error_color)
         } else if let Some(ref ve) = editor.validation_error {
-            let loc = ve
-                .line
-                .map(|l| format!(" (line {l})"))
-                .unwrap_or_default();
+            let loc = ve.line.map(|l| format!(" (line {l})")).unwrap_or_default();
             (format!("YAML error{loc}: {}", ve.message), warning_color)
         } else if editor.applying {
             ("Applying...".to_string(), accent)
@@ -698,11 +657,6 @@ impl AppShell {
             .border_t_1()
             .border_color(border)
             .bg(surface)
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(status_color)
-                    .child(SharedString::from(status_text)),
-            )
+            .child(div().text_xs().text_color(status_color).child(SharedString::from(status_text)))
     }
 }

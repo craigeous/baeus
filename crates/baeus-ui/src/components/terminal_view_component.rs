@@ -52,10 +52,7 @@ pub struct TerminalViewComponent {
 impl TerminalViewComponent {
     /// Creates a new terminal view component with a focus handle (production use).
     pub fn new_with_cx(state: TerminalViewState, theme: Theme, cx: &mut Context<Self>) -> Self {
-        let size = TerminalSize {
-            rows: state.rows,
-            cols: state.cols,
-        };
+        let size = TerminalSize { rows: state.rows, cols: state.cols };
         Self {
             state,
             emulator: TerminalEmulator::new(size),
@@ -67,10 +64,7 @@ impl TerminalViewComponent {
 
     /// Creates a new terminal view component without focus handle (for tests).
     pub fn new(state: TerminalViewState, theme: Theme) -> Self {
-        let size = TerminalSize {
-            rows: state.rows,
-            cols: state.cols,
-        };
+        let size = TerminalSize { rows: state.rows, cols: state.cols };
         Self {
             state,
             emulator: TerminalEmulator::new(size),
@@ -109,20 +103,62 @@ impl TerminalViewComponent {
 
         // Special keys (GPUI uses lowercase names)
         match key {
-            "enter" => { self.input_buffer.push(b'\r'); return; }
-            "backspace" => { self.input_buffer.push(0x7f); return; }
-            "tab" => { self.input_buffer.push(b'\t'); return; }
-            "escape" => { self.input_buffer.push(0x1b); return; }
-            "space" => { self.input_buffer.push(b' '); return; }
-            "up" => { self.input_buffer.extend_from_slice(b"\x1b[A"); return; }
-            "down" => { self.input_buffer.extend_from_slice(b"\x1b[B"); return; }
-            "right" => { self.input_buffer.extend_from_slice(b"\x1b[C"); return; }
-            "left" => { self.input_buffer.extend_from_slice(b"\x1b[D"); return; }
-            "home" => { self.input_buffer.extend_from_slice(b"\x1b[H"); return; }
-            "end" => { self.input_buffer.extend_from_slice(b"\x1b[F"); return; }
-            "delete" => { self.input_buffer.extend_from_slice(b"\x1b[3~"); return; }
-            "pageup" => { self.input_buffer.extend_from_slice(b"\x1b[5~"); return; }
-            "pagedown" => { self.input_buffer.extend_from_slice(b"\x1b[6~"); return; }
+            "enter" => {
+                self.input_buffer.push(b'\r');
+                return;
+            }
+            "backspace" => {
+                self.input_buffer.push(0x7f);
+                return;
+            }
+            "tab" => {
+                self.input_buffer.push(b'\t');
+                return;
+            }
+            "escape" => {
+                self.input_buffer.push(0x1b);
+                return;
+            }
+            "space" => {
+                self.input_buffer.push(b' ');
+                return;
+            }
+            "up" => {
+                self.input_buffer.extend_from_slice(b"\x1b[A");
+                return;
+            }
+            "down" => {
+                self.input_buffer.extend_from_slice(b"\x1b[B");
+                return;
+            }
+            "right" => {
+                self.input_buffer.extend_from_slice(b"\x1b[C");
+                return;
+            }
+            "left" => {
+                self.input_buffer.extend_from_slice(b"\x1b[D");
+                return;
+            }
+            "home" => {
+                self.input_buffer.extend_from_slice(b"\x1b[H");
+                return;
+            }
+            "end" => {
+                self.input_buffer.extend_from_slice(b"\x1b[F");
+                return;
+            }
+            "delete" => {
+                self.input_buffer.extend_from_slice(b"\x1b[3~");
+                return;
+            }
+            "pageup" => {
+                self.input_buffer.extend_from_slice(b"\x1b[5~");
+                return;
+            }
+            "pagedown" => {
+                self.input_buffer.extend_from_slice(b"\x1b[6~");
+                return;
+            }
             _ => {}
         }
 
@@ -206,25 +242,12 @@ impl TerminalViewComponent {
         let title_text = SharedString::from(self.state.title.clone());
         let mode_label = SharedString::from(self.display_mode_label());
 
-        let title_el = div()
-            .text_sm()
-            .text_color(colors.text)
-            .mx_2()
-            .child(title_text);
+        let title_el = div().text_sm().text_color(colors.text).mx_2().child(title_text);
 
-        let mode_el = div()
-            .text_xs()
-            .text_color(colors.text_muted)
-            .child(mode_label);
+        let mode_el = div().text_xs().text_color(colors.text_muted).child(mode_label);
 
-        let font_label = SharedString::from(
-            format!("{}px", self.state.settings.font_size as u32),
-        );
-        let font_el = div()
-            .text_xs()
-            .text_color(colors.text_secondary)
-            .mx_2()
-            .child(font_label);
+        let font_label = SharedString::from(format!("{}px", self.state.settings.font_size as u32));
+        let font_el = div().text_xs().text_color(colors.text_secondary).mx_2().child(font_label);
 
         div()
             .flex()
@@ -243,21 +266,14 @@ impl TerminalViewComponent {
     }
 
     /// Render the connection state indicator dot.
-    fn render_connection_indicator(
-        &self,
-        colors: &TerminalColors,
-    ) -> Div {
+    fn render_connection_indicator(&self, colors: &TerminalColors) -> Div {
         let color = match &self.state.connection_state {
             TerminalConnectionState::Connected => colors.success,
             TerminalConnectionState::Connecting => colors.warning,
             TerminalConnectionState::Disconnected => colors.text_muted,
             TerminalConnectionState::Error(_) => colors.error,
         };
-        div()
-            .w(px(8.0))
-            .h(px(8.0))
-            .rounded(px(4.0))
-            .bg(color)
+        div().w(px(8.0)).h(px(8.0)).rounded(px(4.0)).bg(color)
     }
 
     /// Render the terminal grid (all visible rows).
@@ -305,20 +321,12 @@ impl TerminalViewComponent {
     }
 
     /// Render a single terminal cell, highlighting it if it is the cursor.
-    fn render_cell(
-        &self,
-        cell: &TerminalCell,
-        is_cursor: bool,
-        colors: &TerminalColors,
-    ) -> Div {
+    fn render_cell(&self, cell: &TerminalCell, is_cursor: bool, colors: &TerminalColors) -> Div {
         let fg = self.map_color(&cell.fg_color, colors.text);
         let bg = self.map_color(&cell.bg_color, colors.bg);
         let ch = SharedString::from(cell.character.to_string());
 
-        let d = div()
-            .text_xs()
-            .w(px(self.cell_width()))
-            .h(px(self.cell_height()));
+        let d = div().text_xs().w(px(self.cell_width())).h(px(self.cell_height()));
 
         if is_cursor {
             d.bg(fg).text_color(bg).child(ch)
@@ -328,10 +336,7 @@ impl TerminalViewComponent {
     }
 
     /// Render an overlay for non-connected states (error, connecting).
-    fn render_connection_overlay(
-        &self,
-        colors: &TerminalColors,
-    ) -> Div {
+    fn render_connection_overlay(&self, colors: &TerminalColors) -> Div {
         let backdrop = crate::theme::Color::rgba(0, 0, 0, 160).to_gpui();
         match &self.state.connection_state {
             TerminalConnectionState::Connecting => {
@@ -363,17 +368,12 @@ impl TerminalViewComponent {
     }
 
     /// Render scrollback indicator when scrolled up.
-    fn render_scrollback_indicator(
-        &self,
-        colors: &TerminalColors,
-    ) -> Div {
+    fn render_scrollback_indicator(&self, colors: &TerminalColors) -> Div {
         if !self.state.is_scrolled_up() {
             return div();
         }
-        let label = SharedString::from(format!(
-            "Scrolled up {} lines",
-            self.state.scrollback_offset,
-        ));
+        let label =
+            SharedString::from(format!("Scrolled up {} lines", self.state.scrollback_offset,));
         div()
             .flex()
             .justify_center()
@@ -387,22 +387,13 @@ impl TerminalViewComponent {
     // -- Private utilities --
 
     /// Map a TerminalColor to an Rgba, using a default if None.
-    fn map_color(
-        &self,
-        color: &Option<TerminalColor>,
-        default: Rgba,
-    ) -> Rgba {
+    fn map_color(&self, color: &Option<TerminalColor>, default: Rgba) -> Rgba {
         match color {
             None => default,
-            Some(TerminalColor::Rgb(r, g, b)) => Rgba {
-                r: *r as f32 / 255.0,
-                g: *g as f32 / 255.0,
-                b: *b as f32 / 255.0,
-                a: 1.0,
-            },
-            Some(TerminalColor::Indexed(idx)) => {
-                ansi_color(*idx)
+            Some(TerminalColor::Rgb(r, g, b)) => {
+                Rgba { r: *r as f32 / 255.0, g: *g as f32 / 255.0, b: *b as f32 / 255.0, a: 1.0 }
             }
+            Some(TerminalColor::Indexed(idx)) => ansi_color(*idx),
         }
     }
 
@@ -431,16 +422,11 @@ impl TerminalViewComponent {
 // ---------------------------------------------------------------------------
 
 impl Render for TerminalViewComponent {
-    fn render(
-        &mut self,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = self.colors();
         let needs_overlay = matches!(
             self.state.connection_state,
-            TerminalConnectionState::Connecting
-                | TerminalConnectionState::Error(_)
+            TerminalConnectionState::Connecting | TerminalConnectionState::Error(_)
         );
 
         let header = self.render_header(&colors);
@@ -474,11 +460,7 @@ impl Render for TerminalViewComponent {
             base = base.track_focus(handle);
         }
 
-        if needs_overlay {
-            base.child(self.render_connection_overlay(&colors))
-        } else {
-            base
-        }
+        if needs_overlay { base.child(self.render_connection_overlay(&colors)) } else { base }
     }
 }
 

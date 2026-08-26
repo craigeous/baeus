@@ -63,9 +63,7 @@ mod tests {
                     description: Some("NGINX web server".to_string()),
                     home: Some("https://nginx.org".to_string()),
                     sources: vec![],
-                    urls: vec![
-                        "https://charts.bitnami.com/bitnami/nginx-15.4.0.tgz".to_string(),
-                    ],
+                    urls: vec!["https://charts.bitnami.com/bitnami/nginx-15.4.0.tgz".to_string()],
                 },
                 ChartEntry {
                     name: "nginx".to_string(),
@@ -91,10 +89,7 @@ mod tests {
             }],
         );
 
-        ChartIndex {
-            api_version: "v1".to_string(),
-            entries,
-        }
+        ChartIndex { api_version: "v1".to_string(), entries }
     }
 
     #[test]
@@ -152,10 +147,7 @@ mod tests {
 
     #[test]
     fn test_empty_index() {
-        let index = ChartIndex {
-            api_version: "v1".to_string(),
-            entries: BTreeMap::new(),
-        };
+        let index = ChartIndex { api_version: "v1".to_string(), entries: BTreeMap::new() };
 
         assert!(index.search("anything").is_empty());
         assert!(index.get_chart("nginx").is_none());
@@ -179,10 +171,7 @@ mod tests {
             }],
         );
 
-        let index = ChartIndex {
-            api_version: "v1".to_string(),
-            entries,
-        };
+        let index = ChartIndex { api_version: "v1".to_string(), entries };
 
         // Search by name still works
         let results = index.search("bare");
@@ -216,10 +205,7 @@ mod tests {
             }],
         );
 
-        let index = ChartIndex {
-            api_version: "v1".to_string(),
-            entries,
-        };
+        let index = ChartIndex { api_version: "v1".to_string(), entries };
 
         let chart = index.get_chart("local-chart").unwrap();
         assert_eq!(chart.len(), 1);
@@ -267,10 +253,7 @@ mod tests {
             }],
         );
 
-        let index = ChartIndex {
-            api_version: "v1".to_string(),
-            entries,
-        };
+        let index = ChartIndex { api_version: "v1".to_string(), entries };
 
         // "web" matches both chart names
         let results = index.search("web");

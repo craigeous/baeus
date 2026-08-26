@@ -20,8 +20,7 @@ fn test_new_sets_title_and_message() {
 
 #[test]
 fn test_new_sets_severity() {
-    let dialog =
-        ConfirmDialogState::new("Title", "Message", DialogSeverity::Destructive);
+    let dialog = ConfirmDialogState::new("Title", "Message", DialogSeverity::Destructive);
     assert_eq!(dialog.severity, DialogSeverity::Destructive);
 }
 
@@ -86,8 +85,8 @@ fn test_with_confirm_label() {
 
 #[test]
 fn test_with_cancel_label() {
-    let dialog = ConfirmDialogState::new("Title", "Message", DialogSeverity::Info)
-        .with_cancel_label("Nope");
+    let dialog =
+        ConfirmDialogState::new("Title", "Message", DialogSeverity::Info).with_cancel_label("Nope");
     assert_eq!(dialog.cancel_label, "Nope");
 }
 
@@ -104,8 +103,7 @@ fn test_with_resource_name() {
 
 #[test]
 fn test_is_destructive_true_for_destructive_severity() {
-    let dialog =
-        ConfirmDialogState::new("Title", "Message", DialogSeverity::Destructive);
+    let dialog = ConfirmDialogState::new("Title", "Message", DialogSeverity::Destructive);
     assert!(dialog.is_destructive());
 }
 
@@ -279,11 +277,7 @@ fn test_default_cancel_label_preserved_by_factory_methods() {
 
 #[test]
 fn test_dialog_severity_serialization_roundtrip() {
-    for severity in [
-        DialogSeverity::Info,
-        DialogSeverity::Warning,
-        DialogSeverity::Destructive,
-    ] {
+    for severity in [DialogSeverity::Info, DialogSeverity::Warning, DialogSeverity::Destructive] {
         let json = serde_json::to_string(&severity).unwrap();
         let deserialized: DialogSeverity = serde_json::from_str(&json).unwrap();
         assert_eq!(severity, deserialized);

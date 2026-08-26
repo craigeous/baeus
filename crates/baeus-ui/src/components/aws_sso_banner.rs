@@ -4,7 +4,7 @@
 //! token expiry is detected during cluster connection.
 
 use gpui::prelude::*;
-use gpui::{div, ElementId, FontWeight, Rgba, SharedString, StatefulInteractiveElement};
+use gpui::{ElementId, FontWeight, Rgba, SharedString, StatefulInteractiveElement, div};
 
 use crate::layout::app_shell::AppShell;
 
@@ -22,10 +22,8 @@ impl AppShell {
         let warning_bg = Rgba { r: 0.95, g: 0.85, b: 0.35, a: 1.0 };
         let text_dark = Rgba { r: 0.15, g: 0.15, b: 0.15, a: 1.0 };
 
-        let msg = SharedString::from(format!(
-            "AWS SSO session expired for profile \"{}\"",
-            profile,
-        ));
+        let msg =
+            SharedString::from(format!("AWS SSO session expired for profile \"{}\"", profile,));
 
         Some(
             div()
@@ -45,11 +43,7 @@ impl AppShell {
                         .flex_row()
                         .items_center()
                         .gap_2()
-                        .child(
-                            div()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(msg),
-                        ),
+                        .child(div().font_weight(FontWeight::SEMIBOLD).child(msg)),
                 )
                 .child(
                     div()

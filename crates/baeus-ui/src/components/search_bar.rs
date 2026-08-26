@@ -1,4 +1,4 @@
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 
 use crate::theme::Theme;
 
@@ -136,10 +136,7 @@ pub fn fuzzy_match(query: &str, target: &str) -> Option<u32> {
 /// Type alias for a resource search item: (uid, name, namespace, kind, labels).
 pub type SearchItem = (String, String, Option<String>, String, Vec<(String, String)>);
 
-pub fn search_resources(
-    query: &str,
-    items: &[SearchItem],
-) -> Vec<SearchMatch> {
+pub fn search_resources(query: &str, items: &[SearchItem]) -> Vec<SearchMatch> {
     if query.is_empty() {
         return Vec::new();
     }
@@ -191,7 +188,7 @@ pub fn search_resources(
         }
     }
 
-    results.sort_by(|a, b| b.score.cmp(&a.score));
+    results.sort_by_key(|a| std::cmp::Reverse(a.score));
     results
 }
 
@@ -223,10 +220,7 @@ pub struct GlobalSearchState {
 impl GlobalSearchState {
     /// Creates a new global search state with AllNamespaces scope.
     pub fn new() -> Self {
-        Self {
-            scope: SearchScope::AllNamespaces,
-            ..Default::default()
-        }
+        Self { scope: SearchScope::AllNamespaces, ..Default::default() }
     }
 
     /// Updates the search query text.
@@ -278,8 +272,7 @@ impl GlobalSearchState {
 
     /// Returns the currently selected SearchMatch, if any.
     pub fn selected_result(&self) -> Option<&SearchMatch> {
-        self.selected_result_index
-            .and_then(|idx| self.results.get(idx))
+        self.selected_result_index.and_then(|idx| self.results.get(idx))
     }
 
     /// Opens the global search overlay.
@@ -340,18 +333,8 @@ impl GlobalSearchView {
             .gap(px(8.0))
             .px_3()
             .py_1()
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child("Scope:"),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.accent)
-                    .child(label),
-            )
+            .child(div().text_xs().text_color(colors.text_muted).child("Scope:"))
+            .child(div().text_xs().text_color(colors.accent).child(label))
     }
 
     /// Render the search input for global search.
@@ -361,11 +344,8 @@ impl GlobalSearchView {
         } else {
             SharedString::from(self.state.query.clone())
         };
-        let text_color = if self.state.query.is_empty() {
-            colors.text_muted
-        } else {
-            colors.text_primary
-        };
+        let text_color =
+            if self.state.query.is_empty() { colors.text_muted } else { colors.text_primary };
 
         div()
             .flex()
@@ -377,12 +357,7 @@ impl GlobalSearchView {
             .bg(colors.surface)
             .border_1()
             .border_color(colors.accent)
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(text_color)
-                    .child(text),
-            )
+            .child(div().text_sm().text_color(text_color).child(text))
     }
 
     /// Render the results list for global search.
@@ -400,12 +375,7 @@ impl GlobalSearchView {
 
         if self.state.is_searching {
             list = list.child(
-                div()
-                    .px_3()
-                    .py_2()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("Searching..."),
+                div().px_3().py_2().text_sm().text_color(colors.text_muted).child("Searching..."),
             );
         } else if self.state.results.is_empty() && !self.state.query.is_empty() {
             list = list.child(
@@ -436,40 +406,19 @@ impl GlobalSearchView {
     ) -> gpui::Stateful<gpui::Div> {
         let name = SharedString::from(result.name.clone());
         let kind = SharedString::from(result.kind.clone());
-        let ns_text = result
-            .namespace
-            .as_deref()
-            .unwrap_or("")
-            .to_string();
+        let ns_text = result.namespace.as_deref().unwrap_or("").to_string();
         let ns_label = SharedString::from(ns_text);
         let item_id = ElementId::Name(SharedString::from(format!("global-search-result-{idx}")));
 
-        let bg = if is_selected {
-            colors.surface_hover
-        } else {
-            colors.surface
-        };
+        let bg = if is_selected { colors.surface_hover } else { colors.surface };
 
-        let name_div = div()
-            .text_sm()
-            .text_color(colors.text_primary)
-            .child(name);
+        let name_div = div().text_sm().text_color(colors.text_primary).child(name);
 
         let meta_div = div()
             .flex()
             .gap(px(8.0))
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child(kind),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child(ns_label),
-            );
+            .child(div().text_xs().text_color(colors.text_muted).child(kind))
+            .child(div().text_xs().text_color(colors.text_muted).child(ns_label));
 
         div()
             .id(item_id)
@@ -508,10 +457,7 @@ impl Render for GlobalSearchView {
             text_muted: self.theme.colors.text_muted.to_gpui(),
         };
 
-        let mut overlay = div()
-            .flex()
-            .flex_col()
-            .w_full();
+        let mut overlay = div().flex().flex_col().w_full();
 
         if self.state.is_open {
             overlay = overlay
@@ -549,11 +495,7 @@ impl SearchBarView {
 
     /// Returns the display text for the search input.
     pub fn display_text(&self) -> &str {
-        if self.state.query.is_empty() {
-            self.placeholder_text()
-        } else {
-            &self.state.query
-        }
+        if self.state.query.is_empty() { self.placeholder_text() } else { &self.state.query }
     }
 
     /// Whether the results dropdown should be visible.
@@ -564,20 +506,11 @@ impl SearchBarView {
     /// Render the search input field.
     fn render_input(&self, colors: &SearchColors) -> gpui::Div {
         let text = SharedString::from(self.display_text().to_string());
-        let text_color = if self.state.query.is_empty() {
-            colors.text_muted
-        } else {
-            colors.text_primary
-        };
+        let text_color =
+            if self.state.query.is_empty() { colors.text_muted } else { colors.text_primary };
 
-        let mut input = div()
-            .flex()
-            .items_center()
-            .w_full()
-            .px_3()
-            .py_2()
-            .rounded(px(6.0))
-            .bg(colors.surface);
+        let mut input =
+            div().flex().items_center().w_full().px_3().py_2().rounded(px(6.0)).bg(colors.surface);
 
         if self.state.is_focused {
             input = input.border_1().border_color(colors.accent);
@@ -585,12 +518,7 @@ impl SearchBarView {
             input = input.border_1().border_color(colors.border);
         }
 
-        input.child(
-            div()
-                .text_sm()
-                .text_color(text_color)
-                .child(text),
-        )
+        input.child(div().text_sm().text_color(text_color).child(text))
     }
 
     /// Render a single search result item.
@@ -602,35 +530,18 @@ impl SearchBarView {
     ) -> gpui::Stateful<gpui::Div> {
         let name = SharedString::from(result.name.clone());
         let kind = SharedString::from(result.kind.clone());
-        let ns_text = result
-            .namespace
-            .as_deref()
-            .unwrap_or("")
-            .to_string();
+        let ns_text = result.namespace.as_deref().unwrap_or("").to_string();
         let ns_label = SharedString::from(ns_text);
 
         let item_id = ElementId::Name(SharedString::from(format!("search-result-{idx}")));
 
-        let name_div = div()
-            .text_sm()
-            .text_color(colors.text_primary)
-            .child(name);
+        let name_div = div().text_sm().text_color(colors.text_primary).child(name);
 
         let meta_div = div()
             .flex()
             .gap(px(8.0))
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child(kind),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_muted)
-                    .child(ns_label),
-            );
+            .child(div().text_xs().text_color(colors.text_muted).child(kind))
+            .child(div().text_xs().text_color(colors.text_muted).child(ns_label));
 
         div()
             .id(item_id)
@@ -687,11 +598,7 @@ impl Render for SearchBarView {
             text_muted: self.theme.colors.text_muted.to_gpui(),
         };
 
-        let mut container = div()
-            .flex()
-            .flex_col()
-            .w_full()
-            .child(self.render_input(&colors));
+        let mut container = div().flex().flex_col().w_full().child(self.render_input(&colors));
 
         if self.should_show_results() {
             container = container.child(self.render_results(&colors));

@@ -1,5 +1,5 @@
-use crate::components::resource_map::{compute_layout, ResourceMapState};
-use baeus_core::resource::{build_relationship_graph, Resource};
+use crate::components::resource_map::{ResourceMapState, compute_layout};
+use baeus_core::resource::{Resource, build_relationship_graph};
 
 // ---------------------------------------------------------------------------
 // T120: Namespace map view
@@ -65,7 +65,7 @@ impl NamespaceMapState {
 // ---------------------------------------------------------------------------
 
 use crate::theme::Theme;
-use gpui::{div, px, prelude::*, Context, ElementId, Rgba, SharedString, Window};
+use gpui::{Context, ElementId, Rgba, SharedString, Window, div, prelude::*, px};
 
 /// Precomputed colors for rendering the namespace map view.
 #[allow(dead_code)]
@@ -153,22 +153,13 @@ impl NamespaceMapViewComponent {
     fn render_map_area(&self) -> gpui::Div {
         // Note: In a real GPUI app, we would render the ResourceMapComponent
         // as a child view. For now, we render a placeholder indicating the map area.
-        div()
-            .flex_1()
-            .size_full()
-            .flex()
-            .items_center()
-            .justify_center()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(self.theme.colors.text_secondary.to_gpui())
-                    .child(format!(
-                        "Resource Map: {} nodes, {} edges",
-                        self.state.resource_map.layout.nodes.len(),
-                        self.state.resource_map.layout.edges.len()
-                    )),
-            )
+        div().flex_1().size_full().flex().items_center().justify_center().child(
+            div().text_sm().text_color(self.theme.colors.text_secondary.to_gpui()).child(format!(
+                "Resource Map: {} nodes, {} edges",
+                self.state.resource_map.layout.nodes.len(),
+                self.state.resource_map.layout.edges.len()
+            )),
+        )
     }
 
     /// Loading indicator.
@@ -180,12 +171,7 @@ impl NamespaceMapViewComponent {
             .items_center()
             .justify_center()
             .bg(colors.background)
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child("Loading resources..."),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child("Loading resources..."))
     }
 
     /// Error message.
@@ -200,10 +186,7 @@ impl NamespaceMapViewComponent {
             .bg(colors.background)
             .px_4()
             .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.error)
-                    .child(SharedString::from(msg.to_string())),
+                div().text_sm().text_color(colors.error).child(SharedString::from(msg.to_string())),
             )
     }
 
@@ -222,12 +205,7 @@ impl NamespaceMapViewComponent {
             .items_center()
             .justify_center()
             .bg(colors.background)
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child(message),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child(message))
     }
 }
 
@@ -244,11 +222,7 @@ impl Render for NamespaceMapViewComponent {
             error: self.theme.colors.error.to_gpui(),
         };
 
-        let mut root = div()
-            .flex()
-            .flex_col()
-            .size_full()
-            .bg(colors.background);
+        let mut root = div().flex().flex_col().size_full().bg(colors.background);
 
         root = root.child(self.render_toolbar(&colors));
 
@@ -348,11 +322,15 @@ mod tests {
 
         let cluster = test_cluster_id();
         let deploy = make_resource_with_uid(
-            "deploy-uid", "my-deploy", "default", "Deployment", "apps/v1", cluster,
+            "deploy-uid",
+            "my-deploy",
+            "default",
+            "Deployment",
+            "apps/v1",
+            cluster,
         );
-        let mut rs = make_resource_with_uid(
-            "rs-uid", "my-rs", "default", "ReplicaSet", "apps/v1", cluster,
-        );
+        let mut rs =
+            make_resource_with_uid("rs-uid", "my-rs", "default", "ReplicaSet", "apps/v1", cluster);
         rs.owner_references.push(OwnerReference {
             uid: "deploy-uid".to_string(),
             kind: "Deployment".to_string(),
@@ -397,10 +375,7 @@ mod tests {
     fn test_select_resource() {
         let mut state = NamespaceMapState::default();
         state.select_resource("Pod/default/my-pod");
-        assert_eq!(
-            state.resource_map.selected_node.as_deref(),
-            Some("Pod/default/my-pod")
-        );
+        assert_eq!(state.resource_map.selected_node.as_deref(), Some("Pod/default/my-pod"));
     }
 
     #[test]
@@ -456,7 +431,12 @@ mod tests {
 
         // Build Ingress -> Service -> Pod chain
         let ingress = make_resource_with_uid(
-            "ing-uid", "my-ingress", "production", "Ingress", "networking.k8s.io/v1", cluster,
+            "ing-uid",
+            "my-ingress",
+            "production",
+            "Ingress",
+            "networking.k8s.io/v1",
+            cluster,
         )
         .with_spec(serde_json::json!({
             "rules": [{
@@ -472,15 +452,12 @@ mod tests {
             }]
         }));
 
-        let svc = make_resource_with_uid(
-            "svc-uid", "my-service", "production", "Service", "v1", cluster,
-        )
-        .with_spec(serde_json::json!({ "selector": { "app": "web" } }));
+        let svc =
+            make_resource_with_uid("svc-uid", "my-service", "production", "Service", "v1", cluster)
+                .with_spec(serde_json::json!({ "selector": { "app": "web" } }));
 
-        let pod = make_resource_with_uid(
-            "pod-uid", "web-pod", "production", "Pod", "v1", cluster,
-        )
-        .with_label("app", "web");
+        let pod = make_resource_with_uid("pod-uid", "web-pod", "production", "Pod", "v1", cluster)
+            .with_label("app", "web");
 
         state.set_resources(&[ingress, svc, pod]);
 

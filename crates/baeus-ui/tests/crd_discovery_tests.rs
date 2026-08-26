@@ -18,19 +18,9 @@ fn sample_crd(name: &str, group: &str, kind: &str, scope: CrdScope) -> CrdSchema
 
 fn sample_crds() -> Vec<CrdSchema> {
     vec![
-        sample_crd(
-            "certificates",
-            "cert-manager.io",
-            "Certificate",
-            CrdScope::Namespaced,
-        ),
+        sample_crd("certificates", "cert-manager.io", "Certificate", CrdScope::Namespaced),
         sample_crd("issuers", "cert-manager.io", "Issuer", CrdScope::Namespaced),
-        sample_crd(
-            "clusterissuers",
-            "cert-manager.io",
-            "ClusterIssuer",
-            CrdScope::Cluster,
-        ),
+        sample_crd("clusterissuers", "cert-manager.io", "ClusterIssuer", CrdScope::Cluster),
     ]
 }
 
@@ -84,12 +74,7 @@ fn test_discovery_complete_replaces_existing_crds() {
     state.set_crds(sample_crds());
     assert_eq!(state.crds.len(), 3);
 
-    let new_crds = vec![sample_crd(
-        "single",
-        "test.io",
-        "Single",
-        CrdScope::Namespaced,
-    )];
+    let new_crds = vec![sample_crd("single", "test.io", "Single", CrdScope::Namespaced)];
     state.set_crds(new_crds);
     assert_eq!(state.crds.len(), 1);
 }
@@ -101,10 +86,7 @@ fn test_discovery_failed_sets_error() {
 
     state.set_error("Discovery failed: timeout".to_string());
     assert!(!state.loading);
-    assert_eq!(
-        state.error.as_deref(),
-        Some("Discovery failed: timeout")
-    );
+    assert_eq!(state.error.as_deref(), Some("Discovery failed: timeout"));
 }
 
 #[test]
@@ -157,10 +139,7 @@ fn test_full_discovery_failure_workflow() {
     // Discovery fails
     state.set_error("API server unreachable".to_string());
     assert!(!state.loading);
-    assert_eq!(
-        state.error.as_deref(),
-        Some("API server unreachable")
-    );
+    assert_eq!(state.error.as_deref(), Some("API server unreachable"));
     assert!(state.crds.is_empty());
 }
 

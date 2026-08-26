@@ -8,8 +8,8 @@
 // T342: Implement column resize and visibility toggle (FR-006)
 
 use baeus_ui::components::resource_table::*;
-use baeus_ui::views::resource_list::{ResourceListState, ResourceListView};
 use baeus_ui::theme::Theme;
+use baeus_ui::views::resource_list::{ResourceListState, ResourceListView};
 
 // =========================================================================
 // Helper: create sample rows
@@ -19,11 +19,7 @@ fn sample_rows() -> Vec<TableRow> {
     vec![
         TableRow {
             uid: "uid-1".to_string(),
-            cells: vec![
-                "nginx-pod".to_string(),
-                "default".to_string(),
-                "Running".to_string(),
-            ],
+            cells: vec!["nginx-pod".to_string(), "default".to_string(), "Running".to_string()],
             selected: false,
             kind: "Pod".to_string(),
             name: "nginx-pod".to_string(),
@@ -33,11 +29,7 @@ fn sample_rows() -> Vec<TableRow> {
         },
         TableRow {
             uid: "uid-2".to_string(),
-            cells: vec![
-                "redis-pod".to_string(),
-                "cache".to_string(),
-                "Pending".to_string(),
-            ],
+            cells: vec!["redis-pod".to_string(), "cache".to_string(), "Pending".to_string()],
             selected: false,
             kind: "Pod".to_string(),
             name: "redis-pod".to_string(),
@@ -47,11 +39,7 @@ fn sample_rows() -> Vec<TableRow> {
         },
         TableRow {
             uid: "uid-3".to_string(),
-            cells: vec![
-                "api-deploy".to_string(),
-                "production".to_string(),
-                "Running".to_string(),
-            ],
+            cells: vec!["api-deploy".to_string(), "production".to_string(), "Running".to_string()],
             selected: false,
             kind: "Deployment".to_string(),
             name: "api-deploy".to_string(),
@@ -61,11 +49,7 @@ fn sample_rows() -> Vec<TableRow> {
         },
         TableRow {
             uid: "uid-4".to_string(),
-            cells: vec![
-                "cluster-node".to_string(),
-                "".to_string(),
-                "Ready".to_string(),
-            ],
+            cells: vec!["cluster-node".to_string(), "".to_string(), "Ready".to_string()],
             selected: false,
             kind: "Node".to_string(),
             name: "cluster-node".to_string(),
@@ -399,11 +383,7 @@ fn t340_csv_export_escapes_commas() {
     let mut state = ResourceTableState::new(three_col_defs(), 10);
     state.set_rows(vec![TableRow {
         uid: "uid-esc".to_string(),
-        cells: vec![
-            "name,with,commas".to_string(),
-            "ns".to_string(),
-            "Running".to_string(),
-        ],
+        cells: vec!["name,with,commas".to_string(), "ns".to_string(), "Running".to_string()],
         selected: false,
         kind: "Pod".to_string(),
         name: "name,with,commas".to_string(),
@@ -421,11 +401,7 @@ fn t340_csv_export_escapes_double_quotes() {
     let mut state = ResourceTableState::new(three_col_defs(), 10);
     state.set_rows(vec![TableRow {
         uid: "uid-q".to_string(),
-        cells: vec![
-            "say \"hello\"".to_string(),
-            "ns".to_string(),
-            "ok".to_string(),
-        ],
+        cells: vec!["say \"hello\"".to_string(), "ns".to_string(), "ok".to_string()],
         selected: false,
         kind: "Pod".to_string(),
         name: "say \"hello\"".to_string(),

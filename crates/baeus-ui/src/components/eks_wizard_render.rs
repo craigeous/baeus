@@ -6,14 +6,17 @@
 use crate::components::eks_wizard::EksWizardStep;
 use crate::layout::app_shell::AppShell;
 use baeus_core::aws_eks::{AwsAuthMethod, DEFAULT_EKS_REGIONS};
-use gpui::{div, px, prelude::*, Context, ElementId, FontWeight, Rgba, SharedString};
-use gpui_component::input::Input;
+use gpui::{Context, ElementId, FontWeight, Rgba, SharedString, div, prelude::*, px};
 use gpui_component::Sizable;
+use gpui_component::input::Input;
 
 impl AppShell {
     /// Render the EKS wizard modal overlay, if active.
     /// Returns `None` if the wizard is not open.
-    pub(crate) fn render_eks_wizard(&self, cx: &mut Context<Self>) -> Option<gpui::Stateful<gpui::Div>> {
+    pub(crate) fn render_eks_wizard(
+        &self,
+        cx: &mut Context<Self>,
+    ) -> Option<gpui::Stateful<gpui::Div>> {
         let wizard = self.eks_wizard.as_ref()?;
 
         let backdrop_color = crate::theme::Color::rgba(0, 0, 0, 128).to_gpui();
@@ -34,12 +37,20 @@ impl AppShell {
             EksWizardStep::SsoDeviceAuth => {
                 self.render_eks_device_auth_step(cx, text_primary, text_secondary, accent)
             }
-            EksWizardStep::SsoAccountSelection => {
-                self.render_eks_account_selection_step(cx, text_primary, text_secondary, accent, border)
-            }
-            EksWizardStep::SsoRoleSelection => {
-                self.render_eks_role_selection_step(cx, text_primary, text_secondary, accent, border)
-            }
+            EksWizardStep::SsoAccountSelection => self.render_eks_account_selection_step(
+                cx,
+                text_primary,
+                text_secondary,
+                accent,
+                border,
+            ),
+            EksWizardStep::SsoRoleSelection => self.render_eks_role_selection_step(
+                cx,
+                text_primary,
+                text_secondary,
+                accent,
+                border,
+            ),
             EksWizardStep::AssumeIamRole => {
                 self.render_eks_assume_iam_role_step(cx, text_primary, text_secondary, border)
             }
@@ -49,15 +60,23 @@ impl AppShell {
             EksWizardStep::AssumeRoleConfig => {
                 self.render_eks_assume_role_step(cx, text_primary, text_secondary, border)
             }
-            EksWizardStep::RegionSelection => {
-                self.render_eks_region_selection_step(cx, text_primary, text_secondary, accent, border)
-            }
+            EksWizardStep::RegionSelection => self.render_eks_region_selection_step(
+                cx,
+                text_primary,
+                text_secondary,
+                accent,
+                border,
+            ),
             EksWizardStep::Discovering => {
                 self.render_eks_discovering_step(text_primary, text_secondary, accent)
             }
-            EksWizardStep::ClusterResults => {
-                self.render_eks_cluster_results_step(cx, text_primary, text_secondary, accent, border)
-            }
+            EksWizardStep::ClusterResults => self.render_eks_cluster_results_step(
+                cx,
+                text_primary,
+                text_secondary,
+                accent,
+                border,
+            ),
         };
 
         // Step title
@@ -113,15 +132,7 @@ impl AppShell {
             .justify_center()
             .items_center()
             // Backdrop — visual only, no click handler (close via X or Cancel)
-            .child(
-                div()
-                    .absolute()
-                    .top_0()
-                    .left_0()
-                    .w_full()
-                    .h_full()
-                    .bg(backdrop_color),
-            )
+            .child(div().absolute().top_0().left_0().w_full().h_full().bg(backdrop_color))
             // Dialog box
             .child(
                 div()
@@ -203,7 +214,10 @@ impl AppShell {
                     )
                     // Footer buttons
                     .when(
-                        !matches!(wizard.step, EksWizardStep::SsoDeviceAuth | EksWizardStep::Discovering),
+                        !matches!(
+                            wizard.step,
+                            EksWizardStep::SsoDeviceAuth | EksWizardStep::Discovering
+                        ),
                         |el| {
                             el.child(self.render_eks_wizard_footer(
                                 cx,
@@ -327,9 +341,21 @@ impl AppShell {
         let current = &wizard.auth_method;
 
         let methods = [
-            (AwsAuthMethod::Sso, "AWS SSO (IAM Identity Center)", "Device code flow — opens browser for authentication. Recommended for organizations using AWS SSO."),
-            (AwsAuthMethod::AccessKey, "Access Keys", "Static IAM access key ID and secret. Suitable for programmatic access."),
-            (AwsAuthMethod::AssumeRole, "IAM Role (Assume Role)", "Assume a role using existing credentials. For cross-account or role-based access."),
+            (
+                AwsAuthMethod::Sso,
+                "AWS SSO (IAM Identity Center)",
+                "Device code flow — opens browser for authentication. Recommended for organizations using AWS SSO.",
+            ),
+            (
+                AwsAuthMethod::AccessKey,
+                "Access Keys",
+                "Static IAM access key ID and secret. Suitable for programmatic access.",
+            ),
+            (
+                AwsAuthMethod::AssumeRole,
+                "IAM Role (Assume Role)",
+                "Assume a role using existing credentials. For cross-account or role-based access.",
+            ),
         ];
 
         let mut col = div().flex().flex_col().gap(px(8.0));
@@ -384,13 +410,7 @@ impl AppShell {
                             .items_center()
                             .justify_center()
                             .when(is_selected, |el| {
-                                el.child(
-                                    div()
-                                        .w(px(8.0))
-                                        .h(px(8.0))
-                                        .rounded_full()
-                                        .bg(accent),
-                                )
+                                el.child(div().w(px(8.0)).h(px(8.0)).rounded_full().bg(accent))
                             }),
                     )
                     .child(
@@ -432,7 +452,9 @@ impl AppShell {
             .flex_col()
             .gap(px(16.0))
             .child(
-                div().text_sm().text_color(text_secondary)
+                div()
+                    .text_sm()
+                    .text_color(text_secondary)
                     .child("Enter your AWS SSO portal URL and the region where SSO is configured."),
             )
             .child(self.render_eks_input_field("SSO Start URL", "sso_start_url", text_secondary))
@@ -501,18 +523,23 @@ impl AppShell {
         let wizard = self.eks_wizard.as_ref().unwrap();
 
         let mut col = div().flex().flex_col().gap(px(8.0));
-        col = col.child(
-            div().text_sm().text_color(text_secondary).mb_1()
-                .child(SharedString::from(format!("Select an AWS account ({} available):", wizard.sso_accounts.len()))),
-        );
+        col =
+            col.child(div().text_sm().text_color(text_secondary).mb_1().child(SharedString::from(
+                format!("Select an AWS account ({} available):", wizard.sso_accounts.len()),
+            )));
 
         // Filter input
         col = col.child(self.render_eks_input_field("", "account_filter", text_secondary));
 
         let filter = wizard.filter_text.to_lowercase();
-        let filtered: Vec<_> = wizard.sso_accounts.iter().enumerate()
+        let filtered: Vec<_> = wizard
+            .sso_accounts
+            .iter()
+            .enumerate()
             .filter(|(_, a)| {
-                if filter.is_empty() { return true; }
+                if filter.is_empty() {
+                    return true;
+                }
                 let name = a.account_name.as_deref().unwrap_or("").to_lowercase();
                 let id = a.account_id.to_lowercase();
                 name.contains(&filter) || id.contains(&filter)
@@ -556,7 +583,9 @@ impl AppShell {
                         }
                         cx.notify();
                     }))
-                    .child(div().text_sm().text_color(text_primary).child(SharedString::from(display))),
+                    .child(
+                        div().text_sm().text_color(text_primary).child(SharedString::from(display)),
+                    ),
             );
         }
 
@@ -574,18 +603,20 @@ impl AppShell {
         let wizard = self.eks_wizard.as_ref().unwrap();
 
         let mut col = div().flex().flex_col().gap(px(8.0));
-        col = col.child(
-            div().text_sm().text_color(text_secondary).mb_1()
-                .child("Select a role:"),
-        );
+        col = col.child(div().text_sm().text_color(text_secondary).mb_1().child("Select a role:"));
 
         // Filter input
         col = col.child(self.render_eks_input_field("", "role_filter", text_secondary));
 
         let filter = wizard.filter_text.to_lowercase();
-        let filtered: Vec<_> = wizard.sso_roles.iter().enumerate()
+        let filtered: Vec<_> = wizard
+            .sso_roles
+            .iter()
+            .enumerate()
             .filter(|(_, r)| {
-                if filter.is_empty() { return true; }
+                if filter.is_empty() {
+                    return true;
+                }
                 r.role_name.to_lowercase().contains(&filter)
             })
             .collect();
@@ -623,7 +654,9 @@ impl AppShell {
                         cx.notify();
                     }))
                     .child(
-                        div().text_sm().text_color(text_primary)
+                        div()
+                            .text_sm()
+                            .text_color(text_primary)
                             .child(SharedString::from(role.role_name.clone())),
                     ),
             );
@@ -666,12 +699,22 @@ impl AppShell {
             .flex_col()
             .gap(px(16.0))
             .child(
-                div().text_sm().text_color(text_secondary)
+                div()
+                    .text_sm()
+                    .text_color(text_secondary)
                     .child("Enter your IAM access key credentials."),
             )
             .child(self.render_eks_input_field("Access Key ID", "access_key_id", text_secondary))
-            .child(self.render_eks_input_field("Secret Access Key", "secret_access_key", text_secondary))
-            .child(self.render_eks_input_field("Session Token (optional)", "session_token", text_secondary))
+            .child(self.render_eks_input_field(
+                "Secret Access Key",
+                "secret_access_key",
+                text_secondary,
+            ))
+            .child(self.render_eks_input_field(
+                "Session Token (optional)",
+                "session_token",
+                text_secondary,
+            ))
             .child(self.render_eks_input_field("Region", "access_key_region", text_secondary))
     }
 
@@ -687,11 +730,17 @@ impl AppShell {
             .flex_col()
             .gap(px(16.0))
             .child(
-                div().text_sm().text_color(text_secondary)
+                div()
+                    .text_sm()
+                    .text_color(text_secondary)
                     .child("Enter the IAM role to assume. Requires valid source credentials."),
             )
             .child(self.render_eks_input_field("Role ARN", "role_arn", text_secondary))
-            .child(self.render_eks_input_field("External ID (optional)", "external_id", text_secondary))
+            .child(self.render_eks_input_field(
+                "External ID (optional)",
+                "external_id",
+                text_secondary,
+            ))
             .child(self.render_eks_input_field("Region", "assume_role_region", text_secondary))
     }
 
@@ -707,14 +756,15 @@ impl AppShell {
 
         let mut col = div().flex().flex_col().gap(px(8.0));
         col = col.child(
-            div().text_sm().text_color(text_secondary).mb_2()
+            div()
+                .text_sm()
+                .text_color(text_secondary)
+                .mb_2()
                 .child("Select regions to scan for EKS clusters:"),
         );
 
         // Toggle all button
-        let all_selected = DEFAULT_EKS_REGIONS
-            .iter()
-            .all(|r| wizard.selected_regions.contains(*r));
+        let all_selected = DEFAULT_EKS_REGIONS.iter().all(|r| wizard.selected_regions.contains(*r));
         col = col.child(
             div()
                 .id("eks-toggle-all-regions")
@@ -738,17 +788,16 @@ impl AppShell {
                     cx.notify();
                 }))
                 .child(
-                    div().text_xs().font_weight(FontWeight::MEDIUM).text_color(accent)
+                    div()
+                        .text_xs()
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(accent)
                         .child(if all_selected { "Deselect All" } else { "Select All" }),
                 ),
         );
 
         // Region grid (2 columns)
-        let mut grid = div()
-            .flex()
-            .flex_row()
-            .flex_wrap()
-            .gap(px(4.0));
+        let mut grid = div().flex().flex_row().flex_wrap().gap(px(4.0));
 
         for region in DEFAULT_EKS_REGIONS {
             let is_selected = wizard.selected_regions.contains(*region);
@@ -796,7 +845,10 @@ impl AppShell {
                             }),
                     )
                     .child(
-                        div().text_xs().text_color(text_primary).child(SharedString::from(region_str)),
+                        div()
+                            .text_xs()
+                            .text_color(text_primary)
+                            .child(SharedString::from(region_str)),
                     ),
             );
         }
@@ -818,11 +870,7 @@ impl AppShell {
         } else {
             "Starting discovery...".to_string()
         };
-        let pct = if total > 0 {
-            (done as f32 / total as f32).clamp(0.0, 1.0)
-        } else {
-            0.0
-        };
+        let pct = if total > 0 { (done as f32 / total as f32).clamp(0.0, 1.0) } else { 0.0 };
 
         div()
             .flex()
@@ -840,25 +888,17 @@ impl AppShell {
                     .h(px(4.0))
                     .rounded_full()
                     .bg(Rgba { r: accent.r, g: accent.g, b: accent.b, a: 0.2 })
-                    .child(
-                        div()
-                            .h_full()
-                            .rounded_full()
-                            .bg(accent)
-                            .w(px(300.0 * pct)),
-                    ),
+                    .child(div().h_full().rounded_full().bg(accent).w(px(300.0 * pct))),
             )
             .when(done == total && total > 0, |el| {
                 el.child(
-                    div()
-                        .text_sm()
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(text_primary)
-                        .child(SharedString::from(format!(
+                    div().text_sm().font_weight(FontWeight::MEDIUM).text_color(text_primary).child(
+                        SharedString::from(format!(
                             "Found {} cluster{}",
                             wizard.discovered_clusters.len(),
                             if wizard.discovered_clusters.len() == 1 { "" } else { "s" }
-                        ))),
+                        )),
+                    ),
                 )
             })
     }
@@ -881,11 +921,15 @@ impl AppShell {
                 .py_8()
                 .gap(px(8.0))
                 .child(
-                    div().text_sm().text_color(text_secondary)
+                    div()
+                        .text_sm()
+                        .text_color(text_secondary)
                         .child("No EKS clusters found in the selected regions."),
                 )
                 .child(
-                    div().text_xs().text_color(text_secondary)
+                    div()
+                        .text_xs()
+                        .text_color(text_secondary)
                         .child("Try selecting more regions or check your permissions."),
                 );
         }
@@ -896,24 +940,35 @@ impl AppShell {
         let selected_count = wizard.selected_cluster_indices.len();
 
         col = col.child(
-            div().flex().flex_row().items_center().justify_between()
-                .child(
-                    div().text_sm().text_color(text_secondary).child(SharedString::from(format!(
+            div()
+                .flex()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(div().text_sm().text_color(text_secondary).child(SharedString::from(
+                    format!(
                         "Found {} cluster{} — {} selected",
                         total_count,
                         if total_count == 1 { "" } else { "s" },
                         selected_count,
-                    ))),
-                )
+                    ),
+                )))
                 .child(
                     div()
                         .id("eks-select-all-clusters")
-                        .px_2().py_1()
+                        .px_2()
+                        .py_1()
                         .rounded(px(3.0))
                         .cursor_pointer()
-                        .text_xs().font_weight(FontWeight::MEDIUM).text_color(accent)
+                        .text_xs()
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(accent)
                         .hover(|s| s.bg(Rgba { r: accent.r, g: accent.g, b: accent.b, a: 0.1 }))
-                        .child(if selected_count == total_count { "Deselect All" } else { "Select All" })
+                        .child(if selected_count == total_count {
+                            "Deselect All"
+                        } else {
+                            "Select All"
+                        })
                         .on_click(cx.listener(move |this, _event, _window, cx| {
                             if let Some(ref mut w) = this.eks_wizard {
                                 if w.selected_cluster_indices.len() == w.discovered_clusters.len() {
@@ -936,16 +991,23 @@ impl AppShell {
         let default_role = &wizard.iam_role_arn;
         if !default_role.is_empty() {
             col = col.child(
-                div().text_xs().text_color(text_secondary)
+                div()
+                    .text_xs()
+                    .text_color(text_secondary)
                     .child(SharedString::from(format!("Default role: {default_role}"))),
             );
         }
 
         // Filter clusters
         let filter = wizard.filter_text.to_lowercase();
-        let filtered: Vec<(usize, &baeus_core::aws_eks::EksCluster)> = wizard.discovered_clusters.iter().enumerate()
+        let filtered: Vec<(usize, &baeus_core::aws_eks::EksCluster)> = wizard
+            .discovered_clusters
+            .iter()
+            .enumerate()
             .filter(|(_, c)| {
-                if filter.is_empty() { return true; }
+                if filter.is_empty() {
+                    return true;
+                }
                 c.name.to_lowercase().contains(&filter) || c.region.to_lowercase().contains(&filter)
             })
             .collect();
@@ -1015,7 +1077,9 @@ impl AppShell {
                             .flex_1()
                             .gap(px(2.0))
                             .child(
-                                div().text_sm().font_weight(FontWeight::MEDIUM)
+                                div()
+                                    .text_sm()
+                                    .font_weight(FontWeight::MEDIUM)
                                     .text_color(text_primary)
                                     .child(SharedString::from(cluster.name.clone())),
                             )
@@ -1025,17 +1089,26 @@ impl AppShell {
                                     .flex_row()
                                     .gap(px(8.0))
                                     .child(
-                                        div().text_xs().text_color(text_secondary)
+                                        div()
+                                            .text_xs()
+                                            .text_color(text_secondary)
                                             .child(SharedString::from(cluster.region.clone())),
                                     )
                                     .child(
-                                        div().text_xs().text_color(text_secondary)
+                                        div()
+                                            .text_xs()
+                                            .text_color(text_secondary)
                                             .child(SharedString::from(format!("v{version_label}"))),
                                     )
                                     .child(
-                                        div().text_xs().text_color(
-                                            if status_label == "ACTIVE" { accent } else { text_secondary }
-                                        ).child(SharedString::from(status_label.to_string())),
+                                        div()
+                                            .text_xs()
+                                            .text_color(if status_label == "ACTIVE" {
+                                                accent
+                                            } else {
+                                                text_secondary
+                                            })
+                                            .child(SharedString::from(status_label.to_string())),
                                     ),
                             ),
                     ),
@@ -1053,29 +1126,36 @@ impl AppShell {
                         .items_center()
                         .gap(px(6.0))
                         .child(
-                            div().text_xs().text_color(text_secondary).flex_shrink_0()
+                            div()
+                                .text_xs()
+                                .text_color(text_secondary)
+                                .flex_shrink_0()
                                 .child("Role:"),
                         )
-                        .child(
-                            if let Some(input_entity) = wizard.inputs.get(&role_field_name) {
-                                div().flex_1().child(
-                                    Input::new(input_entity)
-                                        .appearance(true)
-                                        .cleanable(false)
-                                        .text_sm()
-                                        .small(),
-                                )
-                            } else {
-                                div().flex_1()
-                                    .text_xs()
-                                    .text_color(Rgba { r: text_secondary.r, g: text_secondary.g, b: text_secondary.b, a: 0.5 })
-                                    .child(if default_role.is_empty() {
-                                        "No role (uses SSO credentials directly)"
-                                    } else {
-                                        "Loading..."
-                                    })
-                            },
-                        ),
+                        .child(if let Some(input_entity) = wizard.inputs.get(&role_field_name) {
+                            div().flex_1().child(
+                                Input::new(input_entity)
+                                    .appearance(true)
+                                    .cleanable(false)
+                                    .text_sm()
+                                    .small(),
+                            )
+                        } else {
+                            div()
+                                .flex_1()
+                                .text_xs()
+                                .text_color(Rgba {
+                                    r: text_secondary.r,
+                                    g: text_secondary.g,
+                                    b: text_secondary.b,
+                                    a: 0.5,
+                                })
+                                .child(if default_role.is_empty() {
+                                    "No role (uses SSO credentials directly)"
+                                } else {
+                                    "Loading..."
+                                })
+                        }),
                 );
             }
 
@@ -1100,28 +1180,18 @@ impl AppShell {
         let label_str = SharedString::from(label.to_string());
         let wizard = self.eks_wizard.as_ref().unwrap();
 
-        let mut col = div()
-            .flex()
-            .flex_col()
-            .gap(px(4.0))
-            .child(
-                div()
-                    .text_xs()
-                    .font_weight(FontWeight::MEDIUM)
-                    .text_color(text_secondary)
-                    .child(label_str),
-            );
+        let mut col = div().flex().flex_col().gap(px(4.0)).child(
+            div()
+                .text_xs()
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(text_secondary)
+                .child(label_str),
+        );
 
         if let Some(input_entity) = wizard.inputs.get(field_name) {
-            col = col.child(
-                div().child(
-                    Input::new(input_entity)
-                        .appearance(true)
-                        .cleanable(false)
-                        .text_sm()
-                        .small(),
-                ),
-            );
+            col = col.child(div().child(
+                Input::new(input_entity).appearance(true).cleanable(false).text_sm().small(),
+            ));
         } else {
             // Fallback: show static text (inputs not yet created)
             col = col.child(

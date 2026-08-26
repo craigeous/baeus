@@ -285,10 +285,7 @@ fn test_ingress_detail_with_tls() {
 #[test]
 fn test_ingress_detail_tls_multiple_hosts() {
     let tls = TlsConfig {
-        hosts: vec![
-            "api.example.com".to_string(),
-            "web.example.com".to_string(),
-        ],
+        hosts: vec!["api.example.com".to_string(), "web.example.com".to_string()],
         secret_name: Some("wildcard-tls".to_string()),
     };
 
@@ -297,10 +294,7 @@ fn test_ingress_detail_tls_multiple_hosts() {
 
 #[test]
 fn test_ingress_detail_tls_no_secret() {
-    let tls = TlsConfig {
-        hosts: vec!["example.com".to_string()],
-        secret_name: None,
-    };
+    let tls = TlsConfig { hosts: vec!["example.com".to_string()], secret_name: None };
 
     assert!(tls.secret_name.is_none());
 }
@@ -335,11 +329,7 @@ fn test_ingress_path_exact_type() {
 
 #[test]
 fn test_ingress_detail_debug_clone() {
-    let detail = IngressDetail {
-        rules: vec![],
-        default_backend: None,
-        tls: vec![],
-    };
+    let detail = IngressDetail { rules: vec![], default_backend: None, tls: vec![] };
     let cloned = detail.clone();
     assert_eq!(cloned.rules.len(), detail.rules.len());
     assert!(!format!("{:?}", detail).is_empty());
@@ -469,11 +459,8 @@ fn test_pvc_detail_debug_clone() {
 
 #[test]
 fn test_pvc_access_mode_all_variants() {
-    let modes = vec![
-        PvcAccessMode::ReadWriteOnce,
-        PvcAccessMode::ReadOnlyMany,
-        PvcAccessMode::ReadWriteMany,
-    ];
+    let modes =
+        [PvcAccessMode::ReadWriteOnce, PvcAccessMode::ReadOnlyMany, PvcAccessMode::ReadWriteMany];
     // Verify they are all distinct
     assert_ne!(modes[0], modes[1]);
     assert_ne!(modes[1], modes[2]);
@@ -482,7 +469,7 @@ fn test_pvc_access_mode_all_variants() {
 
 #[test]
 fn test_pvc_status_all_variants() {
-    let statuses = vec![PvcStatus::Bound, PvcStatus::Pending, PvcStatus::Lost];
+    let statuses = [PvcStatus::Bound, PvcStatus::Pending, PvcStatus::Lost];
     assert_ne!(statuses[0], statuses[1]);
     assert_ne!(statuses[1], statuses[2]);
     assert_ne!(statuses[0], statuses[2]);

@@ -6,7 +6,7 @@
 use gpui::Rgba;
 
 use crate::components::pod_detail::*;
-use crate::components::resource_table::{columns_for_kind, TableRow};
+use crate::components::resource_table::{TableRow, columns_for_kind};
 use crate::theme::Theme;
 
 // ---------------------------------------------------------------------------
@@ -16,25 +16,24 @@ use crate::theme::Theme;
 /// Returns a semantic color for a status value, or None if default text color should be used.
 pub fn status_color(value: &str, theme: &Theme) -> Option<Rgba> {
     match value {
-        "Running" | "Active" | "Bound" | "Succeeded" | "Complete" | "Completed"
-        | "Ready" | "Healthy" | "Available" | "True" => {
-            Some(theme.colors.success.to_gpui())
-        }
+        "Running" | "Active" | "Bound" | "Succeeded" | "Complete" | "Completed" | "Ready"
+        | "Healthy" | "Available" | "True" => Some(theme.colors.success.to_gpui()),
         "Pending" | "Waiting" | "Suspended" | "Scheduling" | "Progressing" => {
             Some(theme.colors.warning.to_gpui())
         }
-        "Failed" | "CrashLoopBackOff" | "Error" | "Evicted"
-        | "ImagePullBackOff" | "ErrImagePull" | "OOMKilled"
-        | "CreateContainerError" | "InvalidImageName" | "RunContainerError"
-        | "False" => {
-            Some(theme.colors.error.to_gpui())
-        }
-        "Terminating" | "Terminated" | "Unknown" => {
-            Some(theme.colors.text_muted.to_gpui())
-        }
-        "ContainerCreating" => {
-            Some(theme.colors.info.to_gpui())
-        }
+        "Failed"
+        | "CrashLoopBackOff"
+        | "Error"
+        | "Evicted"
+        | "ImagePullBackOff"
+        | "ErrImagePull"
+        | "OOMKilled"
+        | "CreateContainerError"
+        | "InvalidImageName"
+        | "RunContainerError"
+        | "False" => Some(theme.colors.error.to_gpui()),
+        "Terminating" | "Terminated" | "Unknown" => Some(theme.colors.text_muted.to_gpui()),
+        "ContainerCreating" => Some(theme.colors.info.to_gpui()),
         _ => None,
     }
 }
@@ -90,7 +89,8 @@ pub fn extract_container_statuses(json: &serde_json::Value) -> Vec<ContainerBric
                 let reason = waiting.get("reason").and_then(|v| v.as_str()).unwrap_or("");
                 if reason == "ContainerCreating" {
                     result.push(ContainerBrickStatus::Creating);
-                } else if reason == "CrashLoopBackOff" || reason == "Error" || reason == "OOMKilled" {
+                } else if reason == "CrashLoopBackOff" || reason == "Error" || reason == "OOMKilled"
+                {
                     result.push(ContainerBrickStatus::Failed);
                 } else {
                     result.push(ContainerBrickStatus::Waiting);
@@ -141,7 +141,8 @@ pub fn json_to_table_row(kind: &str, json: &serde_json::Value) -> TableRow {
     let columns = columns_for_kind(kind);
     let uid = json_str(json, "/metadata/uid");
     let name = json_str(json, "/metadata/name");
-    let namespace_val = json.pointer("/metadata/namespace").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let namespace_val =
+        json.pointer("/metadata/namespace").and_then(|v| v.as_str()).map(|s| s.to_string());
 
     let cells: Vec<String> = match kind {
         "Pod" => extract_pod_cells(json),
@@ -193,11 +194,8 @@ pub fn json_to_table_row(kind: &str, json: &serde_json::Value) -> TableRow {
     );
 
     // Extract rich data for special columns
-    let container_statuses = if kind == "Pod" {
-        extract_container_statuses(json)
-    } else {
-        Vec::new()
-    };
+    let container_statuses =
+        if kind == "Pod" { extract_container_statuses(json) } else { Vec::new() };
 
     let conditions = match kind {
         "Deployment" | "Node" | "Job" | "StatefulSet" | "DaemonSet" | "ReplicaSet" => {
@@ -247,7 +245,8 @@ fn extract_deployment_cells(json: &serde_json::Value) -> Vec<String> {
     let updated = json.pointer("/status/updatedReplicas").and_then(|v| v.as_i64()).unwrap_or(0);
     let available = json.pointer("/status/availableReplicas").and_then(|v| v.as_i64()).unwrap_or(0);
 
-    let conditions = json.pointer("/status/conditions")
+    let conditions = json
+        .pointer("/status/conditions")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -275,7 +274,8 @@ fn extract_deployment_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// Service: Name, Namespace, Type, Cluster IP, External IP, Ports, Age
 fn extract_service_cells(json: &serde_json::Value) -> Vec<String> {
-    let external_ip = json.pointer("/status/loadBalancer/ingress")
+    let external_ip = json
+        .pointer("/status/loadBalancer/ingress")
         .and_then(|v| v.as_array())
         .and_then(|arr| arr.first())
         .and_then(|ing| {
@@ -302,12 +302,14 @@ fn extract_service_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// Node: Name, CPU, Memory, Disk, Taints, Roles, Internal IP, Schedulable, Version, Age, Conditions
 fn extract_node_cells(json: &serde_json::Value) -> Vec<String> {
-    let taints = json.pointer("/spec/taints")
+    let taints = json
+        .pointer("/spec/taints")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
 
-    let conditions = json.pointer("/status/conditions")
+    let conditions = json
+        .pointer("/status/conditions")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -327,7 +329,8 @@ fn extract_node_cells(json: &serde_json::Value) -> Vec<String> {
         })
         .unwrap_or_else(|| "—".to_string());
 
-    let internal_ip = json.pointer("/status/addresses")
+    let internal_ip = json
+        .pointer("/status/addresses")
         .and_then(|v| v.as_array())
         .and_then(|arr| {
             arr.iter().find_map(|addr| {
@@ -341,9 +344,8 @@ fn extract_node_cells(json: &serde_json::Value) -> Vec<String> {
         })
         .unwrap_or_else(|| "—".to_string());
 
-    let unschedulable = json.pointer("/spec/unschedulable")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+    let unschedulable =
+        json.pointer("/spec/unschedulable").and_then(|v| v.as_bool()).unwrap_or(false);
     let schedulable = if unschedulable { "False" } else { "True" }.to_string();
 
     vec![
@@ -376,12 +378,16 @@ fn extract_statefulset_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// DaemonSet: Name, Namespace, Desired, Current, Ready, Up-to-date, Available, Node Selector, Age
 fn extract_daemonset_cells(json: &serde_json::Value) -> Vec<String> {
-    let desired = json.pointer("/status/desiredNumberScheduled").and_then(|v| v.as_i64()).unwrap_or(0);
-    let current = json.pointer("/status/currentNumberScheduled").and_then(|v| v.as_i64()).unwrap_or(0);
+    let desired =
+        json.pointer("/status/desiredNumberScheduled").and_then(|v| v.as_i64()).unwrap_or(0);
+    let current =
+        json.pointer("/status/currentNumberScheduled").and_then(|v| v.as_i64()).unwrap_or(0);
     let ready = json.pointer("/status/numberReady").and_then(|v| v.as_i64()).unwrap_or(0);
-    let updated = json.pointer("/status/updatedNumberScheduled").and_then(|v| v.as_i64()).unwrap_or(0);
+    let updated =
+        json.pointer("/status/updatedNumberScheduled").and_then(|v| v.as_i64()).unwrap_or(0);
     let available = json.pointer("/status/numberAvailable").and_then(|v| v.as_i64()).unwrap_or(0);
-    let node_selector = json.pointer("/spec/template/spec/nodeSelector")
+    let node_selector = json
+        .pointer("/spec/template/spec/nodeSelector")
         .and_then(|v| v.as_object())
         .map(|m| {
             m.iter()
@@ -443,7 +449,8 @@ fn extract_job_cells(json: &serde_json::Value) -> Vec<String> {
     };
 
     // Derive status from conditions
-    let status = json.pointer("/status/conditions")
+    let status = json
+        .pointer("/status/conditions")
         .and_then(|v| v.as_array())
         .and_then(|arr| {
             for c in arr {
@@ -466,7 +473,8 @@ fn extract_job_cells(json: &serde_json::Value) -> Vec<String> {
             }
         });
 
-    let conditions = json.pointer("/status/conditions")
+    let conditions = json
+        .pointer("/status/conditions")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -495,18 +503,15 @@ fn extract_job_cells(json: &serde_json::Value) -> Vec<String> {
 /// CronJob: Name, Namespace, Schedule, Timezone, Suspend, Active, Last Schedule, Age
 fn extract_cronjob_cells(json: &serde_json::Value) -> Vec<String> {
     let suspend = json.pointer("/spec/suspend").and_then(|v| v.as_bool()).unwrap_or(false);
-    let active = json.pointer("/status/active")
-        .and_then(|v| v.as_array())
-        .map(|arr| arr.len())
-        .unwrap_or(0);
-    let last_schedule = json.pointer("/status/lastScheduleTime")
+    let active =
+        json.pointer("/status/active").and_then(|v| v.as_array()).map(|arr| arr.len()).unwrap_or(0);
+    let last_schedule = json
+        .pointer("/status/lastScheduleTime")
         .and_then(|v| v.as_str())
         .map(human_age)
         .unwrap_or_else(|| "—".to_string());
-    let timezone = json.pointer("/spec/timeZone")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
+    let timezone =
+        json.pointer("/spec/timeZone").and_then(|v| v.as_str()).unwrap_or("—").to_string();
     vec![
         json_str(json, "/metadata/name"),
         json_str(json, "/metadata/namespace"),
@@ -521,12 +526,16 @@ fn extract_cronjob_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// Ingress: Name, Namespace, Load Balancers, Rules, Age
 fn extract_ingress_cells(json: &serde_json::Value) -> Vec<String> {
-    let lbs = json.pointer("/status/loadBalancer/ingress")
+    let lbs = json
+        .pointer("/status/loadBalancer/ingress")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
                 .filter_map(|ing| {
-                    ing.get("ip").or(ing.get("hostname")).and_then(|v| v.as_str()).map(|s| s.to_string())
+                    ing.get("ip")
+                        .or(ing.get("hostname"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
                 })
                 .collect::<Vec<_>>()
                 .join(", ")
@@ -534,7 +543,8 @@ fn extract_ingress_cells(json: &serde_json::Value) -> Vec<String> {
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "—".to_string());
 
-    let rules = json.pointer("/spec/rules")
+    let rules = json
+        .pointer("/spec/rules")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -556,7 +566,8 @@ fn extract_ingress_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// ConfigMap: Name, Namespace, Keys, Age
 fn extract_configmap_cells(json: &serde_json::Value) -> Vec<String> {
-    let keys = json.get("data")
+    let keys = json
+        .get("data")
         .and_then(|v| v.as_object())
         .map(|m| m.len().to_string())
         .unwrap_or_else(|| "0".to_string());
@@ -570,14 +581,12 @@ fn extract_configmap_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// Secret: Name, Namespace, Type, Keys, Age
 fn extract_secret_cells(json: &serde_json::Value) -> Vec<String> {
-    let keys = json.get("data")
+    let keys = json
+        .get("data")
         .and_then(|v| v.as_object())
         .map(|m| m.len().to_string())
         .unwrap_or_else(|| "0".to_string());
-    let secret_type = json.get("type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("Opaque")
-        .to_string();
+    let secret_type = json.get("type").and_then(|v| v.as_str()).unwrap_or("Opaque").to_string();
     vec![
         json_str(json, "/metadata/name"),
         json_str(json, "/metadata/namespace"),
@@ -598,15 +607,15 @@ fn extract_namespace_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// PersistentVolume: Name, Capacity, Access Modes, Reclaim Policy, Status, Claim, Storage Class, Age
 fn extract_pv_cells(json: &serde_json::Value) -> Vec<String> {
-    let capacity = json.pointer("/spec/capacity/storage")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
-    let access_modes = json.pointer("/spec/accessModes")
+    let capacity =
+        json.pointer("/spec/capacity/storage").and_then(|v| v.as_str()).unwrap_or("—").to_string();
+    let access_modes = json
+        .pointer("/spec/accessModes")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "))
         .unwrap_or_else(|| "—".to_string());
-    let claim = json.pointer("/spec/claimRef")
+    let claim = json
+        .pointer("/spec/claimRef")
         .and_then(|v| {
             let ns = v.get("namespace")?.as_str()?;
             let name = v.get("name")?.as_str()?;
@@ -627,7 +636,8 @@ fn extract_pv_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// PersistentVolumeClaim: Name, Namespace, Status, Volume, Capacity, Storage Class, Age
 fn extract_pvc_cells(json: &serde_json::Value) -> Vec<String> {
-    let capacity = json.pointer("/status/capacity/storage")
+    let capacity = json
+        .pointer("/status/capacity/storage")
         .and_then(|v| v.as_str())
         .unwrap_or("—")
         .to_string();
@@ -655,39 +665,32 @@ fn extract_storageclass_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// Event: Type, Message, Namespace, Involved Object, Source, Count, Age, Last Seen
 fn extract_event_cells(json: &serde_json::Value) -> Vec<String> {
-    let event_type = json.get("type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("Normal")
-        .to_string();
+    let event_type = json.get("type").and_then(|v| v.as_str()).unwrap_or("Normal").to_string();
 
-    let message = json.get("message")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
+    let message = json.get("message").and_then(|v| v.as_str()).unwrap_or("—").to_string();
 
     let namespace = json_str(json, "/metadata/namespace");
 
-    let object = json.pointer("/involvedObject/kind")
+    let object = json
+        .pointer("/involvedObject/kind")
         .and_then(|v| v.as_str())
         .map(|kind| {
-            let name = json.pointer("/involvedObject/name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let name = json.pointer("/involvedObject/name").and_then(|v| v.as_str()).unwrap_or("");
             format!("{kind}/{name}")
         })
         .unwrap_or_else(|| "—".to_string());
 
-    let source = json.pointer("/source/component")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
+    let source =
+        json.pointer("/source/component").and_then(|v| v.as_str()).unwrap_or("—").to_string();
 
-    let count = json.get("count")
+    let count = json
+        .get("count")
         .and_then(|v| v.as_i64())
         .map(|c| c.to_string())
         .unwrap_or_else(|| "1".to_string());
 
-    let last_seen = json.get("lastTimestamp")
+    let last_seen = json
+        .get("lastTimestamp")
         .or_else(|| json.get("eventTime"))
         .and_then(|v| v.as_str())
         .map(human_age)
@@ -707,7 +710,8 @@ fn extract_event_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// ServiceAccount: Name, Namespace, Secrets, Age
 fn extract_serviceaccount_cells(json: &serde_json::Value) -> Vec<String> {
-    let secrets = json.get("secrets")
+    let secrets = json
+        .get("secrets")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
@@ -721,7 +725,8 @@ fn extract_serviceaccount_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// Role: Name, Namespace, Rules, Age
 fn extract_role_cells(json: &serde_json::Value) -> Vec<String> {
-    let rules = json.get("rules")
+    let rules = json
+        .get("rules")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
@@ -735,27 +740,26 @@ fn extract_role_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// ClusterRole: Name, Rules, Age
 fn extract_clusterrole_cells(json: &serde_json::Value) -> Vec<String> {
-    let rules = json.get("rules")
+    let rules = json
+        .get("rules")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
-    vec![
-        json_str(json, "/metadata/name"),
-        rules,
-        human_age_from_json(json),
-    ]
+    vec![json_str(json, "/metadata/name"), rules, human_age_from_json(json)]
 }
 
 /// RoleBinding: Name, Namespace, Role, Subjects, Age
 fn extract_rolebinding_cells(json: &serde_json::Value) -> Vec<String> {
-    let role_ref = json.pointer("/roleRef")
+    let role_ref = json
+        .pointer("/roleRef")
         .and_then(|v| {
             let kind = v.get("kind")?.as_str()?;
             let name = v.get("name")?.as_str()?;
             Some(format!("{kind}/{name}"))
         })
         .unwrap_or_else(|| "—".to_string());
-    let subjects = json.get("subjects")
+    let subjects = json
+        .get("subjects")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -780,14 +784,16 @@ fn extract_rolebinding_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// ClusterRoleBinding: Name, Role, Subjects, Age
 fn extract_clusterrolebinding_cells(json: &serde_json::Value) -> Vec<String> {
-    let role_ref = json.pointer("/roleRef")
+    let role_ref = json
+        .pointer("/roleRef")
         .and_then(|v| {
             let kind = v.get("kind")?.as_str()?;
             let name = v.get("name")?.as_str()?;
             Some(format!("{kind}/{name}"))
         })
         .unwrap_or_else(|| "—".to_string());
-    let subjects = json.get("subjects")
+    let subjects = json
+        .get("subjects")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -801,17 +807,13 @@ fn extract_clusterrolebinding_cells(json: &serde_json::Value) -> Vec<String> {
         })
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "—".to_string());
-    vec![
-        json_str(json, "/metadata/name"),
-        role_ref,
-        subjects,
-        human_age_from_json(json),
-    ]
+    vec![json_str(json, "/metadata/name"), role_ref, subjects, human_age_from_json(json)]
 }
 
 /// NetworkPolicy: Name, Namespace, Pod Selector, Policy Types, Age
 fn extract_networkpolicy_cells(json: &serde_json::Value) -> Vec<String> {
-    let pod_selector = json.pointer("/spec/podSelector/matchLabels")
+    let pod_selector = json
+        .pointer("/spec/podSelector/matchLabels")
         .and_then(|v| v.as_object())
         .map(|m| {
             m.iter()
@@ -821,7 +823,8 @@ fn extract_networkpolicy_cells(json: &serde_json::Value) -> Vec<String> {
         })
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "<all pods>".to_string());
-    let policy_types = json.pointer("/spec/policyTypes")
+    let policy_types = json
+        .pointer("/spec/policyTypes")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -842,14 +845,17 @@ fn extract_networkpolicy_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// Endpoints: Name, Namespace, Endpoints, Age
 fn extract_endpoints_cells(json: &serde_json::Value) -> Vec<String> {
-    let endpoints = json.get("subsets")
+    let endpoints = json
+        .get("subsets")
         .and_then(|v| v.as_array())
         .map(|subsets| {
-            let total_addrs: usize = subsets.iter()
+            let total_addrs: usize = subsets
+                .iter()
                 .filter_map(|s| s.get("addresses").and_then(|v| v.as_array()))
                 .map(|arr| arr.len())
                 .sum();
-            let total_ports: usize = subsets.iter()
+            let total_ports: usize = subsets
+                .iter()
                 .filter_map(|s| s.get("ports").and_then(|v| v.as_array()))
                 .map(|arr| arr.len())
                 .sum();
@@ -866,7 +872,8 @@ fn extract_endpoints_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// ResourceQuota: Name, Namespace, Hard, Used, Age
 fn extract_resourcequota_cells(json: &serde_json::Value) -> Vec<String> {
-    let hard = json.pointer("/status/hard")
+    let hard = json
+        .pointer("/status/hard")
         .and_then(|v| v.as_object())
         .map(|m| {
             m.iter()
@@ -876,7 +883,8 @@ fn extract_resourcequota_cells(json: &serde_json::Value) -> Vec<String> {
         })
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "—".to_string());
-    let used = json.pointer("/status/used")
+    let used = json
+        .pointer("/status/used")
         .and_then(|v| v.as_object())
         .map(|m| {
             m.iter()
@@ -897,13 +905,15 @@ fn extract_resourcequota_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// LimitRange: Name, Namespace, Type, Default, Age
 fn extract_limitrange_cells(json: &serde_json::Value) -> Vec<String> {
-    let limit_type = json.pointer("/spec/limits")
+    let limit_type = json
+        .pointer("/spec/limits")
         .and_then(|v| v.as_array())
         .and_then(|arr| arr.first())
         .and_then(|l| l.get("type").and_then(|v| v.as_str()))
         .unwrap_or("—")
         .to_string();
-    let defaults = json.pointer("/spec/limits")
+    let defaults = json
+        .pointer("/spec/limits")
         .and_then(|v| v.as_array())
         .and_then(|arr| arr.first())
         .and_then(|l| l.get("default").and_then(|v| v.as_object()))
@@ -926,20 +936,18 @@ fn extract_limitrange_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// HorizontalPodAutoscaler: Name, Namespace, Reference, Min/Max, Current, Age
 fn extract_hpa_cells(json: &serde_json::Value) -> Vec<String> {
-    let reference = json.pointer("/spec/scaleTargetRef")
+    let reference = json
+        .pointer("/spec/scaleTargetRef")
         .and_then(|v| {
             let kind = v.get("kind")?.as_str()?;
             let name = v.get("name")?.as_str()?;
             Some(format!("{kind}/{name}"))
         })
         .unwrap_or_else(|| "—".to_string());
-    let min = json.pointer("/spec/minReplicas")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(1);
-    let max = json.pointer("/spec/maxReplicas")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
-    let current = json.pointer("/status/currentReplicas")
+    let min = json.pointer("/spec/minReplicas").and_then(|v| v.as_i64()).unwrap_or(1);
+    let max = json.pointer("/spec/maxReplicas").and_then(|v| v.as_i64()).unwrap_or(0);
+    let current = json
+        .pointer("/status/currentReplicas")
         .and_then(|v| v.as_i64())
         .map(|c| c.to_string())
         .unwrap_or_else(|| "—".to_string());
@@ -955,21 +963,26 @@ fn extract_hpa_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// PodDisruptionBudget: Name, Namespace, Min Available, Max Unavailable, Allowed Disruptions, Age
 fn extract_pdb_cells(json: &serde_json::Value) -> Vec<String> {
-    let min_available = json.pointer("/spec/minAvailable")
+    let min_available = json
+        .pointer("/spec/minAvailable")
         .map(|v| {
-            v.as_i64().map(|n| n.to_string())
+            v.as_i64()
+                .map(|n| n.to_string())
                 .or_else(|| v.as_str().map(|s| s.to_string()))
                 .unwrap_or_else(|| "—".to_string())
         })
         .unwrap_or_else(|| "—".to_string());
-    let max_unavailable = json.pointer("/spec/maxUnavailable")
+    let max_unavailable = json
+        .pointer("/spec/maxUnavailable")
         .map(|v| {
-            v.as_i64().map(|n| n.to_string())
+            v.as_i64()
+                .map(|n| n.to_string())
                 .or_else(|| v.as_str().map(|s| s.to_string()))
                 .unwrap_or_else(|| "—".to_string())
         })
         .unwrap_or_else(|| "—".to_string());
-    let allowed = json.pointer("/status/disruptionsAllowed")
+    let allowed = json
+        .pointer("/status/disruptionsAllowed")
         .and_then(|v| v.as_i64())
         .map(|c| c.to_string())
         .unwrap_or_else(|| "—".to_string());
@@ -985,29 +998,24 @@ fn extract_pdb_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// PriorityClass: Name, Value, Global Default, Age
 fn extract_priorityclass_cells(json: &serde_json::Value) -> Vec<String> {
-    let value = json.get("value")
+    let value = json
+        .get("value")
         .and_then(|v| v.as_i64())
         .map(|v| v.to_string())
         .unwrap_or_else(|| "0".to_string());
-    let global_default = json.get("globalDefault")
+    let global_default = json
+        .get("globalDefault")
         .and_then(|v| v.as_bool())
         .map(|b| if b { "True" } else { "False" })
         .unwrap_or("False")
         .to_string();
-    vec![
-        json_str(json, "/metadata/name"),
-        value,
-        global_default,
-        human_age_from_json(json),
-    ]
+    vec![json_str(json, "/metadata/name"), value, global_default, human_age_from_json(json)]
 }
 
 /// Lease: Name, Namespace, Holder, Age
 fn extract_lease_cells(json: &serde_json::Value) -> Vec<String> {
-    let holder = json.pointer("/spec/holderIdentity")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
+    let holder =
+        json.pointer("/spec/holderIdentity").and_then(|v| v.as_str()).unwrap_or("—").to_string();
     vec![
         json_str(json, "/metadata/name"),
         json_str(json, "/metadata/namespace"),
@@ -1018,37 +1026,29 @@ fn extract_lease_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// ValidatingWebhookConfiguration: Name, Webhooks, Age
 fn extract_validatingwebhook_cells(json: &serde_json::Value) -> Vec<String> {
-    let webhooks = json.get("webhooks")
+    let webhooks = json
+        .get("webhooks")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
-    vec![
-        json_str(json, "/metadata/name"),
-        webhooks,
-        human_age_from_json(json),
-    ]
+    vec![json_str(json, "/metadata/name"), webhooks, human_age_from_json(json)]
 }
 
 /// MutatingWebhookConfiguration: Name, Webhooks, Age
 fn extract_mutatingwebhook_cells(json: &serde_json::Value) -> Vec<String> {
-    let webhooks = json.get("webhooks")
+    let webhooks = json
+        .get("webhooks")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
-    vec![
-        json_str(json, "/metadata/name"),
-        webhooks,
-        human_age_from_json(json),
-    ]
+    vec![json_str(json, "/metadata/name"), webhooks, human_age_from_json(json)]
 }
 
 /// EndpointSlice: Name, Namespace, Address Type, Ports, Endpoints, Age
 fn extract_endpointslice_cells(json: &serde_json::Value) -> Vec<String> {
-    let address_type = json.get("addressType")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
-    let ports = json.get("ports")
+    let address_type = json.get("addressType").and_then(|v| v.as_str()).unwrap_or("—").to_string();
+    let ports = json
+        .get("ports")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
@@ -1062,7 +1062,8 @@ fn extract_endpointslice_cells(json: &serde_json::Value) -> Vec<String> {
         })
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "—".to_string());
-    let endpoint_count = json.get("endpoints")
+    let endpoint_count = json
+        .get("endpoints")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
@@ -1078,41 +1079,40 @@ fn extract_endpointslice_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// IngressClass: Name, Controller, Default, Age
 fn extract_ingressclass_cells(json: &serde_json::Value) -> Vec<String> {
-    let controller = json.pointer("/spec/controller")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
-    let is_default = json.pointer("/metadata/annotations")
+    let controller =
+        json.pointer("/spec/controller").and_then(|v| v.as_str()).unwrap_or("—").to_string();
+    let is_default = json
+        .pointer("/metadata/annotations")
         .and_then(|v| v.as_object())
         .and_then(|m| m.get("ingressclass.kubernetes.io/is-default-class"))
         .and_then(|v| v.as_str())
         .map(|s| if s == "true" { "True" } else { "False" })
         .unwrap_or("False")
         .to_string();
-    vec![
-        json_str(json, "/metadata/name"),
-        controller,
-        is_default,
-        human_age_from_json(json),
-    ]
+    vec![json_str(json, "/metadata/name"), controller, is_default, human_age_from_json(json)]
 }
 
 /// ArgoCD Application: Name, Namespace, Project, Sync Status, Health, Repo, Path, Destination, Age
 fn extract_application_cells(json: &serde_json::Value) -> Vec<String> {
-    let project = json.pointer("/spec/project")
-        .and_then(|v| v.as_str()).unwrap_or("—").to_string();
-    let sync_status = json.pointer("/status/sync/status")
-        .and_then(|v| v.as_str()).unwrap_or("Unknown").to_string();
-    let health = json.pointer("/status/health/status")
-        .and_then(|v| v.as_str()).unwrap_or("Unknown").to_string();
-    let repo = json.pointer("/spec/source/repoURL")
-        .and_then(|v| v.as_str()).unwrap_or("—").to_string();
-    let path = json.pointer("/spec/source/path")
-        .and_then(|v| v.as_str()).unwrap_or("—").to_string();
-    let dest_server = json.pointer("/spec/destination/server")
-        .and_then(|v| v.as_str()).unwrap_or("");
-    let dest_ns = json.pointer("/spec/destination/namespace")
-        .and_then(|v| v.as_str()).unwrap_or("");
+    let project = json.pointer("/spec/project").and_then(|v| v.as_str()).unwrap_or("—").to_string();
+    let sync_status = json
+        .pointer("/status/sync/status")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Unknown")
+        .to_string();
+    let health = json
+        .pointer("/status/health/status")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Unknown")
+        .to_string();
+    let repo =
+        json.pointer("/spec/source/repoURL").and_then(|v| v.as_str()).unwrap_or("—").to_string();
+    let path =
+        json.pointer("/spec/source/path").and_then(|v| v.as_str()).unwrap_or("—").to_string();
+    let dest_server =
+        json.pointer("/spec/destination/server").and_then(|v| v.as_str()).unwrap_or("");
+    let dest_ns =
+        json.pointer("/spec/destination/namespace").and_then(|v| v.as_str()).unwrap_or("");
     let destination = if dest_server.is_empty() && dest_ns.is_empty() {
         "—".to_string()
     } else {
@@ -1133,11 +1133,13 @@ fn extract_application_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// ArgoCD ApplicationSet: Name, Namespace, Generators, Template App, Age
 fn extract_applicationset_cells(json: &serde_json::Value) -> Vec<String> {
-    let generators = json.pointer("/spec/generators")
+    let generators = json
+        .pointer("/spec/generators")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
-    let template = json.pointer("/spec/template/metadata/name")
+    let template = json
+        .pointer("/spec/template/metadata/name")
         .and_then(|v| v.as_str())
         .unwrap_or("—")
         .to_string();
@@ -1152,11 +1154,13 @@ fn extract_applicationset_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// ArgoCD AppProject: Name, Namespace, Destinations, Sources, Age
 fn extract_appproject_cells(json: &serde_json::Value) -> Vec<String> {
-    let destinations = json.pointer("/spec/destinations")
+    let destinations = json
+        .pointer("/spec/destinations")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
-    let sources = json.pointer("/spec/sourceRepos")
+    let sources = json
+        .pointer("/spec/sourceRepos")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len().to_string())
         .unwrap_or_else(|| "0".to_string());
@@ -1171,7 +1175,8 @@ fn extract_appproject_cells(json: &serde_json::Value) -> Vec<String> {
 
 /// Generic fallback: Name, Namespace, Age, Status
 fn extract_generic_cells(json: &serde_json::Value) -> Vec<String> {
-    let status = json.pointer("/status/phase")
+    let status = json
+        .pointer("/status/phase")
         .or_else(|| json.pointer("/status/state"))
         .and_then(|v| v.as_str())
         .unwrap_or("—")
@@ -1194,8 +1199,13 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
         ("Name".to_string(), json_str(json, "/metadata/name")),
         ("Namespace".to_string(), json_str(json, "/metadata/namespace")),
         ("UID".to_string(), json_str(json, "/metadata/uid")),
-        ("Created".to_string(), json.pointer("/metadata/creationTimestamp")
-            .and_then(|v| v.as_str()).unwrap_or("—").to_string()),
+        (
+            "Created".to_string(),
+            json.pointer("/metadata/creationTimestamp")
+                .and_then(|v| v.as_str())
+                .unwrap_or("—")
+                .to_string(),
+        ),
         ("Resource Version".to_string(), json_str(json, "/metadata/resourceVersion")),
     ];
 
@@ -1212,7 +1222,8 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
             props.push(("DNS Policy".to_string(), json_str(json, "/spec/dnsPolicy")));
             props.push(("Priority Class".to_string(), json_str(json, "/spec/priorityClassName")));
             props.push(("Scheduler".to_string(), json_str(json, "/spec/schedulerName")));
-            let grace = json.pointer("/spec/terminationGracePeriodSeconds")
+            let grace = json
+                .pointer("/spec/terminationGracePeriodSeconds")
                 .and_then(|v| v.as_i64())
                 .map(|s| format!("{s}s"))
                 .unwrap_or_else(|| "—".to_string());
@@ -1223,8 +1234,10 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
         "Deployment" => {
             let ready = json.pointer("/status/readyReplicas").and_then(|v| v.as_i64()).unwrap_or(0);
             let desired = json.pointer("/spec/replicas").and_then(|v| v.as_i64()).unwrap_or(0);
-            let updated = json.pointer("/status/updatedReplicas").and_then(|v| v.as_i64()).unwrap_or(0);
-            let available = json.pointer("/status/availableReplicas").and_then(|v| v.as_i64()).unwrap_or(0);
+            let updated =
+                json.pointer("/status/updatedReplicas").and_then(|v| v.as_i64()).unwrap_or(0);
+            let available =
+                json.pointer("/status/availableReplicas").and_then(|v| v.as_i64()).unwrap_or(0);
             props.push(("Strategy".to_string(), json_str(json, "/spec/strategy/type")));
             props.push(("Ready Replicas".to_string(), format!("{ready}/{desired}")));
             props.push(("Updated Replicas".to_string(), updated.to_string()));
@@ -1234,7 +1247,8 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
             props.push(("Type".to_string(), json_str(json, "/spec/type")));
             props.push(("Cluster IP".to_string(), json_str(json, "/spec/clusterIP")));
             props.push(("Ports".to_string(), format_ports(json)));
-            let selector = json.pointer("/spec/selector")
+            let selector = json
+                .pointer("/spec/selector")
                 .and_then(|v| v.as_object())
                 .map(|m| {
                     m.iter()
@@ -1249,23 +1263,36 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
             props.push(("Roles".to_string(), node_roles(json)));
             props.push(("Version".to_string(), json_str(json, "/status/nodeInfo/kubeletVersion")));
             props.push(("OS Image".to_string(), json_str(json, "/status/nodeInfo/osImage")));
-            props.push(("Kernel Version".to_string(), json_str(json, "/status/nodeInfo/kernelVersion")));
-            props.push(("Container Runtime".to_string(), json_str(json, "/status/nodeInfo/containerRuntimeVersion")));
-            props.push(("Architecture".to_string(), json_str(json, "/status/nodeInfo/architecture")));
+            props.push((
+                "Kernel Version".to_string(),
+                json_str(json, "/status/nodeInfo/kernelVersion"),
+            ));
+            props.push((
+                "Container Runtime".to_string(),
+                json_str(json, "/status/nodeInfo/containerRuntimeVersion"),
+            ));
+            props.push((
+                "Architecture".to_string(),
+                json_str(json, "/status/nodeInfo/architecture"),
+            ));
         }
         "ServiceAccount" => {
-            let secrets = json.get("secrets")
+            let secrets = json
+                .get("secrets")
                 .and_then(|v| v.as_array())
                 .map(|arr| {
                     arr.iter()
-                        .filter_map(|s| s.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()))
+                        .filter_map(|s| {
+                            s.get("name").and_then(|v| v.as_str()).map(|s| s.to_string())
+                        })
                         .collect::<Vec<_>>()
                         .join(", ")
                 })
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "<none>".to_string());
             props.push(("Secrets".to_string(), secrets));
-            let automount = json.get("automountServiceAccountToken")
+            let automount = json
+                .get("automountServiceAccountToken")
                 .and_then(|v| v.as_bool())
                 .map(|b| if b { "true" } else { "false" })
                 .unwrap_or("—")
@@ -1273,22 +1300,27 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
             props.push(("Automount Token".to_string(), automount));
         }
         "Role" | "ClusterRole" => {
-            let rules_count = json.get("rules")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.len())
-                .unwrap_or(0);
+            let rules_count =
+                json.get("rules").and_then(|v| v.as_array()).map(|arr| arr.len()).unwrap_or(0);
             props.push(("Rules".to_string(), rules_count.to_string()));
             if let Some(rules) = json.get("rules").and_then(|v| v.as_array()) {
                 for (i, rule) in rules.iter().enumerate() {
-                    let verbs = rule.get("verbs")
+                    let verbs = rule
+                        .get("verbs")
                         .and_then(|v| v.as_array())
-                        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "))
+                        .map(|arr| {
+                            arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", ")
+                        })
                         .unwrap_or_else(|| "—".to_string());
-                    let resources = rule.get("resources")
+                    let resources = rule
+                        .get("resources")
                         .and_then(|v| v.as_array())
-                        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "))
+                        .map(|arr| {
+                            arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", ")
+                        })
                         .unwrap_or_else(|| "*".to_string());
-                    let api_groups = rule.get("apiGroups")
+                    let api_groups = rule
+                        .get("apiGroups")
                         .and_then(|v| v.as_array())
                         .map(|arr| {
                             arr.iter()
@@ -1298,12 +1330,16 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
                                 .join(", ")
                         })
                         .unwrap_or_else(|| "*".to_string());
-                    props.push((format!("Rule {}", i + 1), format!("[{api_groups}] {resources}: {verbs}")));
+                    props.push((
+                        format!("Rule {}", i + 1),
+                        format!("[{api_groups}] {resources}: {verbs}"),
+                    ));
                 }
             }
         }
         "RoleBinding" | "ClusterRoleBinding" => {
-            let role_ref = json.pointer("/roleRef")
+            let role_ref = json
+                .pointer("/roleRef")
                 .and_then(|v| {
                     let kind = v.get("kind")?.as_str()?;
                     let name = v.get("name")?.as_str()?;
@@ -1326,7 +1362,8 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
             }
         }
         "NetworkPolicy" => {
-            let pod_selector = json.pointer("/spec/podSelector/matchLabels")
+            let pod_selector = json
+                .pointer("/spec/podSelector/matchLabels")
                 .and_then(|v| v.as_object())
                 .map(|m| {
                     m.iter()
@@ -1337,17 +1374,20 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "<all pods>".to_string());
             props.push(("Pod Selector".to_string(), pod_selector));
-            let policy_types = json.pointer("/spec/policyTypes")
+            let policy_types = json
+                .pointer("/spec/policyTypes")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "))
                 .unwrap_or_else(|| "—".to_string());
             props.push(("Policy Types".to_string(), policy_types));
-            let ingress_rules = json.pointer("/spec/ingress")
+            let ingress_rules = json
+                .pointer("/spec/ingress")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.len())
                 .unwrap_or(0);
             props.push(("Ingress Rules".to_string(), ingress_rules.to_string()));
-            let egress_rules = json.pointer("/spec/egress")
+            let egress_rules = json
+                .pointer("/spec/egress")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.len())
                 .unwrap_or(0);
@@ -1355,11 +1395,13 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
         }
         "Endpoints" => {
             if let Some(subsets) = json.get("subsets").and_then(|v| v.as_array()) {
-                let total_addrs: usize = subsets.iter()
+                let total_addrs: usize = subsets
+                    .iter()
                     .filter_map(|s| s.get("addresses").and_then(|v| v.as_array()))
                     .map(|arr| arr.len())
                     .sum();
-                let total_not_ready: usize = subsets.iter()
+                let total_not_ready: usize = subsets
+                    .iter()
                     .filter_map(|s| s.get("notReadyAddresses").and_then(|v| v.as_array()))
                     .map(|arr| arr.len())
                     .sum();
@@ -1371,7 +1413,8 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
         "ResourceQuota" => {
             if let Some(hard) = json.pointer("/status/hard").and_then(|v| v.as_object()) {
                 for (k, v) in hard {
-                    let used_val = json.pointer("/status/used")
+                    let used_val = json
+                        .pointer("/status/used")
                         .and_then(|u| u.get(k))
                         .and_then(|u| u.as_str())
                         .unwrap_or("0");
@@ -1389,7 +1432,8 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
             }
         }
         "HorizontalPodAutoscaler" => {
-            let reference = json.pointer("/spec/scaleTargetRef")
+            let reference = json
+                .pointer("/spec/scaleTargetRef")
                 .and_then(|v| {
                     let kind = v.get("kind")?.as_str()?;
                     let name = v.get("name")?.as_str()?;
@@ -1397,83 +1441,168 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
                 })
                 .unwrap_or_else(|| "—".to_string());
             props.push(("Scale Target".to_string(), reference));
-            props.push(("Min Replicas".to_string(), json.pointer("/spec/minReplicas")
-                .and_then(|v| v.as_i64()).map(|v| v.to_string()).unwrap_or_else(|| "1".to_string())));
-            props.push(("Max Replicas".to_string(), json.pointer("/spec/maxReplicas")
-                .and_then(|v| v.as_i64()).map(|v| v.to_string()).unwrap_or_else(|| "—".to_string())));
-            props.push(("Current Replicas".to_string(), json.pointer("/status/currentReplicas")
-                .and_then(|v| v.as_i64()).map(|v| v.to_string()).unwrap_or_else(|| "—".to_string())));
-            props.push(("Desired Replicas".to_string(), json.pointer("/status/desiredReplicas")
-                .and_then(|v| v.as_i64()).map(|v| v.to_string()).unwrap_or_else(|| "—".to_string())));
+            props.push((
+                "Min Replicas".to_string(),
+                json.pointer("/spec/minReplicas")
+                    .and_then(|v| v.as_i64())
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "1".to_string()),
+            ));
+            props.push((
+                "Max Replicas".to_string(),
+                json.pointer("/spec/maxReplicas")
+                    .and_then(|v| v.as_i64())
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "—".to_string()),
+            ));
+            props.push((
+                "Current Replicas".to_string(),
+                json.pointer("/status/currentReplicas")
+                    .and_then(|v| v.as_i64())
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "—".to_string()),
+            ));
+            props.push((
+                "Desired Replicas".to_string(),
+                json.pointer("/status/desiredReplicas")
+                    .and_then(|v| v.as_i64())
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "—".to_string()),
+            ));
         }
         "PodDisruptionBudget" => {
-            let min_available = json.pointer("/spec/minAvailable")
-                .map(|v| v.as_i64().map(|n| n.to_string())
-                    .or_else(|| v.as_str().map(|s| s.to_string()))
-                    .unwrap_or_else(|| "—".to_string()))
+            let min_available = json
+                .pointer("/spec/minAvailable")
+                .map(|v| {
+                    v.as_i64()
+                        .map(|n| n.to_string())
+                        .or_else(|| v.as_str().map(|s| s.to_string()))
+                        .unwrap_or_else(|| "—".to_string())
+                })
                 .unwrap_or_else(|| "—".to_string());
             props.push(("Min Available".to_string(), min_available));
-            let max_unavailable = json.pointer("/spec/maxUnavailable")
-                .map(|v| v.as_i64().map(|n| n.to_string())
-                    .or_else(|| v.as_str().map(|s| s.to_string()))
-                    .unwrap_or_else(|| "—".to_string()))
+            let max_unavailable = json
+                .pointer("/spec/maxUnavailable")
+                .map(|v| {
+                    v.as_i64()
+                        .map(|n| n.to_string())
+                        .or_else(|| v.as_str().map(|s| s.to_string()))
+                        .unwrap_or_else(|| "—".to_string())
+                })
                 .unwrap_or_else(|| "—".to_string());
             props.push(("Max Unavailable".to_string(), max_unavailable));
-            props.push(("Current Healthy".to_string(), json.pointer("/status/currentHealthy")
-                .and_then(|v| v.as_i64()).map(|v| v.to_string()).unwrap_or_else(|| "—".to_string())));
-            props.push(("Desired Healthy".to_string(), json.pointer("/status/desiredHealthy")
-                .and_then(|v| v.as_i64()).map(|v| v.to_string()).unwrap_or_else(|| "—".to_string())));
-            props.push(("Disruptions Allowed".to_string(), json.pointer("/status/disruptionsAllowed")
-                .and_then(|v| v.as_i64()).map(|v| v.to_string()).unwrap_or_else(|| "—".to_string())));
+            props.push((
+                "Current Healthy".to_string(),
+                json.pointer("/status/currentHealthy")
+                    .and_then(|v| v.as_i64())
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "—".to_string()),
+            ));
+            props.push((
+                "Desired Healthy".to_string(),
+                json.pointer("/status/desiredHealthy")
+                    .and_then(|v| v.as_i64())
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "—".to_string()),
+            ));
+            props.push((
+                "Disruptions Allowed".to_string(),
+                json.pointer("/status/disruptionsAllowed")
+                    .and_then(|v| v.as_i64())
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "—".to_string()),
+            ));
         }
         "PriorityClass" => {
-            props.push(("Value".to_string(), json.get("value")
-                .and_then(|v| v.as_i64()).map(|v| v.to_string()).unwrap_or_else(|| "0".to_string())));
-            props.push(("Global Default".to_string(), json.get("globalDefault")
-                .and_then(|v| v.as_bool()).map(|b| b.to_string()).unwrap_or_else(|| "false".to_string())));
-            props.push(("Description".to_string(), json.get("description")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            props.push(("Preemption Policy".to_string(), json.get("preemptionPolicy")
-                .and_then(|v| v.as_str()).unwrap_or("PreemptLowerPriority").to_string()));
+            props.push((
+                "Value".to_string(),
+                json.get("value")
+                    .and_then(|v| v.as_i64())
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "0".to_string()),
+            ));
+            props.push((
+                "Global Default".to_string(),
+                json.get("globalDefault")
+                    .and_then(|v| v.as_bool())
+                    .map(|b| b.to_string())
+                    .unwrap_or_else(|| "false".to_string()),
+            ));
+            props.push((
+                "Description".to_string(),
+                json.get("description").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
+            ));
+            props.push((
+                "Preemption Policy".to_string(),
+                json.get("preemptionPolicy")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("PreemptLowerPriority")
+                    .to_string(),
+            ));
         }
         "Lease" => {
-            props.push(("Holder Identity".to_string(), json.pointer("/spec/holderIdentity")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            props.push(("Lease Duration".to_string(), json.pointer("/spec/leaseDurationSeconds")
-                .and_then(|v| v.as_i64()).map(|s| format!("{s}s")).unwrap_or_else(|| "—".to_string())));
-            props.push(("Renew Time".to_string(), json.pointer("/spec/renewTime")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            props.push(("Acquire Time".to_string(), json.pointer("/spec/acquireTime")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
+            props.push((
+                "Holder Identity".to_string(),
+                json.pointer("/spec/holderIdentity")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
+            props.push((
+                "Lease Duration".to_string(),
+                json.pointer("/spec/leaseDurationSeconds")
+                    .and_then(|v| v.as_i64())
+                    .map(|s| format!("{s}s"))
+                    .unwrap_or_else(|| "—".to_string()),
+            ));
+            props.push((
+                "Renew Time".to_string(),
+                json.pointer("/spec/renewTime").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
+            ));
+            props.push((
+                "Acquire Time".to_string(),
+                json.pointer("/spec/acquireTime")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
         }
         "ValidatingWebhookConfiguration" | "MutatingWebhookConfiguration" => {
-            let webhook_count = json.get("webhooks")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.len())
-                .unwrap_or(0);
+            let webhook_count =
+                json.get("webhooks").and_then(|v| v.as_array()).map(|arr| arr.len()).unwrap_or(0);
             props.push(("Webhooks".to_string(), webhook_count.to_string()));
             if let Some(hooks) = json.get("webhooks").and_then(|v| v.as_array()) {
                 for (i, hook) in hooks.iter().enumerate() {
                     let name = hook.get("name").and_then(|v| v.as_str()).unwrap_or("—");
-                    let failure_policy = hook.get("failurePolicy").and_then(|v| v.as_str()).unwrap_or("—");
+                    let failure_policy =
+                        hook.get("failurePolicy").and_then(|v| v.as_str()).unwrap_or("—");
                     props.push((format!("Hook {} Name", i + 1), name.to_string()));
-                    props.push((format!("Hook {} Failure Policy", i + 1), failure_policy.to_string()));
+                    props.push((
+                        format!("Hook {} Failure Policy", i + 1),
+                        failure_policy.to_string(),
+                    ));
                 }
             }
         }
         "EndpointSlice" => {
-            props.push(("Address Type".to_string(), json.get("addressType")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            let endpoint_count = json.get("endpoints")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.len())
-                .unwrap_or(0);
+            props.push((
+                "Address Type".to_string(),
+                json.get("addressType").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
+            ));
+            let endpoint_count =
+                json.get("endpoints").and_then(|v| v.as_array()).map(|arr| arr.len()).unwrap_or(0);
             props.push(("Endpoints".to_string(), endpoint_count.to_string()));
         }
         "IngressClass" => {
-            props.push(("Controller".to_string(), json.pointer("/spec/controller")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            let is_default = json.pointer("/metadata/annotations")
+            props.push((
+                "Controller".to_string(),
+                json.pointer("/spec/controller")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
+            let is_default = json
+                .pointer("/metadata/annotations")
                 .and_then(|v| v.as_object())
                 .and_then(|m| m.get("ingressclass.kubernetes.io/is-default-class"))
                 .and_then(|v| v.as_str())
@@ -1482,22 +1611,59 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
             props.push(("Default".to_string(), is_default));
         }
         "Application" => {
-            props.push(("Project".to_string(), json.pointer("/spec/project")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            props.push(("Repo URL".to_string(), json.pointer("/spec/source/repoURL")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            props.push(("Path".to_string(), json.pointer("/spec/source/path")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            props.push(("Target Revision".to_string(), json.pointer("/spec/source/targetRevision")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            props.push(("Destination Server".to_string(), json.pointer("/spec/destination/server")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            props.push(("Destination Namespace".to_string(), json.pointer("/spec/destination/namespace")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            props.push(("Sync Status".to_string(), json.pointer("/status/sync/status")
-                .and_then(|v| v.as_str()).unwrap_or("Unknown").to_string()));
-            props.push(("Health Status".to_string(), json.pointer("/status/health/status")
-                .and_then(|v| v.as_str()).unwrap_or("Unknown").to_string()));
+            props.push((
+                "Project".to_string(),
+                json.pointer("/spec/project").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
+            ));
+            props.push((
+                "Repo URL".to_string(),
+                json.pointer("/spec/source/repoURL")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
+            props.push((
+                "Path".to_string(),
+                json.pointer("/spec/source/path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
+            props.push((
+                "Target Revision".to_string(),
+                json.pointer("/spec/source/targetRevision")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
+            props.push((
+                "Destination Server".to_string(),
+                json.pointer("/spec/destination/server")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
+            props.push((
+                "Destination Namespace".to_string(),
+                json.pointer("/spec/destination/namespace")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
+            props.push((
+                "Sync Status".to_string(),
+                json.pointer("/status/sync/status")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown")
+                    .to_string(),
+            ));
+            props.push((
+                "Health Status".to_string(),
+                json.pointer("/status/health/status")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown")
+                    .to_string(),
+            ));
             let sync_policy = if json.pointer("/spec/syncPolicy/automated").is_some() {
                 "Automated"
             } else {
@@ -1506,31 +1672,45 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
             props.push(("Sync Policy".to_string(), sync_policy.to_string()));
         }
         "ApplicationSet" => {
-            let gen_count = json.pointer("/spec/generators")
+            let gen_count = json
+                .pointer("/spec/generators")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.len())
                 .unwrap_or(0);
             props.push(("Generators".to_string(), gen_count.to_string()));
-            props.push(("Template".to_string(), json.pointer("/spec/template/metadata/name")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            let strategy = json.pointer("/spec/strategy/type")
-                .and_then(|v| v.as_str()).unwrap_or("AllAtOnce");
+            props.push((
+                "Template".to_string(),
+                json.pointer("/spec/template/metadata/name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
+            let strategy =
+                json.pointer("/spec/strategy/type").and_then(|v| v.as_str()).unwrap_or("AllAtOnce");
             props.push(("Strategy".to_string(), strategy.to_string()));
         }
         "AppProject" => {
-            props.push(("Description".to_string(), json.pointer("/spec/description")
-                .and_then(|v| v.as_str()).unwrap_or("—").to_string()));
-            let dest_count = json.pointer("/spec/destinations")
+            props.push((
+                "Description".to_string(),
+                json.pointer("/spec/description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("—")
+                    .to_string(),
+            ));
+            let dest_count = json
+                .pointer("/spec/destinations")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.len())
                 .unwrap_or(0);
             props.push(("Destinations".to_string(), dest_count.to_string()));
-            let src_count = json.pointer("/spec/sourceRepos")
+            let src_count = json
+                .pointer("/spec/sourceRepos")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.len())
                 .unwrap_or(0);
             props.push(("Source Repos".to_string(), src_count.to_string()));
-            let whitelist = json.pointer("/spec/clusterResourceWhitelist")
+            let whitelist = json
+                .pointer("/spec/clusterResourceWhitelist")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.len())
                 .unwrap_or(0);
@@ -1544,7 +1724,9 @@ pub fn extract_detail_properties(kind: &str, json: &serde_json::Value) -> Vec<(S
 
 /// Extract conditions from a resource's status.
 /// Returns (Type, Status, Reason, Message, Last Transition Time).
-pub fn extract_conditions(json: &serde_json::Value) -> Vec<(String, String, String, String, String)> {
+pub fn extract_conditions(
+    json: &serde_json::Value,
+) -> Vec<(String, String, String, String, String)> {
     json.pointer("/status/conditions")
         .and_then(|v| v.as_array())
         .map(|arr| {
@@ -1555,7 +1737,10 @@ pub fn extract_conditions(json: &serde_json::Value) -> Vec<(String, String, Stri
                         c.get("status").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
                         c.get("reason").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
                         c.get("message").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
-                        c.get("lastTransitionTime").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
+                        c.get("lastTransitionTime")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("—")
+                            .to_string(),
                     )
                 })
                 .collect()
@@ -1567,11 +1752,7 @@ pub fn extract_conditions(json: &serde_json::Value) -> Vec<(String, String, Stri
 pub fn extract_labels(json: &serde_json::Value) -> Vec<(String, String)> {
     json.pointer("/metadata/labels")
         .and_then(|v| v.as_object())
-        .map(|m| {
-            m.iter()
-                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
-                .collect()
-        })
+        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect())
         .unwrap_or_default()
 }
 
@@ -1579,11 +1760,7 @@ pub fn extract_labels(json: &serde_json::Value) -> Vec<(String, String)> {
 pub fn extract_annotations(json: &serde_json::Value) -> Vec<(String, String)> {
     json.pointer("/metadata/annotations")
         .and_then(|v| v.as_object())
-        .map(|m| {
-            m.iter()
-                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
-                .collect()
-        })
+        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect())
         .unwrap_or_default()
 }
 
@@ -1626,8 +1803,7 @@ fn extract_resource_map(json: &serde_json::Value, path: &str) -> Vec<(String, St
             let mut pairs: Vec<(String, String)> = m
                 .iter()
                 .map(|(k, v)| {
-                    let val = v.as_str().map(|s| s.to_string())
-                        .unwrap_or_else(|| v.to_string());
+                    let val = v.as_str().map(|s| s.to_string()).unwrap_or_else(|| v.to_string());
                     (k.clone(), val)
                 })
                 .collect();
@@ -1663,17 +1839,14 @@ pub fn extract_node_images(json: &serde_json::Value) -> Vec<NodeImage> {
         .map(|arr| {
             arr.iter()
                 .map(|img| {
-                    let names = img.get("names")
+                    let names = img
+                        .get("names")
                         .and_then(|v| v.as_array())
                         .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                .collect()
+                            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
                         })
                         .unwrap_or_default();
-                    let size_bytes = img.get("sizeBytes")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
+                    let size_bytes = img.get("sizeBytes").and_then(|v| v.as_u64()).unwrap_or(0);
                     NodeImage { names, size_bytes }
                 })
                 .collect()
@@ -1703,10 +1876,7 @@ pub fn format_bytes(bytes: u64) -> String {
 
 /// Extract a string from a JSON pointer path, returning "—" if missing.
 pub fn json_str(json: &serde_json::Value, path: &str) -> String {
-    json.pointer(path)
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string()
+    json.pointer(path).and_then(|v| v.as_str()).unwrap_or("—").to_string()
 }
 
 /// Convert a Kubernetes timestamp string to a human-friendly age like "3d12h", "45m", "2h30m".
@@ -1750,11 +1920,7 @@ fn human_duration_secs(secs: i64) -> String {
     }
     let years = days / 365;
     let rem_days = days % 365;
-    if rem_days > 0 {
-        format!("{years}y{rem_days}d")
-    } else {
-        format!("{years}y")
-    }
+    if rem_days > 0 { format!("{years}y{rem_days}d") } else { format!("{years}y") }
 }
 
 /// Extract human age from a JSON object's creationTimestamp.
@@ -1767,16 +1933,16 @@ fn human_age_from_json(json: &serde_json::Value) -> String {
 
 /// Summarize container status as "running/total" (e.g., "2/3").
 pub fn container_status_summary(json: &serde_json::Value) -> String {
-    let total = json.pointer("/spec/containers")
+    let total = json
+        .pointer("/spec/containers")
         .and_then(|v| v.as_array())
         .map(|arr| arr.len())
         .unwrap_or(0);
-    let running = json.pointer("/status/containerStatuses")
+    let running = json
+        .pointer("/status/containerStatuses")
         .and_then(|v| v.as_array())
         .map(|arr| {
-            arr.iter()
-                .filter(|c| c.get("ready").and_then(|v| v.as_bool()).unwrap_or(false))
-                .count()
+            arr.iter().filter(|c| c.get("ready").and_then(|v| v.as_bool()).unwrap_or(false)).count()
         })
         .unwrap_or(0);
     format!("{running}/{total}")
@@ -1784,13 +1950,10 @@ pub fn container_status_summary(json: &serde_json::Value) -> String {
 
 /// Sum total restarts across all containers.
 pub fn total_restarts(json: &serde_json::Value) -> String {
-    let sum: i64 = json.pointer("/status/containerStatuses")
+    let sum: i64 = json
+        .pointer("/status/containerStatuses")
         .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|c| c.get("restartCount").and_then(|v| v.as_i64()))
-                .sum()
-        })
+        .map(|arr| arr.iter().filter_map(|c| c.get("restartCount").and_then(|v| v.as_i64())).sum())
         .unwrap_or(0);
     sum.to_string()
 }
@@ -1828,10 +1991,12 @@ pub fn format_ports(json: &serde_json::Value) -> String {
 
 /// Parse node role labels (node-role.kubernetes.io/<role>).
 pub fn node_roles(json: &serde_json::Value) -> String {
-    let roles: Vec<String> = json.pointer("/metadata/labels")
+    let roles: Vec<String> = json
+        .pointer("/metadata/labels")
         .and_then(|v| v.as_object())
         .map(|labels| {
-            labels.keys()
+            labels
+                .keys()
                 .filter_map(|k| {
                     k.strip_prefix("node-role.kubernetes.io/").map(|role| {
                         if role.is_empty() { "worker".to_string() } else { role.to_string() }
@@ -1840,19 +2005,12 @@ pub fn node_roles(json: &serde_json::Value) -> String {
                 .collect()
         })
         .unwrap_or_default();
-    if roles.is_empty() {
-        "<none>".to_string()
-    } else {
-        roles.join(", ")
-    }
+    if roles.is_empty() { "<none>".to_string() } else { roles.join(", ") }
 }
 
 /// Extract QoS class from pod status.
 fn qos_class(json: &serde_json::Value) -> String {
-    json.pointer("/status/qosClass")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string()
+    json.pointer("/status/qosClass").and_then(|v| v.as_str()).unwrap_or("—").to_string()
 }
 
 /// Compute pod status with container waiting reason fallback.
@@ -1870,10 +2028,7 @@ fn pod_status(json: &serde_json::Value) -> String {
         }
     }
     // Fall back to phase
-    json.pointer("/status/phase")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string()
+    json.pointer("/status/phase").and_then(|v| v.as_str()).unwrap_or("—").to_string()
 }
 
 // ---------------------------------------------------------------------------
@@ -1886,53 +2041,40 @@ pub fn extract_pod_detail(json: &serde_json::Value) -> PodDetailData {
     let status = json.pointer("/status").cloned().unwrap_or(serde_json::Value::Null);
 
     let containers = extract_containers_list(&spec, &status, "containers", "containerStatuses");
-    let init_containers = extract_containers_list(&spec, &status, "initContainers", "initContainerStatuses");
+    let init_containers =
+        extract_containers_list(&spec, &status, "initContainers", "initContainerStatuses");
     let volumes = extract_volumes(&spec);
     let tolerations = extract_tolerations(&spec);
 
-    let node_selector = spec.get("nodeSelector")
+    let node_selector = spec
+        .get("nodeSelector")
         .and_then(|v| v.as_object())
-        .map(|m| {
-            m.iter()
-                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
-                .collect()
-        })
+        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect())
         .unwrap_or_default();
 
-    let annotations = json.pointer("/metadata/annotations")
+    let annotations = json
+        .pointer("/metadata/annotations")
         .and_then(|v| v.as_object())
-        .map(|m| {
-            m.iter()
-                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
-                .collect()
-        })
+        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect())
         .unwrap_or_default();
 
-    let affinity_json = spec.get("affinity")
+    let affinity_json = spec
+        .get("affinity")
         .filter(|v| !v.is_null())
         .map(|v| serde_json::to_string_pretty(v).unwrap_or_else(|_| v.to_string()));
 
-    let host_ip = status.get("hostIP")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
+    let host_ip = status.get("hostIP").and_then(|v| v.as_str()).unwrap_or("—").to_string();
 
-    let dns_policy = spec.get("dnsPolicy")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
+    let dns_policy = spec.get("dnsPolicy").and_then(|v| v.as_str()).unwrap_or("—").to_string();
 
-    let priority_class = spec.get("priorityClassName")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
+    let priority_class =
+        spec.get("priorityClassName").and_then(|v| v.as_str()).unwrap_or("—").to_string();
 
-    let scheduler_name = spec.get("schedulerName")
-        .and_then(|v| v.as_str())
-        .unwrap_or("—")
-        .to_string();
+    let scheduler_name =
+        spec.get("schedulerName").and_then(|v| v.as_str()).unwrap_or("—").to_string();
 
-    let termination_grace_period = spec.get("terminationGracePeriodSeconds")
+    let termination_grace_period = spec
+        .get("terminationGracePeriodSeconds")
         .and_then(|v| v.as_i64())
         .map(|s| format!("{s}s"))
         .unwrap_or_else(|| "—".to_string());
@@ -1965,16 +2107,19 @@ fn extract_containers_list(
 
     let Some(specs) = spec_containers else { return Vec::new() };
 
-    specs.iter().map(|cs| {
-        let name = cs.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    specs
+        .iter()
+        .map(|cs| {
+            let name = cs.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
-        // Find matching status entry by name
-        let cs_status = status_containers.and_then(|arr| {
-            arr.iter().find(|s| s.get("name").and_then(|v| v.as_str()) == Some(&name))
-        });
+            // Find matching status entry by name
+            let cs_status = status_containers.and_then(|arr| {
+                arr.iter().find(|s| s.get("name").and_then(|v| v.as_str()) == Some(&name))
+            });
 
-        extract_container_detail(cs, cs_status)
-    }).collect()
+            extract_container_detail(cs, cs_status)
+        })
+        .collect()
 }
 
 /// Extract full detail for a single container spec + optional status.
@@ -1984,19 +2129,23 @@ fn extract_container_detail(
 ) -> ContainerDetail {
     let name = spec.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let image = spec.get("image").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let image_pull_policy = spec.get("imagePullPolicy").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let image_pull_policy =
+        spec.get("imagePullPolicy").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
-    let ports = spec.get("ports")
+    let ports = spec
+        .get("ports")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().map(extract_port).collect())
         .unwrap_or_default();
 
-    let env_vars = spec.get("env")
+    let env_vars = spec
+        .get("env")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().map(extract_env_var).collect())
         .unwrap_or_default();
 
-    let volume_mounts = spec.get("volumeMounts")
+    let volume_mounts = spec
+        .get("volumeMounts")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().map(extract_volume_mount).collect())
         .unwrap_or_default();
@@ -2007,39 +2156,32 @@ fn extract_container_detail(
     let readiness_probe = spec.get("readinessProbe").map(|p| extract_probe(p, "readiness"));
     let startup_probe = spec.get("startupProbe").map(|p| extract_probe(p, "startup"));
 
-    let command = spec.get("command")
+    let command = spec
+        .get("command")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
         .unwrap_or_default();
 
-    let args = spec.get("args")
+    let args = spec
+        .get("args")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
         .unwrap_or_default();
 
-    let working_dir = spec.get("workingDir")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+    let working_dir = spec.get("workingDir").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
-    let security_context = spec.get("securityContext")
-        .filter(|v| !v.is_null())
-        .map(extract_security_context);
+    let security_context =
+        spec.get("securityContext").filter(|v| !v.is_null()).map(extract_security_context);
 
     let state = status
         .and_then(|s| s.get("state"))
         .map(extract_container_state)
         .unwrap_or(ContainerStateDetail::Unknown);
 
-    let ready = status
-        .and_then(|s| s.get("ready"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+    let ready = status.and_then(|s| s.get("ready")).and_then(|v| v.as_bool()).unwrap_or(false);
 
-    let restart_count = status
-        .and_then(|s| s.get("restartCount"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let restart_count =
+        status.and_then(|s| s.get("restartCount")).and_then(|v| v.as_i64()).unwrap_or(0);
 
     ContainerDetail {
         name,
@@ -2075,26 +2217,29 @@ fn extract_env_var(json: &serde_json::Value) -> EnvVarDetail {
     let name = json.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let value = json.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
-    let value_from = json.get("valueFrom").map(|vf| {
-        if let Some(cm) = vf.get("configMapKeyRef") {
-            let cm_name = cm.get("name").and_then(|v| v.as_str()).unwrap_or("?");
-            let key = cm.get("key").and_then(|v| v.as_str()).unwrap_or("?");
-            format!("configMapKeyRef: {cm_name}.{key}")
-        } else if let Some(sec) = vf.get("secretKeyRef") {
-            let sec_name = sec.get("name").and_then(|v| v.as_str()).unwrap_or("?");
-            let key = sec.get("key").and_then(|v| v.as_str()).unwrap_or("?");
-            format!("secretKeyRef: {sec_name}.{key}")
-        } else if let Some(field) = vf.get("fieldRef") {
-            let fp = field.get("fieldPath").and_then(|v| v.as_str()).unwrap_or("?");
-            format!("fieldRef: {fp}")
-        } else if let Some(res) = vf.get("resourceFieldRef") {
-            let container = res.get("containerName").and_then(|v| v.as_str()).unwrap_or("?");
-            let resource = res.get("resource").and_then(|v| v.as_str()).unwrap_or("?");
-            format!("resourceFieldRef: {container}.{resource}")
-        } else {
-            "unknown ref".to_string()
-        }
-    }).unwrap_or_default();
+    let value_from = json
+        .get("valueFrom")
+        .map(|vf| {
+            if let Some(cm) = vf.get("configMapKeyRef") {
+                let cm_name = cm.get("name").and_then(|v| v.as_str()).unwrap_or("?");
+                let key = cm.get("key").and_then(|v| v.as_str()).unwrap_or("?");
+                format!("configMapKeyRef: {cm_name}.{key}")
+            } else if let Some(sec) = vf.get("secretKeyRef") {
+                let sec_name = sec.get("name").and_then(|v| v.as_str()).unwrap_or("?");
+                let key = sec.get("key").and_then(|v| v.as_str()).unwrap_or("?");
+                format!("secretKeyRef: {sec_name}.{key}")
+            } else if let Some(field) = vf.get("fieldRef") {
+                let fp = field.get("fieldPath").and_then(|v| v.as_str()).unwrap_or("?");
+                format!("fieldRef: {fp}")
+            } else if let Some(res) = vf.get("resourceFieldRef") {
+                let container = res.get("containerName").and_then(|v| v.as_str()).unwrap_or("?");
+                let resource = res.get("resource").and_then(|v| v.as_str()).unwrap_or("?");
+                format!("resourceFieldRef: {container}.{resource}")
+            } else {
+                "unknown ref".to_string()
+            }
+        })
+        .unwrap_or_default();
 
     EnvVarDetail { name, value, value_from }
 }
@@ -2111,43 +2256,64 @@ fn extract_volume_mount(json: &serde_json::Value) -> VolumeMountDetail {
 fn extract_container_resources(spec: &serde_json::Value) -> ContainerResources {
     let resources = spec.get("resources").cloned().unwrap_or(serde_json::Value::Null);
     ContainerResources {
-        requests_cpu: resources.pointer("/requests/cpu").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
-        requests_memory: resources.pointer("/requests/memory").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
-        limits_cpu: resources.pointer("/limits/cpu").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
-        limits_memory: resources.pointer("/limits/memory").and_then(|v| v.as_str()).unwrap_or("—").to_string(),
+        requests_cpu: resources
+            .pointer("/requests/cpu")
+            .and_then(|v| v.as_str())
+            .unwrap_or("—")
+            .to_string(),
+        requests_memory: resources
+            .pointer("/requests/memory")
+            .and_then(|v| v.as_str())
+            .unwrap_or("—")
+            .to_string(),
+        limits_cpu: resources
+            .pointer("/limits/cpu")
+            .and_then(|v| v.as_str())
+            .unwrap_or("—")
+            .to_string(),
+        limits_memory: resources
+            .pointer("/limits/memory")
+            .and_then(|v| v.as_str())
+            .unwrap_or("—")
+            .to_string(),
     }
 }
 
 fn extract_probe(json: &serde_json::Value, probe_type: &str) -> ProbeDetail {
     let detail = if let Some(http) = json.get("httpGet") {
-        let port = http.get("port").map(|v| {
-            v.as_i64().map(|n| n.to_string())
-                .or_else(|| v.as_str().map(|s| s.to_string()))
-                .unwrap_or_default()
-        }).unwrap_or_default();
+        let port = http
+            .get("port")
+            .map(|v| {
+                v.as_i64()
+                    .map(|n| n.to_string())
+                    .or_else(|| v.as_str().map(|s| s.to_string()))
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default();
         let path = http.get("path").and_then(|v| v.as_str()).unwrap_or("/");
         format!("HTTP GET :{port}{path}")
     } else if let Some(exec) = json.get("exec") {
-        let cmd = exec.get("command")
+        let cmd = exec
+            .get("command")
             .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(", "))
             .unwrap_or_default();
         format!("exec: [{cmd}]")
     } else if let Some(tcp) = json.get("tcpSocket") {
-        let port = tcp.get("port").map(|v| {
-            v.as_i64().map(|n| n.to_string())
-                .or_else(|| v.as_str().map(|s| s.to_string()))
-                .unwrap_or_default()
-        }).unwrap_or_default();
+        let port = tcp
+            .get("port")
+            .map(|v| {
+                v.as_i64()
+                    .map(|n| n.to_string())
+                    .or_else(|| v.as_str().map(|s| s.to_string()))
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default();
         format!("TCP :{port}")
     } else if let Some(grpc) = json.get("grpc") {
         let port = grpc.get("port").and_then(|v| v.as_i64()).unwrap_or(0);
         let service = grpc.get("service").and_then(|v| v.as_str()).unwrap_or("");
-        if service.is_empty() {
-            format!("gRPC :{port}")
-        } else {
-            format!("gRPC :{port}/{service}")
-        }
+        if service.is_empty() { format!("gRPC :{port}") } else { format!("gRPC :{port}/{service}") }
     } else {
         "unknown".to_string()
     };
@@ -2170,11 +2336,13 @@ fn extract_security_context(json: &serde_json::Value) -> SecurityContextDetail {
         run_as_non_root: json.get("runAsNonRoot").and_then(|v| v.as_bool()),
         read_only_root_fs: json.get("readOnlyRootFilesystem").and_then(|v| v.as_bool()),
         privileged: json.get("privileged").and_then(|v| v.as_bool()),
-        caps_add: json.pointer("/capabilities/add")
+        caps_add: json
+            .pointer("/capabilities/add")
             .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
             .unwrap_or_default(),
-        caps_drop: json.pointer("/capabilities/drop")
+        caps_drop: json
+            .pointer("/capabilities/drop")
             .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
             .unwrap_or_default(),
@@ -2195,7 +2363,11 @@ fn extract_container_state(json: &serde_json::Value) -> ContainerStateDetail {
         ContainerStateDetail::Terminated {
             reason: terminated.get("reason").and_then(|v| v.as_str()).unwrap_or("").to_string(),
             exit_code: terminated.get("exitCode").and_then(|v| v.as_i64()).unwrap_or(-1),
-            finished_at: terminated.get("finishedAt").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            finished_at: terminated
+                .get("finishedAt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
         }
     } else {
         ContainerStateDetail::Unknown
@@ -2215,12 +2387,18 @@ fn extract_single_volume(json: &serde_json::Value) -> VolumeDetail {
     let (volume_type, type_detail) = if let Some(cm) = json.get("configMap") {
         ("configMap".to_string(), cm.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string())
     } else if let Some(sec) = json.get("secret") {
-        ("secret".to_string(), sec.get("secretName").and_then(|v| v.as_str()).unwrap_or("").to_string())
+        (
+            "secret".to_string(),
+            sec.get("secretName").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        )
     } else if let Some(ed) = json.get("emptyDir") {
         let medium = ed.get("medium").and_then(|v| v.as_str()).unwrap_or("default");
         ("emptyDir".to_string(), format!("medium: {medium}"))
     } else if let Some(pvc) = json.get("persistentVolumeClaim") {
-        ("persistentVolumeClaim".to_string(), pvc.get("claimName").and_then(|v| v.as_str()).unwrap_or("").to_string())
+        (
+            "persistentVolumeClaim".to_string(),
+            pvc.get("claimName").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        )
     } else if let Some(hp) = json.get("hostPath") {
         let path = hp.get("path").and_then(|v| v.as_str()).unwrap_or("");
         ("hostPath".to_string(), path.to_string())
@@ -2245,14 +2423,20 @@ fn extract_single_volume(json: &serde_json::Value) -> VolumeDetail {
 fn extract_tolerations(spec: &serde_json::Value) -> Vec<TolerationDetail> {
     spec.get("tolerations")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.iter().map(|t| {
-            TolerationDetail {
-                key: t.get("key").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                operator: t.get("operator").and_then(|v| v.as_str()).unwrap_or("Equal").to_string(),
-                value: t.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                effect: t.get("effect").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                toleration_seconds: t.get("tolerationSeconds").and_then(|v| v.as_i64()),
-            }
-        }).collect())
+        .map(|arr| {
+            arr.iter()
+                .map(|t| TolerationDetail {
+                    key: t.get("key").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    operator: t
+                        .get("operator")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Equal")
+                        .to_string(),
+                    value: t.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    effect: t.get("effect").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    toleration_seconds: t.get("tolerationSeconds").and_then(|v| v.as_i64()),
+                })
+                .collect()
+        })
         .unwrap_or_default()
 }

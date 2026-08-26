@@ -7,9 +7,9 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use futures::TryStreamExt;
 use k8s_openapi::api::core::v1::{Event, Namespace, Node, Pod};
-use kube::{api::ListParams, Api, Client, Config};
-use kube_runtime::watcher::{self, Event as WatcherEvent};
+use kube::{Api, Client, Config, api::ListParams};
 use kube_runtime::WatchStreamExt;
+use kube_runtime::watcher::{self, Event as WatcherEvent};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -74,9 +74,7 @@ pub fn is_forbidden_error(err: &anyhow::Error) -> bool {
 /// 403/Forbidden indicators in the message text.
 pub fn is_forbidden_error_string(err_msg: &str) -> bool {
     let lower = err_msg.to_lowercase();
-    lower.contains("403")
-        || lower.contains("forbidden")
-        || lower.contains("permission denied")
+    lower.contains("403") || lower.contains("forbidden") || lower.contains("permission denied")
 }
 
 /// Check whether an `anyhow::Error` wraps a kube 409 Conflict response.
@@ -166,11 +164,7 @@ pub async fn create_client_from_path(
         .with_context(|| format!("Failed to read kubeconfig from '{kubeconfig_path}'"))?;
 
     if let Some(profile) = aws_profile {
-        crate::aws_sso::inject_aws_profile_into_kubeconfig(
-            &mut kubeconfig,
-            context_name,
-            profile,
-        )?;
+        crate::aws_sso::inject_aws_profile_into_kubeconfig(&mut kubeconfig, context_name, profile)?;
     }
 
     let config = Config::from_custom_kubeconfig(
@@ -181,9 +175,7 @@ pub async fn create_client_from_path(
         },
     )
     .await
-    .with_context(|| {
-        format!("Failed to load context '{context_name}' from '{kubeconfig_path}'")
-    })?;
+    .with_context(|| format!("Failed to load context '{context_name}' from '{kubeconfig_path}'"))?;
 
     let config = apply_timeouts(config);
 
@@ -222,9 +214,7 @@ pub async fn create_client_from_path_with_aws_creds(
         },
     )
     .await
-    .with_context(|| {
-        format!("Failed to load context '{context_name}' from '{kubeconfig_path}'")
-    })?;
+    .with_context(|| format!("Failed to load context '{context_name}' from '{kubeconfig_path}'"))?;
 
     let config = apply_timeouts(config);
 
@@ -256,10 +246,8 @@ pub async fn create_client(context_name: &str) -> Result<Client> {
 
 /// Verify that a client can reach the API server.
 pub async fn verify_connection(client: &Client) -> Result<String> {
-    let version = client
-        .apiserver_version()
-        .await
-        .context("Failed to reach Kubernetes API server")?;
+    let version =
+        client.apiserver_version().await.context("Failed to reach Kubernetes API server")?;
     Ok(format!("{}.{}", version.major, version.minor))
 }
 
@@ -366,21 +354,13 @@ pub async fn fetch_dashboard_data(client: &Client) -> Result<DashboardData> {
         .items
         .iter()
         .map(|node| {
-            let name = node
-                .metadata
-                .name
-                .clone()
-                .unwrap_or_else(|| "<unknown>".to_string());
+            let name = node.metadata.name.clone().unwrap_or_else(|| "<unknown>".to_string());
 
             let ready = node
                 .status
                 .as_ref()
                 .and_then(|s| s.conditions.as_ref())
-                .map(|conds| {
-                    conds
-                        .iter()
-                        .any(|c| c.type_ == "Ready" && c.status == "True")
-                })
+                .map(|conds| conds.iter().any(|c| c.type_ == "Ready" && c.status == "True"))
                 .unwrap_or(false);
 
             let roles: Vec<String> = node
@@ -391,8 +371,7 @@ pub async fn fetch_dashboard_data(client: &Client) -> Result<DashboardData> {
                     labels
                         .keys()
                         .filter_map(|k| {
-                            k.strip_prefix("node-role.kubernetes.io/")
-                                .map(|r| r.to_string())
+                            k.strip_prefix("node-role.kubernetes.io/").map(|r| r.to_string())
                         })
                         .collect()
                 })
@@ -401,13 +380,11 @@ pub async fn fetch_dashboard_data(client: &Client) -> Result<DashboardData> {
             // Parse allocatable CPU and memory from node status.
             let allocatable = node.status.as_ref().and_then(|s| s.allocatable.as_ref());
 
-            let allocatable_cpu_millis = allocatable
-                .and_then(|a| a.get("cpu"))
-                .and_then(|q| parse_cpu_quantity(&q.0));
+            let allocatable_cpu_millis =
+                allocatable.and_then(|a| a.get("cpu")).and_then(|q| parse_cpu_quantity(&q.0));
 
-            let allocatable_memory_bytes = allocatable
-                .and_then(|a| a.get("memory"))
-                .and_then(|q| parse_memory_quantity(&q.0));
+            let allocatable_memory_bytes =
+                allocatable.and_then(|a| a.get("memory")).and_then(|q| parse_memory_quantity(&q.0));
 
             NodeInfo { name, ready, roles, allocatable_cpu_millis, allocatable_memory_bytes }
         })
@@ -420,12 +397,7 @@ pub async fn fetch_dashboard_data(client: &Client) -> Result<DashboardData> {
     let mut succeeded = 0u32;
 
     for pod in &pod_list.items {
-        match pod
-            .status
-            .as_ref()
-            .and_then(|s| s.phase.as_deref())
-            .unwrap_or("Unknown")
-        {
+        match pod.status.as_ref().and_then(|s| s.phase.as_deref()).unwrap_or("Unknown") {
             "Running" => running += 1,
             "Pending" => pending += 1,
             "Failed" => failed += 1,
@@ -435,11 +407,8 @@ pub async fn fetch_dashboard_data(client: &Client) -> Result<DashboardData> {
     }
 
     // Parse namespaces.
-    let namespaces: Vec<String> = ns_list
-        .items
-        .iter()
-        .filter_map(|ns| ns.metadata.name.clone())
-        .collect();
+    let namespaces: Vec<String> =
+        ns_list.items.iter().filter_map(|ns| ns.metadata.name.clone()).collect();
 
     // Parse events (most recent first).
     let mut events: Vec<EventInfo> = event_list
@@ -480,7 +449,7 @@ pub async fn fetch_dashboard_data(client: &Client) -> Result<DashboardData> {
         .collect();
 
     // Sort by timestamp descending.
-    events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    events.sort_by_key(|a| std::cmp::Reverse(a.timestamp));
     events.truncate(50);
 
     let pod_count = pod_list.items.len() as u32;
@@ -497,12 +466,7 @@ pub async fn fetch_dashboard_data(client: &Client) -> Result<DashboardData> {
 
     Ok(DashboardData {
         nodes,
-        pod_counts: PodCounts {
-            running,
-            pending,
-            failed,
-            succeeded,
-        },
+        pod_counts: PodCounts { running, pending, failed, succeeded },
         namespaces,
         events,
         k8s_version: version,
@@ -604,16 +568,11 @@ pub async fn list_resources(
         Api::all_with(client.clone(), &kube_api_resource)
     };
 
-    let list = api
-        .list(&ListParams::default())
-        .await
-        .with_context(|| format!("Failed to list {kind}"))?;
+    let list =
+        api.list(&ListParams::default()).await.with_context(|| format!("Failed to list {kind}"))?;
 
-    let items: Vec<serde_json::Value> = list
-        .items
-        .into_iter()
-        .filter_map(|obj| serde_json::to_value(&obj).ok())
-        .collect();
+    let items: Vec<serde_json::Value> =
+        list.items.into_iter().filter_map(|obj| serde_json::to_value(&obj).ok()).collect();
 
     Ok(items)
 }
@@ -659,11 +618,8 @@ pub async fn list_resources_with_selector(
         .await
         .with_context(|| format!("Failed to list {kind} with selector {label_selector}"))?;
 
-    let items: Vec<serde_json::Value> = list
-        .items
-        .into_iter()
-        .filter_map(|obj| serde_json::to_value(&obj).ok())
-        .collect();
+    let items: Vec<serde_json::Value> =
+        list.items.into_iter().filter_map(|obj| serde_json::to_value(&obj).ok()).collect();
 
     Ok(items)
 }
@@ -715,24 +671,48 @@ fn resolve_api_resource(kind: &str) -> ApiResource {
         "NetworkPolicy" => ApiResource::known("networking.k8s.io", "v1", "networkpolicies", true),
         "StorageClass" => ApiResource::known("storage.k8s.io", "v1", "storageclasses", false),
         "Role" => ApiResource::known("rbac.authorization.k8s.io", "v1", "roles", true),
-        "ClusterRole" => ApiResource::known("rbac.authorization.k8s.io", "v1", "clusterroles", false),
-        "RoleBinding" => ApiResource::known("rbac.authorization.k8s.io", "v1", "rolebindings", true),
-        "ClusterRoleBinding" => ApiResource::known("rbac.authorization.k8s.io", "v1", "clusterrolebindings", false),
+        "ClusterRole" => {
+            ApiResource::known("rbac.authorization.k8s.io", "v1", "clusterroles", false)
+        }
+        "RoleBinding" => {
+            ApiResource::known("rbac.authorization.k8s.io", "v1", "rolebindings", true)
+        }
+        "ClusterRoleBinding" => {
+            ApiResource::known("rbac.authorization.k8s.io", "v1", "clusterrolebindings", false)
+        }
         "ReplicationController" => ApiResource::known("", "v1", "replicationcontrollers", true),
         "ResourceQuota" => ApiResource::known("", "v1", "resourcequotas", true),
         "LimitRange" => ApiResource::known("", "v1", "limitranges", true),
-        "HorizontalPodAutoscaler" => ApiResource::known("autoscaling", "v2", "horizontalpodautoscalers", true),
-        "VerticalPodAutoscaler" => ApiResource::known("autoscaling.k8s.io", "v1", "verticalpodautoscalers", true),
+        "HorizontalPodAutoscaler" => {
+            ApiResource::known("autoscaling", "v2", "horizontalpodautoscalers", true)
+        }
+        "VerticalPodAutoscaler" => {
+            ApiResource::known("autoscaling.k8s.io", "v1", "verticalpodautoscalers", true)
+        }
         "PodDisruptionBudget" => ApiResource::known("policy", "v1", "poddisruptionbudgets", true),
         "PriorityClass" => ApiResource::known("scheduling.k8s.io", "v1", "priorityclasses", false),
         "RuntimeClass" => ApiResource::known("node.k8s.io", "v1", "runtimeclasses", false),
         "Lease" => ApiResource::known("coordination.k8s.io", "v1", "leases", true),
-        "MutatingWebhookConfiguration" => ApiResource::known("admissionregistration.k8s.io", "v1", "mutatingwebhookconfigurations", false),
-        "ValidatingWebhookConfiguration" => ApiResource::known("admissionregistration.k8s.io", "v1", "validatingwebhookconfigurations", false),
+        "MutatingWebhookConfiguration" => ApiResource::known(
+            "admissionregistration.k8s.io",
+            "v1",
+            "mutatingwebhookconfigurations",
+            false,
+        ),
+        "ValidatingWebhookConfiguration" => ApiResource::known(
+            "admissionregistration.k8s.io",
+            "v1",
+            "validatingwebhookconfigurations",
+            false,
+        ),
         "IngressClass" => ApiResource::known("networking.k8s.io", "v1", "ingressclasses", false),
         "EndpointSlice" => ApiResource::known("discovery.k8s.io", "v1", "endpointslices", true),
-        "PodSecurityPolicy" => ApiResource::known("policy", "v1beta1", "podsecuritypolicies", false),
-        "CustomResourceDefinition" => ApiResource::known("apiextensions.k8s.io", "v1", "customresourcedefinitions", false),
+        "PodSecurityPolicy" => {
+            ApiResource::known("policy", "v1beta1", "podsecuritypolicies", false)
+        }
+        "CustomResourceDefinition" => {
+            ApiResource::known("apiextensions.k8s.io", "v1", "customresourcedefinitions", false)
+        }
         "Application" => ApiResource::known("argoproj.io", "v1alpha1", "applications", true),
         "ApplicationSet" => ApiResource::known("argoproj.io", "v1alpha1", "applicationsets", true),
         "AppProject" => ApiResource::known("argoproj.io", "v1alpha1", "appprojects", true),
@@ -856,10 +836,7 @@ pub async fn get_resource(
         Api::all_with(client.clone(), &kube_api_resource)
     };
 
-    let obj = api
-        .get(name)
-        .await
-        .with_context(|| format!("Failed to get {kind}/{name}"))?;
+    let obj = api.get(name).await.with_context(|| format!("Failed to get {kind}/{name}"))?;
 
     serde_json::to_value(&obj).context("Failed to serialize resource")
 }
@@ -898,17 +875,10 @@ pub async fn update_resource(
     // accidentally sending a PUT to the wrong resource endpoint.
     match json.pointer("/metadata/name").and_then(|v| v.as_str()) {
         Some(body_name) if body_name != name => {
-            anyhow::bail!(
-                "Body metadata.name '{}' does not match target '{}'",
-                body_name,
-                name
-            );
+            anyhow::bail!("Body metadata.name '{}' does not match target '{}'", body_name, name);
         }
         None => {
-            anyhow::bail!(
-                "Body is missing metadata.name (expected '{}')",
-                name
-            );
+            anyhow::bail!("Body is missing metadata.name (expected '{}')", name);
         }
         _ => {} // matches
     }
@@ -922,10 +892,7 @@ pub async fn update_resource(
                 );
             }
             None => {
-                anyhow::bail!(
-                    "Body is missing metadata.namespace (expected '{}')",
-                    expected_ns
-                );
+                anyhow::bail!("Body is missing metadata.namespace (expected '{}')", expected_ns);
             }
             _ => {} // matches
         }
@@ -939,8 +906,7 @@ pub async fn update_resource(
         );
     }
 
-    let body_bytes =
-        serde_json::to_vec(&json).context("Failed to serialize resource JSON")?;
+    let body_bytes = serde_json::to_vec(&json).context("Failed to serialize resource JSON")?;
 
     let response: serde_json::Value = client
         .request(
@@ -999,8 +965,7 @@ pub async fn scale_resource(
             "replicas": replicas
         }
     });
-    let body_bytes =
-        serde_json::to_vec(&patch_body).context("Failed to serialize scale patch")?;
+    let body_bytes = serde_json::to_vec(&patch_body).context("Failed to serialize scale patch")?;
 
     let response: serde_json::Value = client
         .request(
@@ -1061,10 +1026,7 @@ pub async fn restart_resource(
 }
 
 /// Cordon a Node by setting `spec.unschedulable = true`.
-pub async fn cordon_node(
-    client: &Client,
-    name: &str,
-) -> Result<serde_json::Value> {
+pub async fn cordon_node(client: &Client, name: &str) -> Result<serde_json::Value> {
     let request_url = build_resource_url("Node", name, None)?;
 
     let patch_body = serde_json::json!({
@@ -1072,8 +1034,7 @@ pub async fn cordon_node(
             "unschedulable": true
         }
     });
-    let body_bytes =
-        serde_json::to_vec(&patch_body).context("Failed to serialize cordon patch")?;
+    let body_bytes = serde_json::to_vec(&patch_body).context("Failed to serialize cordon patch")?;
 
     let response: serde_json::Value = client
         .request(
@@ -1091,10 +1052,7 @@ pub async fn cordon_node(
 }
 
 /// Uncordon a Node by setting `spec.unschedulable = false`.
-pub async fn uncordon_node(
-    client: &Client,
-    name: &str,
-) -> Result<serde_json::Value> {
+pub async fn uncordon_node(client: &Client, name: &str) -> Result<serde_json::Value> {
     let request_url = build_resource_url("Node", name, None)?;
 
     let patch_body = serde_json::json!({
@@ -1149,8 +1107,7 @@ pub async fn create_resource(
         }
     };
 
-    let body_bytes =
-        serde_json::to_vec(json_body).context("Failed to serialize resource JSON")?;
+    let body_bytes = serde_json::to_vec(json_body).context("Failed to serialize resource JSON")?;
 
     let response: serde_json::Value = client
         .request(
@@ -1178,25 +1135,17 @@ pub async fn create_resource(
 /// forward events to the UI thread.
 ///
 /// T326: Used by AppShell::start_event_watcher.
-pub async fn watch_events<F>(
-    client: &Client,
-    mut on_event: F,
-) -> Result<()>
+pub async fn watch_events<F>(client: &Client, mut on_event: F) -> Result<()>
 where
     F: FnMut(EventInfo) + Send,
 {
     let events_api: Api<Event> = Api::all(client.clone());
     let watch_config = watcher::Config::default();
-    let stream = kube_runtime::watcher(events_api, watch_config)
-        .default_backoff();
+    let stream = kube_runtime::watcher(events_api, watch_config).default_backoff();
     tokio::pin!(stream);
 
     // Process watcher events from the stream.
-    while let Some(watch_event) = stream
-        .try_next()
-        .await
-        .context("Event watcher stream error")?
-    {
+    while let Some(watch_event) = stream.try_next().await.context("Event watcher stream error")? {
         match watch_event {
             WatcherEvent::Apply(evt) | WatcherEvent::InitApply(evt) => {
                 let reason = evt.reason.clone().unwrap_or_default();
@@ -1279,17 +1228,14 @@ where
     };
 
     let watch_config = watcher::Config::default();
-    let stream = kube_runtime::watcher(api, watch_config)
-        .default_backoff();
+    let stream = kube_runtime::watcher(api, watch_config).default_backoff();
     tokio::pin!(stream);
 
     // Maintain a local snapshot of all items.
     let mut items: Vec<serde_json::Value> = Vec::new();
 
-    while let Some(watch_event) = stream
-        .try_next()
-        .await
-        .context("Resource watcher stream error")?
+    while let Some(watch_event) =
+        stream.try_next().await.context("Resource watcher stream error")?
     {
         match watch_event {
             WatcherEvent::Init => {
@@ -1308,9 +1254,7 @@ where
                 let new_uid = obj.metadata.uid.as_deref().unwrap_or("");
                 if let Ok(val) = serde_json::to_value(&obj) {
                     if let Some(pos) = items.iter().position(|item| {
-                        item.pointer("/metadata/uid")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
+                        item.pointer("/metadata/uid").and_then(|v| v.as_str()).unwrap_or("")
                             == new_uid
                     }) {
                         items[pos] = val;
@@ -1323,10 +1267,7 @@ where
             WatcherEvent::Delete(obj) => {
                 let del_uid = obj.metadata.uid.as_deref().unwrap_or("");
                 items.retain(|item| {
-                    item.pointer("/metadata/uid")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        != del_uid
+                    item.pointer("/metadata/uid").and_then(|v| v.as_str()).unwrap_or("") != del_uid
                 });
                 on_change(items.clone());
             }
@@ -1340,7 +1281,7 @@ where
 // Metrics-server API: fetch real CPU/memory usage from metrics.k8s.io/v1beta1
 // ---------------------------------------------------------------------------
 
-use crate::metrics::{NodeMetrics, PodMetrics, ContainerMetrics};
+use crate::metrics::{ContainerMetrics, NodeMetrics, PodMetrics};
 
 /// Raw metrics response from the metrics-server API.
 #[derive(Debug, Deserialize)]
@@ -1379,10 +1320,8 @@ struct MetricsContainerItem {
 ///
 /// Returns a `NodeMetrics` for each node that has both metrics and capacity data.
 pub async fn fetch_node_metrics(client: &Client) -> Result<Vec<NodeMetrics>> {
-    let (raw_metrics, allocatable) = tokio::join!(
-        fetch_raw_node_metrics(client),
-        fetch_node_allocatable(client),
-    );
+    let (raw_metrics, allocatable) =
+        tokio::join!(fetch_raw_node_metrics(client), fetch_node_allocatable(client),);
 
     let raw_metrics = raw_metrics?;
     let allocatable = allocatable.unwrap_or_default();
@@ -1393,10 +1332,7 @@ pub async fn fetch_node_metrics(client: &Client) -> Result<Vec<NodeMetrics>> {
         let cpu_usage = parse_cpu_quantity(&item.usage.cpu).unwrap_or(0);
         let mem_usage = parse_memory_quantity(&item.usage.memory).unwrap_or(0);
 
-        let (cpu_cap, mem_cap) = allocatable
-            .get(&item.metadata.name)
-            .cloned()
-            .unwrap_or((0, 0));
+        let (cpu_cap, mem_cap) = allocatable.get(&item.metadata.name).cloned().unwrap_or((0, 0));
 
         result.push(NodeMetrics {
             node_name: item.metadata.name,
@@ -1505,12 +1441,7 @@ async fn fetch_node_allocatable(
 
     let mut map = std::collections::HashMap::new();
     for node in &node_list.items {
-        let name = node
-            .metadata
-            .name
-            .as_deref()
-            .unwrap_or("<unknown>")
-            .to_string();
+        let name = node.metadata.name.as_deref().unwrap_or("<unknown>").to_string();
         let allocatable = node.status.as_ref().and_then(|s| s.allocatable.as_ref());
 
         let cpu = allocatable
@@ -1543,18 +1474,10 @@ pub fn format_cpu_millicores(millis: u64) -> String {
 pub fn format_memory_bytes(bytes: u64) -> String {
     if bytes >= 1024 * 1024 * 1024 {
         let gi = bytes as f64 / (1024.0 * 1024.0 * 1024.0);
-        if gi >= 10.0 {
-            format!("{:.0}Gi", gi)
-        } else {
-            format!("{:.1}Gi", gi)
-        }
+        if gi >= 10.0 { format!("{:.0}Gi", gi) } else { format!("{:.1}Gi", gi) }
     } else if bytes >= 1024 * 1024 {
         let mi = bytes as f64 / (1024.0 * 1024.0);
-        if mi >= 10.0 {
-            format!("{:.0}Mi", mi)
-        } else {
-            format!("{:.1}Mi", mi)
-        }
+        if mi >= 10.0 { format!("{:.0}Mi", mi) } else { format!("{:.1}Mi", mi) }
     } else if bytes >= 1024 {
         format!("{}Ki", bytes / 1024)
     } else {
@@ -1744,10 +1667,20 @@ mod tests {
     fn test_resolve_api_resource_all_core_v1() {
         // Verify all core/v1 resources
         for kind in &[
-            "Pod", "Service", "ConfigMap", "Secret", "Namespace", "Node",
-            "Event", "PersistentVolume", "PersistentVolumeClaim",
-            "ServiceAccount", "Endpoints", "ReplicationController",
-            "ResourceQuota", "LimitRange",
+            "Pod",
+            "Service",
+            "ConfigMap",
+            "Secret",
+            "Namespace",
+            "Node",
+            "Event",
+            "PersistentVolume",
+            "PersistentVolumeClaim",
+            "ServiceAccount",
+            "Endpoints",
+            "ReplicationController",
+            "ResourceQuota",
+            "LimitRange",
         ] {
             let r = resolve_api_resource(kind);
             assert!(r.group.is_empty(), "{kind} should be in core API group");
@@ -1892,12 +1825,8 @@ mod tests {
 
     #[test]
     fn test_rbac_denied_from_error_forbidden() {
-        let denied = rbac_denied_from_error(
-            "API error: 403 Forbidden",
-            "list",
-            "Pods",
-            Some("default"),
-        );
+        let denied =
+            rbac_denied_from_error("API error: 403 Forbidden", "list", "Pods", Some("default"));
         assert!(denied.is_some());
         let denied = denied.unwrap();
         assert_eq!(denied.verb, "list");
@@ -1906,12 +1835,8 @@ mod tests {
 
     #[test]
     fn test_rbac_denied_from_error_not_forbidden() {
-        let denied = rbac_denied_from_error(
-            "API error: 404 Not Found",
-            "get",
-            "Pods",
-            Some("default"),
-        );
+        let denied =
+            rbac_denied_from_error("API error: 404 Not Found", "get", "Pods", Some("default"));
         assert!(denied.is_none());
     }
 }

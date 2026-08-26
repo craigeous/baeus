@@ -1,7 +1,5 @@
 use crate::layout::NavigationTarget;
-use gpui::{
-    div, rgb, prelude::*, Context, ElementId, SharedString, Window,
-};
+use gpui::{Context, ElementId, SharedString, Window, div, prelude::*, rgb};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -18,37 +16,16 @@ pub struct Tab {
 
 impl Tab {
     pub fn new(label: String, target: NavigationTarget) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            label,
-            target,
-            closable: true,
-            dirty: false,
-            is_preview: false,
-        }
+        Self { id: Uuid::new_v4(), label, target, closable: true, dirty: false, is_preview: false }
     }
 
     pub fn pinned(label: String, target: NavigationTarget) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            label,
-            target,
-            closable: false,
-            dirty: false,
-            is_preview: false,
-        }
+        Self { id: Uuid::new_v4(), label, target, closable: false, dirty: false, is_preview: false }
     }
 
     /// Create a preview tab (FR-067). Preview tabs are reused when navigating.
     pub fn preview(label: String, target: NavigationTarget) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            label,
-            target,
-            closable: true,
-            dirty: false,
-            is_preview: true,
-        }
+        Self { id: Uuid::new_v4(), label, target, closable: true, dirty: false, is_preview: true }
     }
 }
 
@@ -58,21 +35,15 @@ pub struct WorkspaceState {
     pub active_tab_id: Option<Uuid>,
 }
 
-
 impl WorkspaceState {
     /// Create a workspace pre-populated with a pinned Dashboard tab for a cluster.
     pub fn with_dashboard(cluster_context: &str) -> Self {
         let dashboard = Tab::pinned(
             format!("{cluster_context} - Overview"),
-            NavigationTarget::Dashboard {
-                cluster_context: cluster_context.to_string(),
-            },
+            NavigationTarget::Dashboard { cluster_context: cluster_context.to_string() },
         );
         let id = dashboard.id;
-        Self {
-            tabs: vec![dashboard],
-            active_tab_id: Some(id),
-        }
+        Self { tabs: vec![dashboard], active_tab_id: Some(id) }
     }
 
     pub fn open_tab(&mut self, target: NavigationTarget) -> Uuid {
@@ -125,8 +96,7 @@ impl WorkspaceState {
     }
 
     pub fn active_tab(&self) -> Option<&Tab> {
-        self.active_tab_id
-            .and_then(|id| self.tabs.iter().find(|t| t.id == id))
+        self.active_tab_id.and_then(|id| self.tabs.iter().find(|t| t.id == id))
     }
 
     pub fn tab_count(&self) -> usize {
@@ -199,9 +169,7 @@ impl Default for WorkspaceView {
 
 impl WorkspaceView {
     pub fn new() -> Self {
-        Self {
-            state: WorkspaceState::default(),
-        }
+        Self { state: WorkspaceState::default() }
     }
 
     pub fn state(&self) -> &WorkspaceState {
@@ -239,9 +207,8 @@ impl Render for WorkspaceView {
             let tab_label = SharedString::from(tab.label.clone());
             let closable = tab.closable;
 
-            let tab_element_id = ElementId::Name(
-                SharedString::from(format!("workspace-tab-{tab_idx}")),
-            );
+            let tab_element_id =
+                ElementId::Name(SharedString::from(format!("workspace-tab-{tab_idx}")));
 
             let mut tab_el = div()
                 .id(tab_element_id)
@@ -261,9 +228,7 @@ impl Render for WorkspaceView {
                     .border_b_1()
                     .border_color(rgb(0x60A5FA));
             } else {
-                tab_el = tab_el
-                    .text_color(rgb(0x9CA3AF))
-                    .bg(rgb(0x1F2937));
+                tab_el = tab_el.text_color(rgb(0x9CA3AF)).bg(rgb(0x1F2937));
             }
 
             // Click handler to activate tab
@@ -275,9 +240,8 @@ impl Render for WorkspaceView {
 
             // Close button for closable tabs
             if closable {
-                let close_id = ElementId::Name(
-                    SharedString::from(format!("workspace-tab-close-{tab_idx}")),
-                );
+                let close_id =
+                    ElementId::Name(SharedString::from(format!("workspace-tab-close-{tab_idx}")));
                 let close_btn = div()
                     .id(close_id)
                     .ml_1()
@@ -306,12 +270,7 @@ impl Render for WorkspaceView {
             .text_sm()
             .child(SharedString::from(active_label));
 
-        div()
-            .flex()
-            .flex_col()
-            .size_full()
-            .child(tab_bar)
-            .child(content)
+        div().flex().flex_col().size_full().child(tab_bar).child(content)
     }
 }
 
@@ -331,9 +290,7 @@ mod tests {
     }
 
     fn helm_target() -> NavigationTarget {
-        NavigationTarget::HelmReleases {
-            cluster_context: TEST_CLUSTER.to_string(),
-        }
+        NavigationTarget::HelmReleases { cluster_context: TEST_CLUSTER.to_string() }
     }
 
     #[test]
@@ -348,10 +305,7 @@ mod tests {
         let ws = WorkspaceState::with_dashboard(TEST_CLUSTER);
         assert_eq!(ws.tab_count(), 1);
         assert!(ws.active_tab().is_some());
-        assert_eq!(
-            ws.active_tab().unwrap().label,
-            "test-cluster - Overview"
-        );
+        assert_eq!(ws.active_tab().unwrap().label, "test-cluster - Overview");
         assert!(!ws.active_tab().unwrap().closable);
     }
 
@@ -366,10 +320,7 @@ mod tests {
 
         ws.open_tab(target);
         assert_eq!(ws.tab_count(), 2);
-        assert_eq!(
-            ws.active_tab().unwrap().label,
-            "test-cluster - Pods"
-        );
+        assert_eq!(ws.active_tab().unwrap().label, "test-cluster - Pods");
     }
 
     #[test]
@@ -410,11 +361,7 @@ mod tests {
 
         // Close active (Helm), should activate Event
         ws.close_tab(third_id);
-        assert!(ws
-            .active_tab()
-            .unwrap()
-            .label
-            .contains("Event"));
+        assert!(ws.active_tab().unwrap().label.contains("Event"));
     }
 
     #[test]

@@ -89,12 +89,7 @@ pub fn compute_diff(original: &str, modified: &str) -> DiffResult {
         }
     }
 
-    DiffResult {
-        lines: result_lines,
-        added_count,
-        removed_count,
-        unchanged_count,
-    }
+    DiffResult { lines: result_lines, added_count, removed_count, unchanged_count }
 }
 
 fn longest_common_subsequence<'a>(a: &[&'a str], b: &[&'a str]) -> Vec<&'a str> {
@@ -201,15 +196,12 @@ mod tests {
         let modified = "a\nx\nc";
         let result = compute_diff(original, modified);
 
-        let unchanged: Vec<_> = result
-            .lines
-            .iter()
-            .filter(|l| l.kind == DiffLineKind::Unchanged)
-            .collect();
+        let unchanged: Vec<_> =
+            result.lines.iter().filter(|l| l.kind == DiffLineKind::Unchanged).collect();
         assert_eq!(unchanged.len(), 2);
-        assert!(unchanged
-            .iter()
-            .all(|l| l.old_line_number.is_some() && l.new_line_number.is_some()));
+        assert!(
+            unchanged.iter().all(|l| l.old_line_number.is_some() && l.new_line_number.is_some())
+        );
     }
 
     #[test]

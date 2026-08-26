@@ -1,6 +1,5 @@
+use baeus_core::resource::{OwnerReference, Resource};
 use baeus_ui::views::namespace_map::*;
-use baeus_ui::theme::Theme;
-use baeus_core::resource::{Resource, OwnerReference};
 use uuid::Uuid;
 
 // ---------------------------------------------------------------------------
@@ -136,11 +135,15 @@ fn test_set_resources_builds_layout() {
     let cluster = test_cluster_id();
 
     let deploy = make_resource_with_uid(
-        "deploy-uid", "my-deploy", "default", "Deployment", "apps/v1", cluster,
+        "deploy-uid",
+        "my-deploy",
+        "default",
+        "Deployment",
+        "apps/v1",
+        cluster,
     );
-    let mut rs = make_resource_with_uid(
-        "rs-uid", "my-rs", "default", "ReplicaSet", "apps/v1", cluster,
-    );
+    let mut rs =
+        make_resource_with_uid("rs-uid", "my-rs", "default", "ReplicaSet", "apps/v1", cluster);
     rs.owner_references.push(OwnerReference {
         uid: "deploy-uid".to_string(),
         kind: "Deployment".to_string(),
@@ -169,10 +172,7 @@ fn test_set_resources_with_empty_list() {
 fn test_select_resource() {
     let mut state = NamespaceMapState::default();
     state.select_resource("Pod/default/my-pod");
-    assert_eq!(
-        state.resource_map.selected_node.as_deref(),
-        Some("Pod/default/my-pod")
-    );
+    assert_eq!(state.resource_map.selected_node.as_deref(), Some("Pod/default/my-pod"));
 }
 
 #[test]
@@ -203,7 +203,12 @@ fn test_load_complete_builds_graph() {
 
     // Build Ingress -> Service -> Pod chain
     let ingress = make_resource_with_uid(
-        "ing-uid", "my-ingress", "production", "Ingress", "networking.k8s.io/v1", cluster,
+        "ing-uid",
+        "my-ingress",
+        "production",
+        "Ingress",
+        "networking.k8s.io/v1",
+        cluster,
     )
     .with_spec(serde_json::json!({
         "rules": [{
@@ -219,15 +224,12 @@ fn test_load_complete_builds_graph() {
         }]
     }));
 
-    let svc = make_resource_with_uid(
-        "svc-uid", "my-service", "production", "Service", "v1", cluster,
-    )
-    .with_spec(serde_json::json!({ "selector": { "app": "web" } }));
+    let svc =
+        make_resource_with_uid("svc-uid", "my-service", "production", "Service", "v1", cluster)
+            .with_spec(serde_json::json!({ "selector": { "app": "web" } }));
 
-    let pod = make_resource_with_uid(
-        "pod-uid", "web-pod", "production", "Pod", "v1", cluster,
-    )
-    .with_label("app", "web");
+    let pod = make_resource_with_uid("pod-uid", "web-pod", "production", "Pod", "v1", cluster)
+        .with_label("app", "web");
 
     state.set_resources(&[ingress, svc, pod]);
 
@@ -273,11 +275,15 @@ fn test_full_pipeline_namespace_map() {
 
     // Build resources
     let deploy = make_resource_with_uid(
-        "d-uid", "my-deploy", "production", "Deployment", "apps/v1", cluster,
+        "d-uid",
+        "my-deploy",
+        "production",
+        "Deployment",
+        "apps/v1",
+        cluster,
     );
-    let mut rs = make_resource_with_uid(
-        "rs-uid", "my-rs", "production", "ReplicaSet", "apps/v1", cluster,
-    );
+    let mut rs =
+        make_resource_with_uid("rs-uid", "my-rs", "production", "ReplicaSet", "apps/v1", cluster);
     rs.owner_references.push(OwnerReference {
         uid: "d-uid".to_string(),
         kind: "Deployment".to_string(),
@@ -328,8 +334,8 @@ fn test_loading_lifecycle_complete_flow() {
     // 2. Load complete
     let svc = make_resource_with_uid("s1", "svc1", "ns", "Service", "v1", cluster)
         .with_spec(serde_json::json!({"selector": {"app": "x"}}));
-    let pod = make_resource_with_uid("p1", "pod1", "ns", "Pod", "v1", cluster)
-        .with_label("app", "x");
+    let pod =
+        make_resource_with_uid("p1", "pod1", "ns", "Pod", "v1", cluster).with_label("app", "x");
     state.set_resources(&[svc, pod]);
 
     assert!(!state.loading);

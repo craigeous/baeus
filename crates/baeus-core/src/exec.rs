@@ -54,18 +54,11 @@ pub struct ExecSession {
 
 impl ExecSession {
     pub fn new(config: ExecConfig) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            config,
-            state: ExecSessionState::Idle,
-        }
+        Self { id: Uuid::new_v4(), config, state: ExecSessionState::Idle }
     }
 
     pub fn is_active(&self) -> bool {
-        matches!(
-            self.state,
-            ExecSessionState::Connecting | ExecSessionState::Connected
-        )
+        matches!(self.state, ExecSessionState::Connecting | ExecSessionState::Connected)
     }
 
     pub fn connect(&mut self) {
@@ -166,11 +159,7 @@ pub struct PortForwardSession {
 
 impl PortForwardSession {
     pub fn new(config: PortForwardConfig) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            config,
-            state: PortForwardState::Active,
-        }
+        Self { id: Uuid::new_v4(), config, state: PortForwardState::Active }
     }
 
     pub fn is_active(&self) -> bool {
@@ -232,9 +221,7 @@ impl PortForwardManager {
     }
 
     pub fn is_port_in_use(&self, local_port: u16) -> bool {
-        self.sessions
-            .iter()
-            .any(|s| s.config.local_port == local_port && s.is_active())
+        self.sessions.iter().any(|s| s.config.local_port == local_port && s.is_active())
     }
 
     pub fn get_mut(&mut self, id: Uuid) -> Option<&mut PortForwardSession> {
@@ -270,10 +257,7 @@ impl PortForwardManager {
     }
 
     pub fn sessions_for_cluster(&self, cluster_id: &Uuid) -> Vec<&PortForwardSession> {
-        self.sessions
-            .iter()
-            .filter(|s| s.config.cluster_id == *cluster_id)
-            .collect()
+        self.sessions.iter().filter(|s| s.config.cluster_id == *cluster_id).collect()
     }
 
     pub fn reconnect_session(&mut self, id: Uuid) -> Option<Uuid> {
@@ -293,11 +277,7 @@ mod tests {
 
     #[test]
     fn test_exec_config_shell() {
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
         assert_eq!(config.command, vec!["/bin/sh"]);
         assert!(config.tty);
         assert!(config.stdin);
@@ -306,33 +286,21 @@ mod tests {
 
     #[test]
     fn test_exec_config_with_container() {
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        )
-        .with_container("sidecar".to_string());
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string())
+            .with_container("sidecar".to_string());
         assert_eq!(config.container_name.as_deref(), Some("sidecar"));
     }
 
     #[test]
     fn test_exec_config_with_command() {
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        )
-        .with_command(vec!["ls".to_string(), "-la".to_string()]);
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string())
+            .with_command(vec!["ls".to_string(), "-la".to_string()]);
         assert_eq!(config.command, vec!["ls", "-la"]);
     }
 
     #[test]
     fn test_exec_session_lifecycle() {
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
         let mut session = ExecSession::new(config);
 
         assert_eq!(session.state, ExecSessionState::Idle);
@@ -434,11 +402,8 @@ mod tests {
     #[test]
     fn test_exec_config_shell_preserves_cluster_and_pod() {
         let cluster_id = Uuid::new_v4();
-        let config = ExecConfig::shell(
-            cluster_id,
-            "kube-system".to_string(),
-            "coredns-abc123".to_string(),
-        );
+        let config =
+            ExecConfig::shell(cluster_id, "kube-system".to_string(), "coredns-abc123".to_string());
         assert_eq!(config.cluster_id, cluster_id);
         assert_eq!(config.namespace, "kube-system");
         assert_eq!(config.pod_name, "coredns-abc123");
@@ -446,13 +411,9 @@ mod tests {
 
     #[test]
     fn test_exec_config_chained_builder() {
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        )
-        .with_container("istio-proxy".to_string())
-        .with_command(vec!["curl".to_string(), "localhost:15000".to_string()]);
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string())
+            .with_container("istio-proxy".to_string())
+            .with_command(vec!["curl".to_string(), "localhost:15000".to_string()]);
 
         assert_eq!(config.container_name.as_deref(), Some("istio-proxy"));
         assert_eq!(config.command, vec!["curl", "localhost:15000"]);
@@ -462,12 +423,8 @@ mod tests {
 
     #[test]
     fn test_exec_config_with_command_overrides_shell_default() {
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        )
-        .with_command(vec!["/bin/bash".to_string()]);
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string())
+            .with_command(vec!["/bin/bash".to_string()]);
 
         assert_eq!(config.command, vec!["/bin/bash"]);
     }
@@ -475,19 +432,13 @@ mod tests {
     #[test]
     fn test_exec_config_multiple_containers() {
         let cluster_id = Uuid::new_v4();
-        let config_a = ExecConfig::shell(
-            cluster_id,
-            "default".to_string(),
-            "multi-container-pod".to_string(),
-        )
-        .with_container("app".to_string());
+        let config_a =
+            ExecConfig::shell(cluster_id, "default".to_string(), "multi-container-pod".to_string())
+                .with_container("app".to_string());
 
-        let config_b = ExecConfig::shell(
-            cluster_id,
-            "default".to_string(),
-            "multi-container-pod".to_string(),
-        )
-        .with_container("sidecar".to_string());
+        let config_b =
+            ExecConfig::shell(cluster_id, "default".to_string(), "multi-container-pod".to_string())
+                .with_container("sidecar".to_string());
 
         assert_eq!(config_a.container_name.as_deref(), Some("app"));
         assert_eq!(config_b.container_name.as_deref(), Some("sidecar"));
@@ -498,11 +449,7 @@ mod tests {
 
     #[test]
     fn test_exec_session_state_transitions_with_methods() {
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
         let mut session = ExecSession::new(config);
 
         assert_eq!(session.state, ExecSessionState::Idle);
@@ -523,30 +470,19 @@ mod tests {
 
     #[test]
     fn test_exec_session_error_state() {
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
         let mut session = ExecSession::new(config);
 
         session.connect();
         session.set_error("connection refused".to_string());
 
-        assert_eq!(
-            session.state,
-            ExecSessionState::Error("connection refused".to_string())
-        );
+        assert_eq!(session.state, ExecSessionState::Error("connection refused".to_string()));
         assert!(!session.is_active());
     }
 
     #[test]
     fn test_exec_session_error_from_connected() {
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
         let mut session = ExecSession::new(config);
 
         session.connect();
@@ -562,16 +498,10 @@ mod tests {
 
     #[test]
     fn test_exec_session_unique_ids() {
-        let config_a = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
-        let config_b = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
+        let config_a =
+            ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
+        let config_b =
+            ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
 
         let session_a = ExecSession::new(config_a);
         let session_b = ExecSession::new(config_b);
@@ -609,10 +539,7 @@ mod tests {
         assert!(!session_c.is_active());
         assert_eq!(session_a.state, ExecSessionState::Connected);
         assert_eq!(session_b.state, ExecSessionState::Connecting);
-        assert_eq!(
-            session_c.state,
-            ExecSessionState::Error("timeout".to_string())
-        );
+        assert_eq!(session_c.state, ExecSessionState::Error("timeout".to_string()));
     }
 
     // ===== T072: ExecManager tests =====
@@ -627,46 +554,28 @@ mod tests {
     #[test]
     fn test_exec_manager_create_session() {
         let mut manager = ExecManager::new();
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
 
         let id = manager.create_session(config);
         assert_eq!(manager.session_count(), 1);
         assert!(manager.get_session(id).is_some());
-        assert_eq!(
-            manager.get_session(id).unwrap().state,
-            ExecSessionState::Idle
-        );
+        assert_eq!(manager.get_session(id).unwrap().state, ExecSessionState::Idle);
     }
 
     #[test]
     fn test_exec_manager_get_session_mut() {
         let mut manager = ExecManager::new();
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
 
         let id = manager.create_session(config);
         manager.get_session_mut(id).unwrap().connect();
-        assert_eq!(
-            manager.get_session(id).unwrap().state,
-            ExecSessionState::Connecting
-        );
+        assert_eq!(manager.get_session(id).unwrap().state, ExecSessionState::Connecting);
     }
 
     #[test]
     fn test_exec_manager_remove_session() {
         let mut manager = ExecManager::new();
-        let config = ExecConfig::shell(
-            Uuid::new_v4(),
-            "default".to_string(),
-            "nginx".to_string(),
-        );
+        let config = ExecConfig::shell(Uuid::new_v4(), "default".to_string(), "nginx".to_string());
 
         let id = manager.create_session(config);
         assert!(manager.remove_session(id));
@@ -721,12 +630,8 @@ mod tests {
             "nginx".to_string(),
         ));
         manager.create_session(
-            ExecConfig::shell(
-                cluster_id,
-                "default".to_string(),
-                "nginx".to_string(),
-            )
-            .with_container("sidecar".to_string()),
+            ExecConfig::shell(cluster_id, "default".to_string(), "nginx".to_string())
+                .with_container("sidecar".to_string()),
         );
         manager.create_session(ExecConfig::shell(
             cluster_id,
@@ -741,10 +646,7 @@ mod tests {
 
         assert_eq!(manager.sessions_for_pod("nginx", "default").len(), 2);
         assert_eq!(manager.sessions_for_pod("redis", "default").len(), 1);
-        assert_eq!(
-            manager.sessions_for_pod("nginx", "kube-system").len(),
-            1
-        );
+        assert_eq!(manager.sessions_for_pod("nginx", "kube-system").len(), 1);
         assert_eq!(manager.sessions_for_pod("missing", "default").len(), 0);
     }
 
@@ -776,18 +678,9 @@ mod tests {
 
         manager.disconnect_all();
 
-        assert_eq!(
-            manager.get_session(id_a).unwrap().state,
-            ExecSessionState::Disconnected
-        );
-        assert_eq!(
-            manager.get_session(id_b).unwrap().state,
-            ExecSessionState::Disconnected
-        );
-        assert_eq!(
-            manager.get_session(id_c).unwrap().state,
-            ExecSessionState::Disconnected
-        );
+        assert_eq!(manager.get_session(id_a).unwrap().state, ExecSessionState::Disconnected);
+        assert_eq!(manager.get_session(id_b).unwrap().state, ExecSessionState::Disconnected);
+        assert_eq!(manager.get_session(id_c).unwrap().state, ExecSessionState::Disconnected);
         assert!(manager.active_sessions().is_empty());
     }
 
@@ -913,10 +806,7 @@ mod tests {
 
         assert_eq!(manager.sessions_for_pod("nginx", "default").len(), 1);
         assert_eq!(manager.sessions_for_pod("nginx", "staging").len(), 1);
-        assert_eq!(
-            manager.sessions_for_pod("nginx", "production").len(),
-            0
-        );
+        assert_eq!(manager.sessions_for_pod("nginx", "production").len(), 0);
     }
 
     // ===== T067a: PortForwardSession state transition tests =====
@@ -953,10 +843,7 @@ mod tests {
 
         session.set_error("connection reset by peer");
         assert!(!session.is_active());
-        assert_eq!(
-            session.state,
-            PortForwardState::Error("connection reset by peer".to_string())
-        );
+        assert_eq!(session.state, PortForwardState::Error("connection reset by peer".to_string()));
     }
 
     // ===== T067a: Reconnect workflow test =====
@@ -1055,14 +942,8 @@ mod tests {
         manager.stop_all();
 
         assert_eq!(manager.active_count(), 0);
-        assert_eq!(
-            manager.get(id_a).unwrap().state,
-            PortForwardState::Stopped
-        );
-        assert_eq!(
-            manager.get(id_b).unwrap().state,
-            PortForwardState::Stopped
-        );
+        assert_eq!(manager.get(id_a).unwrap().state, PortForwardState::Stopped);
+        assert_eq!(manager.get(id_b).unwrap().state, PortForwardState::Stopped);
         assert!(manager.active_sessions().is_empty());
     }
 
@@ -1131,10 +1012,7 @@ mod tests {
 
         assert_eq!(manager.sessions_for_cluster(&cluster_a).len(), 2);
         assert_eq!(manager.sessions_for_cluster(&cluster_b).len(), 1);
-        assert_eq!(
-            manager.sessions_for_cluster(&Uuid::new_v4()).len(),
-            0
-        );
+        assert_eq!(manager.sessions_for_cluster(&Uuid::new_v4()).len(), 0);
     }
 
     #[test]
@@ -1154,10 +1032,7 @@ mod tests {
         assert_ne!(original_id, new_id);
 
         // Old session is stopped
-        assert_eq!(
-            manager.get(original_id).unwrap().state,
-            PortForwardState::Stopped
-        );
+        assert_eq!(manager.get(original_id).unwrap().state, PortForwardState::Stopped);
 
         // New session is active with identical config
         let new_session = manager.get(new_id).unwrap();

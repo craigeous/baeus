@@ -132,18 +132,20 @@ impl AppShell {
                 ("external_id", "(optional)", wizard.external_id.clone()),
                 ("assume_role_region", "us-east-1", wizard.assume_role_region.clone()),
             ],
-            EksWizardStep::SsoAccountSelection => vec![
-                ("account_filter", "Filter accounts...", String::new()),
-            ],
-            EksWizardStep::SsoRoleSelection => vec![
-                ("role_filter", "Filter roles...", String::new()),
-            ],
-            EksWizardStep::AssumeIamRole => vec![
-                ("iam_role_arn", "arn:aws:iam::123456789012:role/RoleName", wizard.iam_role_arn.clone()),
-            ],
-            EksWizardStep::ClusterResults => vec![
-                ("cluster_filter", "Filter clusters...", String::new()),
-            ],
+            EksWizardStep::SsoAccountSelection => {
+                vec![("account_filter", "Filter accounts...", String::new())]
+            }
+            EksWizardStep::SsoRoleSelection => {
+                vec![("role_filter", "Filter roles...", String::new())]
+            }
+            EksWizardStep::AssumeIamRole => vec![(
+                "iam_role_arn",
+                "arn:aws:iam::123456789012:role/RoleName",
+                wizard.iam_role_arn.clone(),
+            )],
+            EksWizardStep::ClusterResults => {
+                vec![("cluster_filter", "Filter clusters...", String::new())]
+            }
             _ => return,
         };
 
@@ -168,9 +170,8 @@ impl AppShell {
             });
 
             let field_name = name.to_string();
-            let sub = cx.subscribe(
-                &input,
-                move |this: &mut AppShell, entity, event: &InputEvent, cx| {
+            let sub =
+                cx.subscribe(&input, move |this: &mut AppShell, entity, event: &InputEvent, cx| {
                     if matches!(event, InputEvent::Change) {
                         let val = entity.read(cx).value().to_string();
                         if let Some(ref mut w) = this.eks_wizard {
@@ -184,15 +185,16 @@ impl AppShell {
                                 "role_arn" => w.role_arn = val,
                                 "external_id" => w.external_id = val,
                                 "assume_role_region" => w.assume_role_region = val,
-                                "account_filter" | "role_filter" | "cluster_filter" => w.filter_text = val,
+                                "account_filter" | "role_filter" | "cluster_filter" => {
+                                    w.filter_text = val
+                                }
                                 "iam_role_arn" => w.iam_role_arn = val,
                                 _ => {}
                             }
                         }
                         cx.notify();
                     }
-                },
-            );
+                });
 
             if let Some(ref mut w) = self.eks_wizard {
                 w.inputs.insert(name.to_string(), input);
@@ -201,10 +203,8 @@ impl AppShell {
         }
 
         // Special handling: create per-cluster role inputs for ClusterResults step
-        if matches!(
-            self.eks_wizard.as_ref().map(|w| &w.step),
-            Some(EksWizardStep::ClusterResults)
-        ) {
+        if matches!(self.eks_wizard.as_ref().map(|w| &w.step), Some(EksWizardStep::ClusterResults))
+        {
             let Some(ref wizard) = self.eks_wizard else { return };
             let default_role = wizard.iam_role_arn.clone();
             let cluster_fields: Vec<(String, String)> = wizard
@@ -324,15 +324,17 @@ impl AppShell {
         let tokio_handle = cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                let config = baeus_core::aws_eks::AssumeRoleConfig {
-                    role_arn,
-                    external_id: None,
-                    session_name: Some("baeus-eks".to_string()),
-                    region,
-                };
-                baeus_core::aws_eks::assume_role(&config, &source_creds).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    let config = baeus_core::aws_eks::AssumeRoleConfig {
+                        role_arn,
+                        external_id: None,
+                        session_name: Some("baeus-eks".to_string()),
+                        region,
+                    };
+                    baeus_core::aws_eks::assume_role(&config, &source_creds).await
+                })
+                .await;
             match result {
                 Ok(Ok(assumed_session)) => {
                     this.update(cx, |this, cx| {
@@ -340,7 +342,8 @@ impl AppShell {
                             // Preserve original SSO creds for per-cluster role assumption
                             if w.original_sso_credentials.is_none() {
                                 if let Some(ref sso_session) = w.session {
-                                    w.original_sso_credentials = Some(sso_session.credentials.clone());
+                                    w.original_sso_credentials =
+                                        Some(sso_session.credentials.clone());
                                 }
                             }
                             // Replace session with the assumed role's session
@@ -348,7 +351,8 @@ impl AppShell {
                             w.step = EksWizardStep::RegionSelection;
                         }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Ok(Err(e)) => {
                     let msg = format!("AssumeRole failed: {e}");
@@ -357,7 +361,8 @@ impl AppShell {
                             w.error = Some(msg);
                         }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
                 Err(e) => {
                     let msg = format!("AssumeRole task failed: {e}");
@@ -366,10 +371,12 @@ impl AppShell {
                             w.error = Some(msg);
                         }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// Start the SSO device-code flow: register client, start device auth, open browser.
@@ -388,26 +395,34 @@ impl AppShell {
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
             let region2 = region.clone();
-            let register_result = tokio_handle.spawn(async move {
-                aws_eks::sso_register_client(&region2).await
-            }).await;
+            let register_result = tokio_handle
+                .spawn(async move { aws_eks::sso_register_client(&region2).await })
+                .await;
 
             let (client_id, client_secret) = match register_result {
                 Ok(Ok(pair)) => pair,
                 Ok(Err(e)) => {
                     let msg = format!("SSO registration failed: {e}");
                     this.update(cx, |this, cx| {
-                        if let Some(ref mut w) = this.eks_wizard { w.error = Some(msg); w.step = EksWizardStep::SsoConfig; }
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some(msg);
+                            w.step = EksWizardStep::SsoConfig;
+                        }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                     return;
                 }
                 Err(e) => {
                     let msg = format!("SSO registration failed: {e}");
                     this.update(cx, |this, cx| {
-                        if let Some(ref mut w) = this.eks_wizard { w.error = Some(msg); w.step = EksWizardStep::SsoConfig; }
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some(msg);
+                            w.step = EksWizardStep::SsoConfig;
+                        }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                     return;
                 }
             };
@@ -416,32 +431,41 @@ impl AppShell {
             let cid = client_id.clone();
             let csec = client_secret.clone();
             let surl = start_url.clone();
-            let device_result = tokio_handle.spawn(async move {
-                aws_eks::sso_start_device_auth(&r, &cid, &csec, &surl).await
-            }).await;
+            let device_result = tokio_handle
+                .spawn(async move { aws_eks::sso_start_device_auth(&r, &cid, &csec, &surl).await })
+                .await;
 
             let device_auth = match device_result {
                 Ok(Ok(da)) => da,
                 Ok(Err(e)) => {
                     let msg = format!("Device authorization failed: {e}");
                     this.update(cx, |this, cx| {
-                        if let Some(ref mut w) = this.eks_wizard { w.error = Some(msg); w.step = EksWizardStep::SsoConfig; }
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some(msg);
+                            w.step = EksWizardStep::SsoConfig;
+                        }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                     return;
                 }
                 Err(e) => {
                     let msg = format!("Device authorization failed: {e}");
                     this.update(cx, |this, cx| {
-                        if let Some(ref mut w) = this.eks_wizard { w.error = Some(msg); w.step = EksWizardStep::SsoConfig; }
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some(msg);
+                            w.step = EksWizardStep::SsoConfig;
+                        }
                         cx.notify();
-                    }).ok();
+                    })
+                    .ok();
                     return;
                 }
             };
 
             let browser_url = device_auth
-                .verification_uri_complete.clone()
+                .verification_uri_complete
+                .clone()
                 .unwrap_or_else(|| device_auth.verification_uri.clone());
             let _ = open::that(&browser_url);
 
@@ -456,7 +480,8 @@ impl AppShell {
                     w.auth_state = EksAuthState::PollingForToken;
                 }
                 cx.notify();
-            }).ok();
+            })
+            .ok();
 
             loop {
                 // Sleep on tokio runtime
@@ -467,18 +492,18 @@ impl AppShell {
                 let cid = client_id.clone();
                 let csec = client_secret.clone();
                 let dc = device_code.clone();
-                let poll_result = tokio_handle.spawn(async move {
-                    aws_eks::sso_poll_for_token(&r, &cid, &csec, &dc).await
-                }).await;
+                let poll_result = tokio_handle
+                    .spawn(async move { aws_eks::sso_poll_for_token(&r, &cid, &csec, &dc).await })
+                    .await;
 
                 match poll_result {
                     Ok(Ok(aws_eks::SsoTokenResult::Pending)) => {}
                     Ok(Ok(aws_eks::SsoTokenResult::Success { access_token, .. })) => {
                         let r = region.clone();
                         let at = access_token.clone();
-                        let accounts_result = tokio_handle.spawn(async move {
-                            aws_eks::sso_list_accounts(&r, &at).await
-                        }).await;
+                        let accounts_result = tokio_handle
+                            .spawn(async move { aws_eks::sso_list_accounts(&r, &at).await })
+                            .await;
 
                         match accounts_result {
                             Ok(Ok(accounts)) => {
@@ -487,16 +512,24 @@ impl AppShell {
                                         w.sso_access_token = Some(access_token);
                                         let mut sorted = accounts;
                                         sorted.sort_by(|a, b| {
-                                            a.account_name.as_deref().unwrap_or("")
+                                            a.account_name
+                                                .as_deref()
+                                                .unwrap_or("")
                                                 .to_lowercase()
-                                                .cmp(&b.account_name.as_deref().unwrap_or("").to_lowercase())
+                                                .cmp(
+                                                    &b.account_name
+                                                        .as_deref()
+                                                        .unwrap_or("")
+                                                        .to_lowercase(),
+                                                )
                                         });
                                         w.sso_accounts = sorted;
                                         w.step = EksWizardStep::SsoAccountSelection;
                                         w.auth_state = EksAuthState::SelectingAccount;
                                     }
                                     cx.notify();
-                                }).ok();
+                                })
+                                .ok();
                             }
                             _ => {
                                 this.update(cx, |this, cx| {
@@ -505,7 +538,8 @@ impl AppShell {
                                         w.step = EksWizardStep::SsoConfig;
                                     }
                                     cx.notify();
-                                }).ok();
+                                })
+                                .ok();
                             }
                         }
                         return;
@@ -517,7 +551,8 @@ impl AppShell {
                                 w.step = EksWizardStep::SsoConfig;
                             }
                             cx.notify();
-                        }).ok();
+                        })
+                        .ok();
                         return;
                     }
                     Ok(Err(e)) => {
@@ -529,7 +564,8 @@ impl AppShell {
                                 w.step = EksWizardStep::SsoConfig;
                             }
                             cx.notify();
-                        }).ok();
+                        })
+                        .ok();
                         return;
                     }
                     Err(e) => {
@@ -540,12 +576,14 @@ impl AppShell {
                                 w.step = EksWizardStep::SsoConfig;
                             }
                             cx.notify();
-                        }).ok();
+                        })
+                        .ok();
                         return;
                     }
                 }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     fn eks_load_roles_for_account(&mut self, cx: &mut Context<Self>) {
@@ -558,14 +596,37 @@ impl AppShell {
         let tokio_handle = cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                aws_eks::sso_list_account_roles(&region, &token, &account_id).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    aws_eks::sso_list_account_roles(&region, &token, &account_id).await
+                })
+                .await;
             match result {
-                Ok(Ok(mut roles)) => { roles.sort_by(|a, b| a.role_name.to_lowercase().cmp(&b.role_name.to_lowercase())); this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.sso_roles = roles; w.step = EksWizardStep::SsoRoleSelection; } cx.notify(); }).ok(); }
-                _ => { this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.error = Some("Failed to list roles".to_string()); } cx.notify(); }).ok(); }
+                Ok(Ok(mut roles)) => {
+                    roles.sort_by(|a, b| {
+                        a.role_name.to_lowercase().cmp(&b.role_name.to_lowercase())
+                    });
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.sso_roles = roles;
+                            w.step = EksWizardStep::SsoRoleSelection;
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
+                _ => {
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some("Failed to list roles".to_string());
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     fn eks_get_sso_role_credentials(&mut self, cx: &mut Context<Self>) {
@@ -580,14 +641,35 @@ impl AppShell {
         let tokio_handle = cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                aws_eks::sso_get_role_credentials(&region, &token, &account_id, &role_name).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    aws_eks::sso_get_role_credentials(&region, &token, &account_id, &role_name)
+                        .await
+                })
+                .await;
             match result {
-                Ok(Ok(session)) => { this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.session = Some(session); w.step = EksWizardStep::AssumeIamRole; } cx.notify(); }).ok(); }
-                _ => { this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.error = Some("Failed to get credentials".to_string()); } cx.notify(); }).ok(); }
+                Ok(Ok(session)) => {
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.session = Some(session);
+                            w.step = EksWizardStep::AssumeIamRole;
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
+                _ => {
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some("Failed to get credentials".to_string());
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     fn eks_authenticate_access_key(&mut self, cx: &mut Context<Self>) {
@@ -595,28 +677,64 @@ impl AppShell {
         let config = baeus_core::aws_eks::AccessKeyConfig {
             access_key_id: wizard.access_key_id.trim().to_string(),
             secret_access_key: wizard.secret_access_key.trim().to_string(),
-            session_token: if wizard.session_token.trim().is_empty() { None } else { Some(wizard.session_token.trim().to_string()) },
+            session_token: if wizard.session_token.trim().is_empty() {
+                None
+            } else {
+                Some(wizard.session_token.trim().to_string())
+            },
             region: wizard.access_key_region.trim().to_string(),
         };
         let tokio_handle = cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                aws_eks::authenticate_with_access_key(&config).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move { aws_eks::authenticate_with_access_key(&config).await })
+                .await;
             match result {
-                Ok(Ok(session)) => { this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.session = Some(session); w.step = EksWizardStep::RegionSelection; } cx.notify(); }).ok(); }
-                Ok(Err(e)) => { let msg = format!("Authentication failed: {e}"); this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.error = Some(msg); } cx.notify(); }).ok(); }
-                Err(e) => { let msg = format!("Authentication failed: {e}"); this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.error = Some(msg); } cx.notify(); }).ok(); }
+                Ok(Ok(session)) => {
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.session = Some(session);
+                            w.step = EksWizardStep::RegionSelection;
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
+                Ok(Err(e)) => {
+                    let msg = format!("Authentication failed: {e}");
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some(msg);
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
+                Err(e) => {
+                    let msg = format!("Authentication failed: {e}");
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some(msg);
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     fn eks_assume_role(&mut self, cx: &mut Context<Self>) {
         let Some(ref wizard) = self.eks_wizard else { return };
         let config = baeus_core::aws_eks::AssumeRoleConfig {
             role_arn: wizard.role_arn.trim().to_string(),
-            external_id: if wizard.external_id.trim().is_empty() { None } else { Some(wizard.external_id.trim().to_string()) },
+            external_id: if wizard.external_id.trim().is_empty() {
+                None
+            } else {
+                Some(wizard.external_id.trim().to_string())
+            },
             session_name: None,
             region: wizard.assume_role_region.trim().to_string(),
         };
@@ -624,34 +742,76 @@ impl AppShell {
         let tokio_handle = cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                let default_config = aws_config::defaults(aws_config::BehaviorVersion::latest())
-                    .region(aws_types::region::Region::new(region)).load().await;
-                let source_creds = match default_config.credentials_provider() {
-                    Some(provider) => {
-                        use aws_credential_types::provider::ProvideCredentials;
-                        match provider.provide_credentials().await {
-                            Ok(c) => aws_credential_types::Credentials::new(c.access_key_id(), c.secret_access_key(), c.session_token().map(|s| s.to_string()), c.expiry(), "baeus-source"),
-                            Err(e) => return Err(anyhow::anyhow!("No source credentials: {e}")),
+            let result = tokio_handle
+                .spawn(async move {
+                    let default_config =
+                        aws_config::defaults(aws_config::BehaviorVersion::latest())
+                            .region(aws_types::region::Region::new(region))
+                            .load()
+                            .await;
+                    let source_creds = match default_config.credentials_provider() {
+                        Some(provider) => {
+                            use aws_credential_types::provider::ProvideCredentials;
+                            match provider.provide_credentials().await {
+                                Ok(c) => aws_credential_types::Credentials::new(
+                                    c.access_key_id(),
+                                    c.secret_access_key(),
+                                    c.session_token().map(|s| s.to_string()),
+                                    c.expiry(),
+                                    "baeus-source",
+                                ),
+                                Err(e) => {
+                                    return Err(anyhow::anyhow!("No source credentials: {e}"));
+                                }
+                            }
                         }
-                    }
-                    None => return Err(anyhow::anyhow!("No AWS credentials found")),
-                };
-                aws_eks::assume_role(&config, &source_creds).await
-            }).await;
+                        None => return Err(anyhow::anyhow!("No AWS credentials found")),
+                    };
+                    aws_eks::assume_role(&config, &source_creds).await
+                })
+                .await;
             match result {
-                Ok(Ok(session)) => { this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.session = Some(session); w.step = EksWizardStep::RegionSelection; } cx.notify(); }).ok(); }
-                Ok(Err(e)) => { let msg = format!("AssumeRole failed: {e}"); this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.error = Some(msg); } cx.notify(); }).ok(); }
-                Err(e) => { let msg = format!("AssumeRole failed: {e}"); this.update(cx, |this, cx| { if let Some(ref mut w) = this.eks_wizard { w.error = Some(msg); } cx.notify(); }).ok(); }
+                Ok(Ok(session)) => {
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.session = Some(session);
+                            w.step = EksWizardStep::RegionSelection;
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
+                Ok(Err(e)) => {
+                    let msg = format!("AssumeRole failed: {e}");
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some(msg);
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
+                Err(e) => {
+                    let msg = format!("AssumeRole failed: {e}");
+                    this.update(cx, |this, cx| {
+                        if let Some(ref mut w) = this.eks_wizard {
+                            w.error = Some(msg);
+                        }
+                        cx.notify();
+                    })
+                    .ok();
+                }
             }
-        }).detach();
+        })
+        .detach();
     }
 
     fn eks_discover_clusters(&mut self, cx: &mut Context<Self>) {
         let Some(ref mut wizard) = self.eks_wizard else { return };
         let Some(ref session) = wizard.session else {
             wizard.error = Some("No active session — authenticate first.".to_string());
-            cx.notify(); return;
+            cx.notify();
+            return;
         };
         let credentials = session.credentials.clone();
         let regions: Vec<String> = wizard.selected_regions.iter().cloned().collect();
@@ -664,9 +824,11 @@ impl AppShell {
         let tokio_handle = cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
 
         cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
-            let result = tokio_handle.spawn(async move {
-                aws_eks::discover_eks_clusters(&credentials, &regions, |_, _| {}).await
-            }).await;
+            let result = tokio_handle
+                .spawn(async move {
+                    aws_eks::discover_eks_clusters(&credentials, &regions, |_, _| {}).await
+                })
+                .await;
             this.update(cx, |this, cx| {
                 if let Some(ref mut w) = this.eks_wizard {
                     match result {
@@ -676,13 +838,21 @@ impl AppShell {
                             w.discovered_clusters = clusters;
                             w.step = EksWizardStep::ClusterResults;
                         }
-                        Ok(Err(e)) => { w.error = Some(format!("Discovery failed: {e}")); w.step = EksWizardStep::RegionSelection; }
-                        Err(e) => { w.error = Some(format!("Discovery failed: {e}")); w.step = EksWizardStep::RegionSelection; }
+                        Ok(Err(e)) => {
+                            w.error = Some(format!("Discovery failed: {e}"));
+                            w.step = EksWizardStep::RegionSelection;
+                        }
+                        Err(e) => {
+                            w.error = Some(format!("Discovery failed: {e}"));
+                            w.step = EksWizardStep::RegionSelection;
+                        }
                     }
                 }
                 cx.notify();
-            }).ok();
-        }).detach();
+            })
+            .ok();
+        })
+        .detach();
     }
 
     fn eks_connect_selected_clusters(&mut self, cx: &mut Context<Self>) {
@@ -711,21 +881,32 @@ impl AppShell {
         // (wizard.iam_role_arn), skip re-assumption — the session creds already
         // have that identity.
         let already_assumed_role = wizard.iam_role_arn.trim().to_string();
-        let selected: Vec<_> = wizard.selected_cluster_indices.iter()
+        let selected: Vec<_> = wizard
+            .selected_cluster_indices
+            .iter()
             .filter_map(|&idx| {
                 let cluster = wizard.discovered_clusters.get(idx)?.clone();
-                let role = wizard.per_cluster_roles.get(&idx)
+                let role = wizard
+                    .per_cluster_roles
+                    .get(&idx)
                     .filter(|r| !r.trim().is_empty())
                     .cloned()
                     .or_else(|| {
-                        if already_assumed_role.is_empty() { None } else { Some(already_assumed_role.clone()) }
+                        if already_assumed_role.is_empty() {
+                            None
+                        } else {
+                            Some(already_assumed_role.clone())
+                        }
                     });
                 // If the per-cluster role is the same as the already-assumed role,
                 // treat it as "no role" — the session already has those credentials.
                 let effective_role = role.clone().filter(|r| r.trim() != already_assumed_role);
                 tracing::info!(
                     "EKS wizard: cluster '{}' (region={}) — role: {:?} (already_assumed: '{}')",
-                    cluster.name, cluster.region, effective_role, already_assumed_role,
+                    cluster.name,
+                    cluster.region,
+                    effective_role,
+                    already_assumed_role,
                 );
                 // (cluster, effective_role for live connection, full_role for persistence)
                 Some((cluster, effective_role, role))
@@ -735,13 +916,18 @@ impl AppShell {
         let base_region = session.region.clone();
         // For per-cluster role assumption, use original SSO creds (before step 2 assumption)
         // so we can assume any role, not just roles chainable from the step 2 role.
-        let sso_credentials = wizard.original_sso_credentials.clone()
-            .unwrap_or_else(|| base_credentials.clone());
+        let sso_credentials =
+            wizard.original_sso_credentials.clone().unwrap_or_else(|| base_credentials.clone());
 
         for (cluster, role_arn, _full_role) in &selected {
             let context_name = aws_eks::eks_context_name(cluster);
             let display_name = format!("{} ({})", cluster.name, cluster.region);
-            let conn = ClusterConnection::new(cluster.name.clone(), context_name.clone(), cluster.endpoint.clone(), AuthMethod::AwsEks);
+            let conn = ClusterConnection::new(
+                cluster.name.clone(),
+                context_name.clone(),
+                cluster.endpoint.clone(),
+                AuthMethod::AwsEks,
+            );
             let cluster_id = self.cluster_manager.add_connection(conn);
 
             // If a per-cluster role needs to be assumed, show Connecting immediately
@@ -753,11 +939,20 @@ impl AppShell {
                 ClusterStatus::Disconnected
             };
             let entry = ClusterEntry {
-                id: cluster_id, context_name: context_name.clone(), display_name,
-                initials: generate_initials(&cluster.name), color: generate_cluster_color(&context_name),
-                status: initial_status, expanded: false, sections: Vec::new(),
-                expanded_categories: HashSet::new(), custom_icon_path: None,
-                source: crate::layout::sidebar::ClusterSource::AwsEks { region: cluster.region.clone(), account_id: None },
+                id: cluster_id,
+                context_name: context_name.clone(),
+                display_name,
+                initials: generate_initials(&cluster.name),
+                color: generate_cluster_color(&context_name),
+                status: initial_status,
+                expanded: false,
+                sections: Vec::new(),
+                expanded_categories: HashSet::new(),
+                custom_icon_path: None,
+                source: crate::layout::sidebar::ClusterSource::AwsEks {
+                    region: cluster.region.clone(),
+                    account_id: None,
+                },
             };
             self.sidebar.clusters.push(entry);
 
@@ -767,67 +962,84 @@ impl AppShell {
             // from being called with stale base credentials if the user clicks
             // the cluster before the async role assumption completes.
             if let Some(role) = role_arn {
-                let tokio_handle = cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
+                let tokio_handle =
+                    cx.global::<crate::layout::app_shell::GpuiTokioHandle>().0.clone();
                 let creds = sso_credentials.clone(); // Use original SSO creds, not step-2 assumed creds
                 let role = role.clone();
                 let region = base_region.clone();
                 let ctx_name = context_name.clone();
                 let cluster_for_data = cluster.clone();
 
-                tracing::info!(
-                    "EKS wizard: assuming role '{}' for cluster '{}'",
-                    role, ctx_name,
-                );
+                tracing::info!("EKS wizard: assuming role '{}' for cluster '{}'", role, ctx_name,);
 
                 cx.spawn(async move |this: WeakEntity<AppShell>, cx: &mut AsyncApp| {
                     // First assume the role
                     let assumed_role = role.clone();
-                    let result = tokio_handle.spawn(async move {
-                        let config = baeus_core::aws_eks::AssumeRoleConfig {
-                            role_arn: role,
-                            external_id: None,
-                            session_name: Some("baeus-eks".to_string()),
-                            region,
-                        };
-                        baeus_core::aws_eks::assume_role(&config, &creds).await
-                    }).await;
+                    let result = tokio_handle
+                        .spawn(async move {
+                            let config = baeus_core::aws_eks::AssumeRoleConfig {
+                                role_arn: role,
+                                external_id: None,
+                                session_name: Some("baeus-eks".to_string()),
+                                region,
+                            };
+                            baeus_core::aws_eks::assume_role(&config, &creds).await
+                        })
+                        .await;
 
                     match result {
                         Ok(Ok(assumed_session)) => {
                             tracing::info!(
                                 "EKS wizard: role assumption succeeded for '{}', identity={}",
-                                ctx_name, assumed_session.identity_arn,
+                                ctx_name,
+                                assumed_session.identity_arn,
                             );
                             // Store the assumed credentials and trigger connection
                             this.update(cx, |this, cx| {
                                 this.eks_cluster_data.insert(
                                     ctx_name.clone(),
-                                    (cluster_for_data, assumed_session.credentials, Some(assumed_role)),
+                                    (
+                                        cluster_for_data,
+                                        assumed_session.credentials,
+                                        Some(assumed_role),
+                                    ),
                                 );
                                 // Now trigger the standard connection with correct creds
                                 this.handle_connect_cluster(&ctx_name, cx);
-                            }).ok();
+                            })
+                            .ok();
                         }
                         Ok(Err(e)) => {
                             let msg = format!("AssumeRole failed for {ctx_name}: {e}");
                             tracing::error!("{msg}");
                             this.update(cx, |this, cx| {
-                                Self::set_sidebar_cluster_status(&mut this.sidebar, &ctx_name, ClusterStatus::Error);
+                                Self::set_sidebar_cluster_status(
+                                    &mut this.sidebar,
+                                    &ctx_name,
+                                    ClusterStatus::Error,
+                                );
                                 this.connection_errors.insert(ctx_name.clone(), msg);
                                 cx.notify();
-                            }).ok();
+                            })
+                            .ok();
                         }
                         Err(e) => {
                             let msg = format!("AssumeRole task failed: {e}");
                             tracing::error!("{msg}");
                             this.update(cx, |this, cx| {
-                                Self::set_sidebar_cluster_status(&mut this.sidebar, &ctx_name, ClusterStatus::Error);
+                                Self::set_sidebar_cluster_status(
+                                    &mut this.sidebar,
+                                    &ctx_name,
+                                    ClusterStatus::Error,
+                                );
                                 this.connection_errors.insert(ctx_name.clone(), msg);
                                 cx.notify();
-                            }).ok();
+                            })
+                            .ok();
                         }
                     }
-                }).detach();
+                })
+                .detach();
             } else {
                 // No additional role assumption needed — session creds already have the right identity.
                 // Store the already-assumed role ARN for kubeconfig generation (terminal use).
@@ -867,7 +1079,10 @@ impl AppShell {
 
         // Reconnect any previously connected EKS clusters that may have been
         // disrupted by the SSO auth flow (new SSO token can invalidate old session).
-        let existing_eks: Vec<String> = self.sidebar.clusters.iter()
+        let existing_eks: Vec<String> = self
+            .sidebar
+            .clusters
+            .iter()
             .filter(|c| c.context_name.starts_with("eks:") && c.status == ClusterStatus::Error)
             .map(|c| c.context_name.clone())
             .collect();

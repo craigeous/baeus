@@ -82,10 +82,7 @@ impl KeybindingConfig {
     /// Look up the action for a given key and modifier combination.
     /// Returns the first matching action, or `None` if no binding matches.
     pub fn find_action(&self, key: &str, modifiers: &KeyModifiers) -> Option<KeyAction> {
-        self.bindings
-            .iter()
-            .find(|b| b.key == key && b.modifiers == *modifiers)
-            .map(|b| b.action)
+        self.bindings.iter().find(|b| b.key == key && b.modifiers == *modifiers).map(|b| b.action)
     }
 
     /// Return the default set of keybindings for the application.
@@ -258,9 +255,8 @@ impl Default for UserPreferences {
 
 impl UserPreferences {
     pub fn config_path() -> Result<PathBuf> {
-        let baeus_dir = dirs::home_dir()
-            .context("Could not determine home directory")?
-            .join(".baeus");
+        let baeus_dir =
+            dirs::home_dir().context("Could not determine home directory")?.join(".baeus");
         Ok(baeus_dir.join("preferences.json"))
     }
 
@@ -277,7 +273,8 @@ impl UserPreferences {
                         let _ = std::fs::remove_file(&old_path);
                         tracing::info!(
                             "Migrated preferences from {} to {}",
-                            old_path.display(), path.display(),
+                            old_path.display(),
+                            path.display(),
                         );
                     }
                 }
@@ -288,8 +285,8 @@ impl UserPreferences {
         }
         let contents = std::fs::read_to_string(&path)
             .with_context(|| format!("Failed to read preferences from {}", path.display()))?;
-        let mut prefs: Self = serde_json::from_str(&contents)
-            .with_context(|| "Failed to parse preferences JSON")?;
+        let mut prefs: Self =
+            serde_json::from_str(&contents).with_context(|| "Failed to parse preferences JSON")?;
         prefs.sanitize_paths();
         Ok(prefs)
     }
@@ -334,8 +331,9 @@ impl UserPreferences {
     pub fn save(&self) -> Result<()> {
         let path = Self::config_path()?;
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create config directory {}", parent.display()))?;
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create config directory {}", parent.display())
+            })?;
             // Restrict directory permissions to owner-only on Unix.
             #[cfg(unix)]
             {
@@ -343,8 +341,8 @@ impl UserPreferences {
                 let _ = std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700));
             }
         }
-        let contents = serde_json::to_string_pretty(self)
-            .context("Failed to serialize preferences")?;
+        let contents =
+            serde_json::to_string_pretty(self).context("Failed to serialize preferences")?;
         std::fs::write(&path, contents)
             .with_context(|| format!("Failed to write preferences to {}", path.display()))?;
         // Restrict file permissions to owner read/write only on Unix.
@@ -390,26 +388,22 @@ mod tests {
 
     #[test]
     fn test_preferences_serialization_roundtrip() {
-        let mut prefs = UserPreferences::default();
-        prefs.theme = Theme::Dark;
-        prefs.default_namespace = Some("kube-system".to_string());
+        let mut prefs = UserPreferences {
+            theme: Theme::Dark,
+            default_namespace: Some("kube-system".to_string()),
+            log_line_limit: 5000,
+            font_size: 16.0,
+            sidebar_collapsed: true,
+            ..Default::default()
+        };
         prefs.favorite_clusters.push("prod-us-east".to_string());
-        prefs.keybindings.insert(
-            "command_palette".to_string(),
-            "Cmd+K".to_string(),
-        );
-        prefs.log_line_limit = 5000;
-        prefs.font_size = 16.0;
-        prefs.sidebar_collapsed = true;
+        prefs.keybindings.insert("command_palette".to_string(), "Cmd+K".to_string());
 
         let json = serde_json::to_string_pretty(&prefs).unwrap();
         let deserialized: UserPreferences = serde_json::from_str(&json).unwrap();
 
         assert_eq!(deserialized.theme, Theme::Dark);
-        assert_eq!(
-            deserialized.default_namespace.as_deref(),
-            Some("kube-system")
-        );
+        assert_eq!(deserialized.default_namespace.as_deref(), Some("kube-system"));
         assert_eq!(deserialized.favorite_clusters, vec!["prod-us-east"]);
         assert_eq!(deserialized.log_line_limit, 5000);
         assert_eq!(deserialized.font_size, 16.0);
@@ -510,10 +504,7 @@ mod tests {
             config.find_action("2", &KeyModifiers::cmd()),
             Some(KeyAction::NavigateToClusterList)
         );
-        assert_eq!(
-            config.find_action("3", &KeyModifiers::cmd()),
-            Some(KeyAction::NavigateToPods)
-        );
+        assert_eq!(config.find_action("3", &KeyModifiers::cmd()), Some(KeyAction::NavigateToPods));
         assert_eq!(
             config.find_action("4", &KeyModifiers::cmd()),
             Some(KeyAction::NavigateToDeployments)
@@ -535,44 +526,26 @@ mod tests {
     #[test]
     fn test_keybinding_config_find_action_sidebar_toggle() {
         let config = KeybindingConfig::default_bindings();
-        assert_eq!(
-            config.find_action("b", &KeyModifiers::cmd()),
-            Some(KeyAction::ToggleSidebar)
-        );
+        assert_eq!(config.find_action("b", &KeyModifiers::cmd()), Some(KeyAction::ToggleSidebar));
     }
 
     #[test]
     fn test_keybinding_config_find_action_tab_switching() {
         let config = KeybindingConfig::default_bindings();
 
-        assert_eq!(
-            config.find_action("Tab", &KeyModifiers::ctrl()),
-            Some(KeyAction::NextTab)
-        );
+        assert_eq!(config.find_action("Tab", &KeyModifiers::ctrl()), Some(KeyAction::NextTab));
 
         let ctrl_shift = KeyModifiers { ctrl: true, shift: true, ..KeyModifiers::default() };
-        assert_eq!(
-            config.find_action("Tab", &ctrl_shift),
-            Some(KeyAction::PrevTab)
-        );
+        assert_eq!(config.find_action("Tab", &ctrl_shift), Some(KeyAction::PrevTab));
     }
 
     #[test]
     fn test_keybinding_config_find_action_close_refresh_search() {
         let config = KeybindingConfig::default_bindings();
 
-        assert_eq!(
-            config.find_action("w", &KeyModifiers::cmd()),
-            Some(KeyAction::CloseTab)
-        );
-        assert_eq!(
-            config.find_action("r", &KeyModifiers::cmd()),
-            Some(KeyAction::Refresh)
-        );
-        assert_eq!(
-            config.find_action("f", &KeyModifiers::cmd()),
-            Some(KeyAction::FocusSearch)
-        );
+        assert_eq!(config.find_action("w", &KeyModifiers::cmd()), Some(KeyAction::CloseTab));
+        assert_eq!(config.find_action("r", &KeyModifiers::cmd()), Some(KeyAction::Refresh));
+        assert_eq!(config.find_action("f", &KeyModifiers::cmd()), Some(KeyAction::FocusSearch));
     }
 
     #[test]
@@ -628,11 +601,13 @@ mod tests {
 
     #[test]
     fn test_kubeconfig_scan_dirs_serialization_roundtrip() {
-        let mut prefs = UserPreferences::default();
-        prefs.kubeconfig_scan_dirs = vec![
-            PathBuf::from("/home/user/.kube"),
-            PathBuf::from("/etc/kubernetes/configs"),
-        ];
+        let prefs = UserPreferences {
+            kubeconfig_scan_dirs: vec![
+                PathBuf::from("/home/user/.kube"),
+                PathBuf::from("/etc/kubernetes/configs"),
+            ],
+            ..Default::default()
+        };
 
         let json = serde_json::to_string_pretty(&prefs).unwrap();
         let deserialized: UserPreferences = serde_json::from_str(&json).unwrap();
@@ -653,13 +628,11 @@ mod tests {
     #[test]
     fn test_keybinding_config_custom_bindings() {
         let config = KeybindingConfig {
-            bindings: vec![
-                KeyBinding {
-                    key: "p".to_string(),
-                    modifiers: KeyModifiers::cmd_shift(),
-                    action: KeyAction::ToggleCommandPalette,
-                },
-            ],
+            bindings: vec![KeyBinding {
+                key: "p".to_string(),
+                modifiers: KeyModifiers::cmd_shift(),
+                action: KeyAction::ToggleCommandPalette,
+            }],
         };
         // Custom binding should be found
         assert_eq!(

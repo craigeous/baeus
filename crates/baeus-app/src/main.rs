@@ -4,7 +4,7 @@ mod settings;
 
 use baeus_ui::layout::app_shell::{GpuiTokioHandle, OpenPreferencesAction};
 use baeus_ui::views::preferences::PreferencesState;
-use gpui::{actions, px, AppContext as _, Menu, MenuItem, OsAction};
+use gpui::{AppContext as _, Menu, MenuItem, OsAction, actions, px};
 use settings::UserPreferences;
 
 // Menu bar actions
@@ -63,8 +63,10 @@ fn main() {
         sidebar_collapsed: prefs.sidebar_collapsed,
         default_aws_profile: prefs.default_aws_profile.clone(),
         cluster_aws_profiles: prefs.cluster_aws_profiles.clone(),
-        saved_eks_connections: prefs.saved_eks_connections.iter().map(|c| {
-            baeus_ui::views::preferences::SavedEksConnectionInfo {
+        saved_eks_connections: prefs
+            .saved_eks_connections
+            .iter()
+            .map(|c| baeus_ui::views::preferences::SavedEksConnectionInfo {
                 cluster_name: c.cluster_name.clone(),
                 cluster_arn: c.cluster_arn.clone(),
                 endpoint: c.endpoint.clone(),
@@ -78,8 +80,8 @@ fn main() {
                 sso_start_url: c.sso_start_url.clone(),
                 sso_region: c.sso_region.clone(),
                 role_arn: c.role_arn.clone(),
-            }
-        }).collect(),
+            })
+            .collect(),
     };
 
     let app = gpui::Application::new().with_assets(assets::BaeusAssets);
@@ -194,10 +196,7 @@ fn discover_clusters() -> Vec<(String, String, String, String)> {
                 // Disambiguate: use "cluster@context" or just "cluster" if context is generic
                 if ctx.cluster_name.is_empty() || ctx.cluster_name == ctx.name {
                     // Use filename stem as disambiguator
-                    let stem = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("unknown");
+                    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("unknown");
                     format!("{}@{}", ctx.name, stem)
                 } else {
                     format!("{}@{}", ctx.cluster_name, ctx.name)
@@ -209,7 +208,8 @@ fn discover_clusters() -> Vec<(String, String, String, String)> {
             if !seen_contexts.insert(effective_name.clone()) {
                 tracing::debug!(
                     "Skipping duplicate context '{}' from {}",
-                    effective_name, path_str,
+                    effective_name,
+                    path_str,
                 );
                 continue;
             }
@@ -253,9 +253,7 @@ fn setup_macos_environment() {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
 
     // Run `env` inside a login shell to capture the full environment.
-    let output = std::process::Command::new(&shell)
-        .args(["-l", "-c", "env"])
-        .output();
+    let output = std::process::Command::new(&shell).args(["-l", "-c", "env"]).output();
 
     let output = match output {
         Ok(o) if o.status.success() => o,

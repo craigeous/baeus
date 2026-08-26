@@ -91,26 +91,16 @@ fn test_command_entry_new() {
 
 #[test]
 fn test_command_entry_with_shortcut() {
-    let entry = CommandEntry::new(
-        "test-id",
-        "Test",
-        "Desc",
-        CommandCategory::Navigation,
-        "nav:test",
-    )
-    .with_shortcut("Cmd+T");
+    let entry =
+        CommandEntry::new("test-id", "Test", "Desc", CommandCategory::Navigation, "nav:test")
+            .with_shortcut("Cmd+T");
     assert_eq!(entry.shortcut, Some("Cmd+T".to_string()));
 }
 
 #[test]
 fn test_command_entry_without_shortcut() {
-    let entry = CommandEntry::new(
-        "test-id",
-        "Test",
-        "Desc",
-        CommandCategory::Action,
-        "action:test",
-    );
+    let entry =
+        CommandEntry::new("test-id", "Test", "Desc", CommandCategory::Action, "action:test");
     assert!(entry.shortcut.is_none());
 }
 
@@ -247,14 +237,8 @@ fn test_filtered_results_fuzzy_match_description() {
     let mut state = CommandPaletteState::new(sample_commands());
     state.open();
     state.set_query("replicas");
-    let has_scale = state
-        .results
-        .iter()
-        .any(|r| r.entry.id == "action-scale");
-    assert!(
-        has_scale,
-        "Should match 'Scale Deployment' by description containing 'replicas'"
-    );
+    let has_scale = state.results.iter().any(|r| r.entry.id == "action-scale");
+    assert!(has_scale, "Should match 'Scale Deployment' by description containing 'replicas'");
 }
 
 #[test]
@@ -271,10 +255,7 @@ fn test_filtered_results_sorted_by_score() {
     state.open();
     state.set_query("pod");
     for window in state.results.windows(2) {
-        assert!(
-            window[0].score >= window[1].score,
-            "Results should be sorted by score descending"
-        );
+        assert!(window[0].score >= window[1].score, "Results should be sorted by score descending");
     }
 }
 
@@ -283,10 +264,7 @@ fn test_filtered_results_case_insensitive() {
     let mut state = CommandPaletteState::new(sample_commands());
     state.open();
     state.set_query("dashboard");
-    let has_dashboard = state
-        .results
-        .iter()
-        .any(|r| r.entry.id == "nav-dashboard");
+    let has_dashboard = state.results.iter().any(|r| r.entry.id == "nav-dashboard");
     assert!(has_dashboard, "Case-insensitive matching should work");
 }
 
@@ -429,8 +407,7 @@ fn test_results_include_multiple_categories() {
     let mut state = CommandPaletteState::new(sample_commands());
     state.open();
     state.set_query(""); // all results
-    let categories: Vec<CommandCategory> =
-        state.results.iter().map(|r| r.entry.category).collect();
+    let categories: Vec<CommandCategory> = state.results.iter().map(|r| r.entry.category).collect();
     assert!(categories.contains(&CommandCategory::Navigation));
     assert!(categories.contains(&CommandCategory::Action));
     assert!(categories.contains(&CommandCategory::Resource));
@@ -482,10 +459,7 @@ fn test_full_workflow() {
     // Type a query
     state.set_query("Scale");
     assert!(!state.results.is_empty());
-    let has_scale = state
-        .results
-        .iter()
-        .any(|r| r.entry.id == "action-scale");
+    let has_scale = state.results.iter().any(|r| r.entry.id == "action-scale");
     assert!(has_scale);
 
     // Navigate down

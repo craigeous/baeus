@@ -157,10 +157,7 @@ pub struct AppLayout {
 
 impl Default for AppLayout {
     fn default() -> Self {
-        Self {
-            sidebar_collapsed: false,
-            active_navigation: NavigationTarget::ClusterList,
-        }
+        Self { sidebar_collapsed: false, active_navigation: NavigationTarget::ClusterList }
     }
 }
 
@@ -188,14 +185,10 @@ mod tests {
     #[test]
     fn test_navigation() {
         let mut layout = AppLayout::default();
-        layout.navigate(NavigationTarget::Dashboard {
-            cluster_context: "prod".to_string(),
-        });
+        layout.navigate(NavigationTarget::Dashboard { cluster_context: "prod".to_string() });
         assert_eq!(
             layout.active_navigation,
-            NavigationTarget::Dashboard {
-                cluster_context: "prod".to_string(),
-            }
+            NavigationTarget::Dashboard { cluster_context: "prod".to_string() }
         );
     }
 
@@ -222,9 +215,7 @@ mod tests {
 
     #[test]
     fn test_dashboard_carries_cluster_context() {
-        let target = NavigationTarget::Dashboard {
-            cluster_context: "prod".to_string(),
-        };
+        let target = NavigationTarget::Dashboard { cluster_context: "prod".to_string() };
         assert_eq!(target.cluster_context(), Some("prod"));
     }
 
@@ -251,41 +242,31 @@ mod tests {
 
     #[test]
     fn test_helm_releases_carries_cluster_context() {
-        let target = NavigationTarget::HelmReleases {
-            cluster_context: "prod".to_string(),
-        };
+        let target = NavigationTarget::HelmReleases { cluster_context: "prod".to_string() };
         assert_eq!(target.cluster_context(), Some("prod"));
     }
 
     #[test]
     fn test_crd_browser_carries_cluster_context() {
-        let target = NavigationTarget::CrdBrowser {
-            cluster_context: "prod".to_string(),
-        };
+        let target = NavigationTarget::CrdBrowser { cluster_context: "prod".to_string() };
         assert_eq!(target.cluster_context(), Some("prod"));
     }
 
     #[test]
     fn test_namespace_map_carries_cluster_context() {
-        let target = NavigationTarget::NamespaceMap {
-            cluster_context: "prod".to_string(),
-        };
+        let target = NavigationTarget::NamespaceMap { cluster_context: "prod".to_string() };
         assert_eq!(target.cluster_context(), Some("prod"));
     }
 
     #[test]
     fn test_helm_install_carries_cluster_context() {
-        let target = NavigationTarget::HelmInstall {
-            cluster_context: "prod".to_string(),
-        };
+        let target = NavigationTarget::HelmInstall { cluster_context: "prod".to_string() };
         assert_eq!(target.cluster_context(), Some("prod"));
     }
 
     #[test]
     fn test_plugin_manager_carries_cluster_context() {
-        let target = NavigationTarget::PluginManager {
-            cluster_context: "prod".to_string(),
-        };
+        let target = NavigationTarget::PluginManager { cluster_context: "prod".to_string() };
         assert_eq!(target.cluster_context(), Some("prod"));
     }
 
@@ -293,10 +274,7 @@ mod tests {
     fn test_label_cluster_prefixed_format_fr057() {
         // FR-057: Tabs display cluster name prefix "prod - Pods"
         assert_eq!(
-            NavigationTarget::Dashboard {
-                cluster_context: "prod".to_string(),
-            }
-            .label(),
+            NavigationTarget::Dashboard { cluster_context: "prod".to_string() }.label(),
             "prod - Overview"
         );
 
@@ -322,43 +300,27 @@ mod tests {
         );
 
         assert_eq!(
-            NavigationTarget::HelmReleases {
-                cluster_context: "prod".to_string(),
-            }
-            .label(),
+            NavigationTarget::HelmReleases { cluster_context: "prod".to_string() }.label(),
             "prod - Helm Releases"
         );
 
         assert_eq!(
-            NavigationTarget::HelmInstall {
-                cluster_context: "prod".to_string(),
-            }
-            .label(),
+            NavigationTarget::HelmInstall { cluster_context: "prod".to_string() }.label(),
             "prod - Install Chart"
         );
 
-
         assert_eq!(
-            NavigationTarget::CrdBrowser {
-                cluster_context: "prod".to_string(),
-            }
-            .label(),
+            NavigationTarget::CrdBrowser { cluster_context: "prod".to_string() }.label(),
             "prod - Custom Resources"
         );
 
         assert_eq!(
-            NavigationTarget::NamespaceMap {
-                cluster_context: "prod".to_string(),
-            }
-            .label(),
+            NavigationTarget::NamespaceMap { cluster_context: "prod".to_string() }.label(),
             "prod - Resource Map"
         );
 
         assert_eq!(
-            NavigationTarget::PluginManager {
-                cluster_context: "prod".to_string(),
-            }
-            .label(),
+            NavigationTarget::PluginManager { cluster_context: "prod".to_string() }.label(),
             "prod - Plugins"
         );
     }

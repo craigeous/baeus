@@ -110,10 +110,7 @@ fn test_labels_as_key_value_pairs_format() {
     labels.insert("env".to_string(), "production".to_string());
     labels.insert("team".to_string(), "platform".to_string());
 
-    let formatted: Vec<String> = labels
-        .iter()
-        .map(|(k, v)| format!("{k}={v}"))
-        .collect();
+    let formatted: Vec<String> = labels.iter().map(|(k, v)| format!("{k}={v}")).collect();
 
     assert_eq!(formatted.len(), 3);
     assert!(formatted.iter().any(|s| s == "app=nginx"));
@@ -124,34 +121,21 @@ fn test_labels_as_key_value_pairs_format() {
 #[test]
 fn test_labels_empty_map_produces_no_pairs() {
     let labels: HashMap<String, String> = HashMap::new();
-    let formatted: Vec<String> = labels
-        .iter()
-        .map(|(k, v)| format!("{k}={v}"))
-        .collect();
+    let formatted: Vec<String> = labels.iter().map(|(k, v)| format!("{k}={v}")).collect();
     assert!(formatted.is_empty());
 }
 
 #[test]
 fn test_annotations_as_key_value_pairs() {
     let mut annotations: HashMap<String, String> = HashMap::new();
-    annotations.insert(
-        "kubernetes.io/change-cause".to_string(),
-        "initial deployment".to_string(),
-    );
-    annotations.insert(
-        "kubectl.kubernetes.io/last-applied-configuration".to_string(),
-        "{}".to_string(),
-    );
+    annotations.insert("kubernetes.io/change-cause".to_string(), "initial deployment".to_string());
+    annotations
+        .insert("kubectl.kubernetes.io/last-applied-configuration".to_string(), "{}".to_string());
 
-    let formatted: Vec<String> = annotations
-        .iter()
-        .map(|(k, v)| format!("{k}={v}"))
-        .collect();
+    let formatted: Vec<String> = annotations.iter().map(|(k, v)| format!("{k}={v}")).collect();
 
     assert_eq!(formatted.len(), 2);
-    assert!(formatted
-        .iter()
-        .any(|s| s == "kubernetes.io/change-cause=initial deployment"));
+    assert!(formatted.iter().any(|s| s == "kubernetes.io/change-cause=initial deployment"));
 }
 
 // =========================================================================
@@ -159,6 +143,7 @@ fn test_annotations_as_key_value_pairs() {
 // =========================================================================
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_metadata_fields_for_resource_detail() {
     // Simulate the metadata a details panel would show
     let name = "nginx-deployment-abc123";
@@ -175,6 +160,7 @@ fn test_metadata_fields_for_resource_detail() {
 }
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_owner_references_concept() {
     // Owner references link a resource to its controller
     let owner_kind = "ReplicaSet";
@@ -192,7 +178,7 @@ fn test_owner_references_concept() {
 
 #[test]
 fn test_universal_actions_available_for_pod() {
-    let actions = vec!["Copy", "Edit", "Delete"];
+    let actions = ["Copy", "Edit", "Delete"];
     let target = make_detail("Pod", "nginx", Some("default"));
 
     // All three universal actions should be available for any resource
@@ -201,13 +187,7 @@ fn test_universal_actions_available_for_pod() {
     assert!(actions.contains(&"Delete"));
 
     // The target should carry enough data to perform these actions
-    if let NavigationTarget::ResourceDetail {
-        cluster_context,
-        kind,
-        name,
-        namespace,
-    } = &target
-    {
+    if let NavigationTarget::ResourceDetail { cluster_context, kind, name, namespace } = &target {
         assert!(!cluster_context.is_empty());
         assert!(!kind.is_empty());
         assert!(!name.is_empty());
@@ -217,7 +197,7 @@ fn test_universal_actions_available_for_pod() {
 
 #[test]
 fn test_universal_actions_available_for_cluster_scoped_resource() {
-    let actions = vec!["Copy", "Edit", "Delete"];
+    let actions = ["Copy", "Edit", "Delete"];
     let target = make_detail("Node", "worker-1", None);
 
     // Actions available even for cluster-scoped (no namespace) resources
@@ -239,7 +219,7 @@ fn test_universal_actions_for_various_resource_kinds() {
         "Namespace",
         "PersistentVolumeClaim",
     ];
-    let actions = vec!["Copy", "Edit", "Delete"];
+    let actions = ["Copy", "Edit", "Delete"];
 
     for kind in kinds {
         let target = make_detail(kind, "test-resource", Some("default"));
@@ -278,17 +258,11 @@ fn test_panel_tracks_current_target() {
     // Open panel with a target
     current_target = Some(make_detail("Pod", "nginx", Some("default")));
     assert!(current_target.is_some());
-    assert_eq!(
-        current_target.as_ref().unwrap().label(),
-        "prod-cluster - Pod/nginx"
-    );
+    assert_eq!(current_target.as_ref().unwrap().label(), "prod-cluster - Pod/nginx");
 
     // Switch to different target
     current_target = Some(make_detail("Deployment", "frontend", Some("web")));
-    assert_eq!(
-        current_target.as_ref().unwrap().label(),
-        "prod-cluster - Deployment/frontend"
-    );
+    assert_eq!(current_target.as_ref().unwrap().label(), "prod-cluster - Deployment/frontend");
 
     // Close panel
     current_target = None;
@@ -332,10 +306,7 @@ fn test_construct_resource_detail_from_parsed_json() {
     };
 
     assert_eq!(target.cluster_context(), Some(cluster));
-    assert_eq!(
-        target.label(),
-        "prod-cluster - Pod/nginx-deployment-abc123-xyz"
-    );
+    assert_eq!(target.label(), "prod-cluster - Pod/nginx-deployment-abc123-xyz");
 }
 
 #[test]

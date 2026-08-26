@@ -43,9 +43,7 @@ struct MenuBarState {
 
 impl MenuBarState {
     fn new() -> Self {
-        Self {
-            zoom_level: ZOOM_DEFAULT,
-        }
+        Self { zoom_level: ZOOM_DEFAULT }
     }
 
     fn zoom_in(&mut self) {

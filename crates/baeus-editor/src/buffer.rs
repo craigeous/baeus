@@ -15,29 +15,18 @@ enum BufferOp {
 
 impl TextBuffer {
     pub fn new() -> Self {
-        Self {
-            rope: Rope::new(),
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new(),
-        }
+        Self { rope: Rope::new(), undo_stack: Vec::new(), redo_stack: Vec::new() }
     }
 
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(text: &str) -> Self {
-        Self {
-            rope: Rope::from_str(text),
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new(),
-        }
+        Self { rope: Rope::from_str(text), undo_stack: Vec::new(), redo_stack: Vec::new() }
     }
 
     pub fn insert(&mut self, char_idx: usize, text: &str) {
         let clamped = char_idx.min(self.rope.len_chars());
         self.rope.insert(clamped, text);
-        self.undo_stack.push(BufferOp::Insert {
-            pos: clamped,
-            text: text.to_string(),
-        });
+        self.undo_stack.push(BufferOp::Insert { pos: clamped, text: text.to_string() });
         self.redo_stack.clear();
     }
 
@@ -49,10 +38,7 @@ impl TextBuffer {
         }
         let deleted: String = self.rope.slice(start..end).chars().collect();
         self.rope.remove(start..end);
-        self.undo_stack.push(BufferOp::Delete {
-            pos: start,
-            text: deleted,
-        });
+        self.undo_stack.push(BufferOp::Delete { pos: start, text: deleted });
         self.redo_stack.clear();
     }
 

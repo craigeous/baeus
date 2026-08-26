@@ -21,9 +21,7 @@
 
 ## Immediate next step
 
-**Owner gate (loom:run, 2026-08-25):** the full project review is complete —
-research notes 0002–0006 Approved, evals in `.docs/evaluations/`. The owner
-reviews the findings (start with the highs in each note) and declares which
-improvements go to planning. On the owner's pick: planner drafts ADR(s) →
-spec(s) → slice-plan(s) for the approved direction (new branch per user
-convention).
+**Slice A Ready to Publish — PR open (2026-08-25):** branch
+`slice/a-ci-hardening` awaits owner merge. After merge: author slice-plan B
+(watch cancellation + EKS token refresh, per spec 06). Remaining slices:
+B → C → D → E → F → G.

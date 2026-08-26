@@ -35,7 +35,7 @@ pub fn sample_pod(name: &str, namespace: &str) -> Resource {
         spec: json!({
             "containers": [{
                 "name": name,
-                "image": format!("nginx:latest")
+                "image": "nginx:latest".to_string()
             }]
         }),
         status: Some(json!({"phase": "Running"})),

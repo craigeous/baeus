@@ -53,23 +53,14 @@ pub struct InformerManager {
 
 impl InformerManager {
     pub fn new() -> Self {
-        Self {
-            informers: HashMap::new(),
-            cache: HashMap::new(),
-        }
+        Self { informers: HashMap::new(), cache: HashMap::new() }
     }
 
     /// Register a new informer with the given config. Returns a unique id
     /// that can be used to reference the informer later.
     pub fn register(&mut self, config: InformerConfig) -> Uuid {
         let id = Uuid::new_v4();
-        self.informers.insert(
-            id,
-            InformerEntry {
-                config,
-                state: InformerState::Idle,
-            },
-        );
+        self.informers.insert(id, InformerEntry { config, state: InformerState::Idle });
         id
     }
 
@@ -175,7 +166,10 @@ impl InformerManager {
         if resources.len() > MAX_RESOURCES_PER_KIND {
             tracing::warn!(
                 "Truncating {} cache for cluster {}: {} resources exceeds limit of {}",
-                kind, cluster_id, resources.len(), MAX_RESOURCES_PER_KIND,
+                kind,
+                cluster_id,
+                resources.len(),
+                MAX_RESOURCES_PER_KIND,
             );
             resources.truncate(MAX_RESOURCES_PER_KIND);
         }
@@ -187,7 +181,8 @@ impl InformerManager {
         if total > MAX_TOTAL_CACHED_RESOURCES {
             tracing::warn!(
                 "Total cached resources ({}) exceeds limit ({}); consider reducing watched kinds",
-                total, MAX_TOTAL_CACHED_RESOURCES,
+                total,
+                MAX_TOTAL_CACHED_RESOURCES,
             );
         }
     }
@@ -461,10 +456,7 @@ mod tests {
 
         // Error
         mgr.set_state(&id, InformerState::Error("watch reset".to_string()));
-        assert_eq!(
-            mgr.state(&id),
-            Some(&InformerState::Error("watch reset".to_string()))
-        );
+        assert_eq!(mgr.state(&id), Some(&InformerState::Error("watch reset".to_string())));
         assert_eq!(mgr.active_count(), 0);
 
         // Stop
@@ -499,10 +491,8 @@ mod tests {
         assert_eq!(mgr.total_count(), 4);
 
         // Verify all 4 standard kinds are registered
-        let kinds: Vec<String> = ids
-            .iter()
-            .map(|id| mgr.config(id).unwrap().resource_kind.clone())
-            .collect();
+        let kinds: Vec<String> =
+            ids.iter().map(|id| mgr.config(id).unwrap().resource_kind.clone()).collect();
         assert!(kinds.contains(&"Namespace".to_string()));
         assert!(kinds.contains(&"Node".to_string()));
         assert!(kinds.contains(&"Pod".to_string()));

@@ -1,20 +1,16 @@
-use gpui::{div, px, prelude::*, Context, Rgba, SharedString, Window};
-use baeus_core::rbac::{RbacCache, RbacVerb};
 use crate::components::resource_table::{
-    ColumnDef, ResourceTableState,
-    columns_for_kind as table_columns_for_kind,
+    ColumnDef, ResourceTableState, columns_for_kind as table_columns_for_kind,
 };
 use crate::components::search_bar::SearchBarState;
 use crate::theme::Theme;
+use baeus_core::rbac::{RbacCache, RbacVerb};
+use gpui::{Context, Rgba, SharedString, Window, div, prelude::*, px};
 use serde::{Deserialize, Serialize};
 
 /// A quick action that can be performed on a resource from the list view.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum QuickAction {
-    Scale {
-        current_replicas: u32,
-        desired_replicas: u32,
-    },
+    Scale { current_replicas: u32, desired_replicas: u32 },
     Restart,
     Delete,
     Cordon,
@@ -58,19 +54,12 @@ pub fn actions_for_kind(kind: &str) -> Vec<QuickAction> {
     match kind {
         "Pod" => vec![QuickAction::ViewLogs, QuickAction::Exec, QuickAction::Delete],
         "Deployment" | "StatefulSet" => vec![
-            QuickAction::Scale {
-                current_replicas: 0,
-                desired_replicas: 0,
-            },
+            QuickAction::Scale { current_replicas: 0, desired_replicas: 0 },
             QuickAction::Restart,
             QuickAction::EditYaml,
             QuickAction::Delete,
         ],
-        "DaemonSet" => vec![
-            QuickAction::Restart,
-            QuickAction::EditYaml,
-            QuickAction::Delete,
-        ],
+        "DaemonSet" => vec![QuickAction::Restart, QuickAction::EditYaml, QuickAction::Delete],
         "ReplicaSet" | "Job" => vec![QuickAction::Delete],
         "CronJob" => vec![QuickAction::EditYaml, QuickAction::Delete],
         "Node" => vec![QuickAction::Cordon, QuickAction::Uncordon],
@@ -82,15 +71,8 @@ pub fn actions_for_kind(kind: &str) -> Vec<QuickAction> {
 }
 
 /// The set of workload resource kinds.
-const WORKLOAD_KINDS: &[&str] = &[
-    "Pod",
-    "Deployment",
-    "StatefulSet",
-    "DaemonSet",
-    "ReplicaSet",
-    "Job",
-    "CronJob",
-];
+const WORKLOAD_KINDS: &[&str] =
+    &["Pod", "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet", "Job", "CronJob"];
 
 // ---------------------------------------------------------------------------
 // T062: Action Execution Types
@@ -204,8 +186,15 @@ pub fn resource_for_action(kind: &str, action: &QuickAction) -> String {
 pub fn api_group_for_kind(kind: &str) -> &str {
     match kind {
         // Core API (v1)
-        "Pod" | "Service" | "ConfigMap" | "Secret" | "Namespace" | "Node"
-        | "PersistentVolume" | "PersistentVolumeClaim" | "ServiceAccount" => "",
+        "Pod"
+        | "Service"
+        | "ConfigMap"
+        | "Secret"
+        | "Namespace"
+        | "Node"
+        | "PersistentVolume"
+        | "PersistentVolumeClaim"
+        | "ServiceAccount" => "",
         // apps group
         "Deployment" | "StatefulSet" | "DaemonSet" | "ReplicaSet" => "apps",
         // batch group
@@ -231,71 +220,306 @@ pub fn columns_for_kind(kind: &str) -> Vec<ColumnDef> {
     match kind {
         // ---- Network resources (T104) ----
         "Service" => vec![
-            ColumnDef { id: "name".to_string(), label: "Name".to_string(), sortable: true, width_weight: 2.0 },
-            ColumnDef { id: "namespace".to_string(), label: "Namespace".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "type".to_string(), label: "Type".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "cluster_ip".to_string(), label: "Cluster IP".to_string(), sortable: false, width_weight: 1.0 },
-            ColumnDef { id: "external_ip".to_string(), label: "External IP".to_string(), sortable: false, width_weight: 1.0 },
-            ColumnDef { id: "ports".to_string(), label: "Ports".to_string(), sortable: false, width_weight: 1.5 },
-            ColumnDef { id: "age".to_string(), label: "Age".to_string(), sortable: true, width_weight: 0.8 },
+            ColumnDef {
+                id: "name".to_string(),
+                label: "Name".to_string(),
+                sortable: true,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "namespace".to_string(),
+                label: "Namespace".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "type".to_string(),
+                label: "Type".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "cluster_ip".to_string(),
+                label: "Cluster IP".to_string(),
+                sortable: false,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "external_ip".to_string(),
+                label: "External IP".to_string(),
+                sortable: false,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "ports".to_string(),
+                label: "Ports".to_string(),
+                sortable: false,
+                width_weight: 1.5,
+            },
+            ColumnDef {
+                id: "age".to_string(),
+                label: "Age".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
         ],
         "Ingress" => vec![
-            ColumnDef { id: "name".to_string(), label: "Name".to_string(), sortable: true, width_weight: 2.0 },
-            ColumnDef { id: "namespace".to_string(), label: "Namespace".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "hosts".to_string(), label: "Hosts".to_string(), sortable: false, width_weight: 2.0 },
-            ColumnDef { id: "address".to_string(), label: "Address".to_string(), sortable: false, width_weight: 1.0 },
-            ColumnDef { id: "ports".to_string(), label: "Ports".to_string(), sortable: false, width_weight: 0.8 },
-            ColumnDef { id: "age".to_string(), label: "Age".to_string(), sortable: true, width_weight: 0.8 },
+            ColumnDef {
+                id: "name".to_string(),
+                label: "Name".to_string(),
+                sortable: true,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "namespace".to_string(),
+                label: "Namespace".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "hosts".to_string(),
+                label: "Hosts".to_string(),
+                sortable: false,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "address".to_string(),
+                label: "Address".to_string(),
+                sortable: false,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "ports".to_string(),
+                label: "Ports".to_string(),
+                sortable: false,
+                width_weight: 0.8,
+            },
+            ColumnDef {
+                id: "age".to_string(),
+                label: "Age".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
         ],
         "NetworkPolicy" => vec![
-            ColumnDef { id: "name".to_string(), label: "Name".to_string(), sortable: true, width_weight: 2.0 },
-            ColumnDef { id: "namespace".to_string(), label: "Namespace".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "pod_selector".to_string(), label: "Pod Selector".to_string(), sortable: false, width_weight: 2.0 },
-            ColumnDef { id: "age".to_string(), label: "Age".to_string(), sortable: true, width_weight: 0.8 },
+            ColumnDef {
+                id: "name".to_string(),
+                label: "Name".to_string(),
+                sortable: true,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "namespace".to_string(),
+                label: "Namespace".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "pod_selector".to_string(),
+                label: "Pod Selector".to_string(),
+                sortable: false,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "age".to_string(),
+                label: "Age".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
         ],
         "Endpoints" => vec![
-            ColumnDef { id: "name".to_string(), label: "Name".to_string(), sortable: true, width_weight: 2.0 },
-            ColumnDef { id: "namespace".to_string(), label: "Namespace".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "endpoints".to_string(), label: "Endpoints".to_string(), sortable: false, width_weight: 3.0 },
-            ColumnDef { id: "age".to_string(), label: "Age".to_string(), sortable: true, width_weight: 0.8 },
+            ColumnDef {
+                id: "name".to_string(),
+                label: "Name".to_string(),
+                sortable: true,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "namespace".to_string(),
+                label: "Namespace".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "endpoints".to_string(),
+                label: "Endpoints".to_string(),
+                sortable: false,
+                width_weight: 3.0,
+            },
+            ColumnDef {
+                id: "age".to_string(),
+                label: "Age".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
         ],
 
         // ---- Storage resources (T105) ----
         "PersistentVolume" => vec![
-            ColumnDef { id: "name".to_string(), label: "Name".to_string(), sortable: true, width_weight: 2.0 },
-            ColumnDef { id: "capacity".to_string(), label: "Capacity".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "access_modes".to_string(), label: "Access Modes".to_string(), sortable: false, width_weight: 1.0 },
-            ColumnDef { id: "reclaim_policy".to_string(), label: "Reclaim Policy".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "status".to_string(), label: "Status".to_string(), sortable: true, width_weight: 0.8 },
-            ColumnDef { id: "claim".to_string(), label: "Claim".to_string(), sortable: true, width_weight: 1.5 },
-            ColumnDef { id: "storage_class".to_string(), label: "Storage Class".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "age".to_string(), label: "Age".to_string(), sortable: true, width_weight: 0.8 },
+            ColumnDef {
+                id: "name".to_string(),
+                label: "Name".to_string(),
+                sortable: true,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "capacity".to_string(),
+                label: "Capacity".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "access_modes".to_string(),
+                label: "Access Modes".to_string(),
+                sortable: false,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "reclaim_policy".to_string(),
+                label: "Reclaim Policy".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "status".to_string(),
+                label: "Status".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
+            ColumnDef {
+                id: "claim".to_string(),
+                label: "Claim".to_string(),
+                sortable: true,
+                width_weight: 1.5,
+            },
+            ColumnDef {
+                id: "storage_class".to_string(),
+                label: "Storage Class".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "age".to_string(),
+                label: "Age".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
         ],
         "PersistentVolumeClaim" => vec![
-            ColumnDef { id: "name".to_string(), label: "Name".to_string(), sortable: true, width_weight: 2.0 },
-            ColumnDef { id: "namespace".to_string(), label: "Namespace".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "status".to_string(), label: "Status".to_string(), sortable: true, width_weight: 0.8 },
-            ColumnDef { id: "volume".to_string(), label: "Volume".to_string(), sortable: true, width_weight: 1.5 },
-            ColumnDef { id: "capacity".to_string(), label: "Capacity".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "access_modes".to_string(), label: "Access Modes".to_string(), sortable: false, width_weight: 1.0 },
-            ColumnDef { id: "storage_class".to_string(), label: "Storage Class".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "age".to_string(), label: "Age".to_string(), sortable: true, width_weight: 0.8 },
+            ColumnDef {
+                id: "name".to_string(),
+                label: "Name".to_string(),
+                sortable: true,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "namespace".to_string(),
+                label: "Namespace".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "status".to_string(),
+                label: "Status".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
+            ColumnDef {
+                id: "volume".to_string(),
+                label: "Volume".to_string(),
+                sortable: true,
+                width_weight: 1.5,
+            },
+            ColumnDef {
+                id: "capacity".to_string(),
+                label: "Capacity".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "access_modes".to_string(),
+                label: "Access Modes".to_string(),
+                sortable: false,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "storage_class".to_string(),
+                label: "Storage Class".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "age".to_string(),
+                label: "Age".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
         ],
         "StorageClass" => vec![
-            ColumnDef { id: "name".to_string(), label: "Name".to_string(), sortable: true, width_weight: 2.0 },
-            ColumnDef { id: "provisioner".to_string(), label: "Provisioner".to_string(), sortable: true, width_weight: 2.0 },
-            ColumnDef { id: "reclaim_policy".to_string(), label: "Reclaim Policy".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "volume_binding_mode".to_string(), label: "Volume Binding Mode".to_string(), sortable: true, width_weight: 1.5 },
-            ColumnDef { id: "allow_expansion".to_string(), label: "Allow Expansion".to_string(), sortable: false, width_weight: 1.0 },
-            ColumnDef { id: "age".to_string(), label: "Age".to_string(), sortable: true, width_weight: 0.8 },
+            ColumnDef {
+                id: "name".to_string(),
+                label: "Name".to_string(),
+                sortable: true,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "provisioner".to_string(),
+                label: "Provisioner".to_string(),
+                sortable: true,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "reclaim_policy".to_string(),
+                label: "Reclaim Policy".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "volume_binding_mode".to_string(),
+                label: "Volume Binding Mode".to_string(),
+                sortable: true,
+                width_weight: 1.5,
+            },
+            ColumnDef {
+                id: "allow_expansion".to_string(),
+                label: "Allow Expansion".to_string(),
+                sortable: false,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "age".to_string(),
+                label: "Age".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
         ],
 
         // ---- Default: generic columns for any resource kind ----
         _ => vec![
-            ColumnDef { id: "name".to_string(), label: "Name".to_string(), sortable: true, width_weight: 2.0 },
-            ColumnDef { id: "namespace".to_string(), label: "Namespace".to_string(), sortable: true, width_weight: 1.0 },
-            ColumnDef { id: "status".to_string(), label: "Status".to_string(), sortable: false, width_weight: 1.0 },
-            ColumnDef { id: "age".to_string(), label: "Age".to_string(), sortable: true, width_weight: 0.8 },
+            ColumnDef {
+                id: "name".to_string(),
+                label: "Name".to_string(),
+                sortable: true,
+                width_weight: 2.0,
+            },
+            ColumnDef {
+                id: "namespace".to_string(),
+                label: "Namespace".to_string(),
+                sortable: true,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "status".to_string(),
+                label: "Status".to_string(),
+                sortable: false,
+                width_weight: 1.0,
+            },
+            ColumnDef {
+                id: "age".to_string(),
+                label: "Age".to_string(),
+                sortable: true,
+                width_weight: 0.8,
+            },
         ],
     }
 }
@@ -396,10 +620,7 @@ impl CreateResourceState {
 
     /// Validates that the YAML is parseable. Returns `true` if valid.
     pub fn validate(&mut self) -> bool {
-        let yaml_to_check = self
-            .modified_yaml
-            .as_deref()
-            .unwrap_or(&self.yaml_template);
+        let yaml_to_check = self.modified_yaml.as_deref().unwrap_or(&self.yaml_template);
 
         match serde_yaml_ng::from_str::<serde_yaml_ng::Value>(yaml_to_check) {
             Ok(_) => {
@@ -535,11 +756,9 @@ impl ResourceListState {
             return rows.iter().collect();
         }
         rows.iter()
-            .filter(|row| {
-                match &row.namespace {
-                    Some(ns) => self.selected_namespaces.contains(ns),
-                    None => false,
-                }
+            .filter(|row| match &row.namespace {
+                Some(ns) => self.selected_namespaces.contains(ns),
+                None => false,
             })
             .collect()
     }
@@ -639,18 +858,14 @@ impl ResourceListState {
     /// Marks the current action as `Completed` with the given message.
     pub fn complete_action(&mut self, message: &str) {
         if let Some(ref mut req) = self.current_action_request {
-            req.status = ActionStatus::Completed {
-                message: message.to_string(),
-            };
+            req.status = ActionStatus::Completed { message: message.to_string() };
         }
     }
 
     /// Marks the current action as `Failed` with the given error.
     pub fn fail_action(&mut self, error: &str) {
         if let Some(ref mut req) = self.current_action_request {
-            req.status = ActionStatus::Failed {
-                error: error.to_string(),
-            };
+            req.status = ActionStatus::Failed { error: error.to_string() };
         }
     }
 
@@ -663,10 +878,7 @@ impl ResourceListState {
     pub fn has_pending_confirmation(&self) -> bool {
         matches!(
             self.current_action_request,
-            Some(ActionRequest {
-                status: ActionStatus::PendingConfirmation,
-                ..
-            })
+            Some(ActionRequest { status: ActionStatus::PendingConfirmation, .. })
         )
     }
 
@@ -700,8 +912,8 @@ impl ResourceListState {
 
                 match rbac_cache.is_allowed(verb, &resource, action_api_group, namespace) {
                     Some(true) => true,   // explicitly allowed
-                    Some(false) => false,  // explicitly denied
-                    None => true,          // not cached, assume allowed
+                    Some(false) => false, // explicitly denied
+                    None => true,         // not cached, assume allowed
                 }
             })
             .collect()
@@ -752,12 +964,7 @@ impl ResourceListView {
         let columns = table_columns_for_kind(&state.kind);
         let table_state = ResourceTableState::new(columns, 20);
         let search_state = SearchBarState::new();
-        Self {
-            state,
-            table_state,
-            search_state,
-            theme,
-        }
+        Self { state, table_state, search_state, theme }
     }
 
     /// Returns the title text for the toolbar.
@@ -847,11 +1054,7 @@ impl ResourceListView {
             .text_color(colors.button_text)
             .child("Create");
 
-        div()
-            .flex()
-            .gap(px(4.0))
-            .child(refresh_btn)
-            .child(create_btn)
+        div().flex().gap(px(4.0)).child(refresh_btn).child(create_btn)
     }
 
     /// Render the loading state indicator.
@@ -867,11 +1070,7 @@ impl ResourceListView {
 
     /// Render the error state.
     fn render_error(&self, colors: &ListColors) -> gpui::Div {
-        let error_msg = self
-            .state
-            .error
-            .as_deref()
-            .unwrap_or("Unknown error");
+        let error_msg = self.state.error.as_deref().unwrap_or("Unknown error");
         let msg = SharedString::from(error_msg.to_string());
 
         div()
@@ -880,12 +1079,7 @@ impl ResourceListView {
             .items_center()
             .py_8()
             .gap(px(4.0))
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.error)
-                    .child(msg),
-            )
+            .child(div().text_sm().text_color(colors.error).child(msg))
     }
 
     /// T339: Render the namespace filter bar (only for namespace-scoped resources).
@@ -902,21 +1096,11 @@ impl ResourceListView {
             .border_color(colors.border);
 
         let label = SharedString::from("Namespaces:");
-        bar = bar.child(
-            div()
-                .text_xs()
-                .text_color(colors.text_muted)
-                .child(label),
-        );
+        bar = bar.child(div().text_xs().text_color(colors.text_muted).child(label));
 
         if self.state.selected_namespaces.is_empty() {
             let all_label = SharedString::from("All");
-            bar = bar.child(
-                div()
-                    .text_xs()
-                    .text_color(colors.text_primary)
-                    .child(all_label),
-            );
+            bar = bar.child(div().text_xs().text_color(colors.text_primary).child(all_label));
         } else {
             for ns in &self.state.selected_namespaces {
                 let ns_label = SharedString::from(ns.clone());
@@ -946,12 +1130,7 @@ impl ResourceListView {
             .flex_col()
             .items_center()
             .py_8()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(colors.text_muted)
-                    .child(msg),
-            )
+            .child(div().text_sm().text_color(colors.text_muted).child(msg))
     }
 }
 

@@ -89,10 +89,7 @@ impl PtySession {
 
     /// Check whether the session is active (Starting or Running).
     pub fn is_active(&self) -> bool {
-        matches!(
-            self.state,
-            PtySessionState::Starting | PtySessionState::Running
-        )
+        matches!(self.state, PtySessionState::Starting | PtySessionState::Running)
     }
 }
 
@@ -104,9 +101,7 @@ pub struct PtyManager {
 impl PtyManager {
     /// Create a new empty PTY manager.
     pub fn new() -> Self {
-        Self {
-            sessions: Vec::new(),
-        }
+        Self { sessions: Vec::new() }
     }
 
     /// Create a new session and return its UUID.
@@ -169,9 +164,7 @@ mod tests {
 
     #[test]
     fn test_pty_source_local_shell() {
-        let source = PtySource::LocalShell {
-            shell_path: "/bin/bash".to_string(),
-        };
+        let source = PtySource::LocalShell { shell_path: "/bin/bash".to_string() };
         if let PtySource::LocalShell { shell_path } = &source {
             assert_eq!(shell_path, "/bin/bash");
         } else {
@@ -188,12 +181,8 @@ mod tests {
             pod_name: "nginx-abc123".to_string(),
             container_name: Some("nginx".to_string()),
         };
-        if let PtySource::KubeExec {
-            cluster_id: cid,
-            namespace,
-            pod_name,
-            container_name,
-        } = &source
+        if let PtySource::KubeExec { cluster_id: cid, namespace, pod_name, container_name } =
+            &source
         {
             assert_eq!(*cid, cluster_id);
             assert_eq!(namespace, "default");
@@ -212,10 +201,7 @@ mod tests {
             pod_name: "pod-1".to_string(),
             container_name: None,
         };
-        if let PtySource::KubeExec {
-            container_name, ..
-        } = &source
-        {
+        if let PtySource::KubeExec { container_name, .. } = &source {
             assert_eq!(container_name, &None);
         } else {
             panic!("Expected KubeExec variant");
@@ -224,15 +210,9 @@ mod tests {
 
     #[test]
     fn test_pty_source_equality() {
-        let a = PtySource::LocalShell {
-            shell_path: "/bin/zsh".to_string(),
-        };
-        let b = PtySource::LocalShell {
-            shell_path: "/bin/zsh".to_string(),
-        };
-        let c = PtySource::LocalShell {
-            shell_path: "/bin/bash".to_string(),
-        };
+        let a = PtySource::LocalShell { shell_path: "/bin/zsh".to_string() };
+        let b = PtySource::LocalShell { shell_path: "/bin/zsh".to_string() };
+        let c = PtySource::LocalShell { shell_path: "/bin/bash".to_string() };
         assert_eq!(a, b);
         assert_ne!(a, c);
     }
@@ -263,9 +243,7 @@ mod tests {
 
     #[test]
     fn test_session_new_local_shell() {
-        let source = PtySource::LocalShell {
-            shell_path: "/bin/bash".to_string(),
-        };
+        let source = PtySource::LocalShell { shell_path: "/bin/bash".to_string() };
         let session = PtySession::new(source.clone(), TerminalSize::default());
         assert_eq!(session.source, source);
         assert_eq!(session.state, PtySessionState::Starting);
@@ -289,9 +267,7 @@ mod tests {
 
     #[test]
     fn test_session_has_unique_id() {
-        let source = PtySource::LocalShell {
-            shell_path: "/bin/sh".to_string(),
-        };
+        let source = PtySource::LocalShell { shell_path: "/bin/sh".to_string() };
         let s1 = PtySession::new(source.clone(), TerminalSize::default());
         let s2 = PtySession::new(source, TerminalSize::default());
         assert_ne!(s1.id, s2.id);
@@ -304,9 +280,7 @@ mod tests {
     #[test]
     fn test_enqueue_and_take_input() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
 
@@ -319,9 +293,7 @@ mod tests {
     #[test]
     fn test_take_input_clears_buffer() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
 
@@ -334,9 +306,7 @@ mod tests {
     #[test]
     fn test_push_and_take_output() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
 
@@ -349,9 +319,7 @@ mod tests {
     #[test]
     fn test_take_output_clears_buffer() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
 
@@ -364,9 +332,7 @@ mod tests {
     #[test]
     fn test_input_and_output_buffers_independent() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
 
@@ -387,9 +353,7 @@ mod tests {
     #[test]
     fn test_session_resize() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
 
@@ -405,9 +369,7 @@ mod tests {
     #[test]
     fn test_session_stop() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
 
@@ -420,26 +382,19 @@ mod tests {
     #[test]
     fn test_session_set_error() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
 
         session.set_error("connection lost");
-        assert_eq!(
-            session.state,
-            PtySessionState::Error("connection lost".to_string())
-        );
+        assert_eq!(session.state, PtySessionState::Error("connection lost".to_string()));
         assert!(!session.is_active());
     }
 
     #[test]
     fn test_is_active_starting() {
         let session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         assert!(session.is_active());
@@ -448,9 +403,7 @@ mod tests {
     #[test]
     fn test_is_active_running() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         session.state = PtySessionState::Running;
@@ -460,9 +413,7 @@ mod tests {
     #[test]
     fn test_is_active_stopped() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         session.stop();
@@ -472,9 +423,7 @@ mod tests {
     #[test]
     fn test_is_active_error() {
         let mut session = PtySession::new(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         session.set_error("fail");
@@ -505,9 +454,7 @@ mod tests {
     #[test]
     fn test_manager_create_session() {
         let mut manager = PtyManager::new();
-        let source = PtySource::LocalShell {
-            shell_path: "/bin/bash".to_string(),
-        };
+        let source = PtySource::LocalShell { shell_path: "/bin/bash".to_string() };
         let id = manager.create_session(source.clone(), TerminalSize::default());
 
         assert_eq!(manager.session_count(), 1);
@@ -520,15 +467,11 @@ mod tests {
     fn test_manager_create_multiple_sessions() {
         let mut manager = PtyManager::new();
         let id1 = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         let id2 = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/zsh".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/zsh".to_string() },
             TerminalSize::default(),
         );
         let id3 = manager.create_session(
@@ -554,9 +497,7 @@ mod tests {
     fn test_manager_get_session_exists() {
         let mut manager = PtyManager::new();
         let id = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         assert!(manager.get_session(id).is_some());
@@ -572,17 +513,12 @@ mod tests {
     fn test_manager_get_session_mut_exists() {
         let mut manager = PtyManager::new();
         let id = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         let session = manager.get_session_mut(id).unwrap();
         session.state = PtySessionState::Running;
-        assert_eq!(
-            manager.get_session(id).unwrap().state,
-            PtySessionState::Running
-        );
+        assert_eq!(manager.get_session(id).unwrap().state, PtySessionState::Running);
     }
 
     #[test]
@@ -599,9 +535,7 @@ mod tests {
     fn test_manager_remove_session_exists() {
         let mut manager = PtyManager::new();
         let id = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         assert!(manager.remove_session(id));
@@ -619,15 +553,11 @@ mod tests {
     fn test_manager_remove_session_preserves_others() {
         let mut manager = PtyManager::new();
         let id1 = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         let id2 = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/zsh".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/zsh".to_string() },
             TerminalSize::default(),
         );
 
@@ -645,15 +575,11 @@ mod tests {
     fn test_manager_active_sessions_all_active() {
         let mut manager = PtyManager::new();
         manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/zsh".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/zsh".to_string() },
             TerminalSize::default(),
         );
         assert_eq!(manager.active_sessions().len(), 2);
@@ -663,15 +589,11 @@ mod tests {
     fn test_manager_active_sessions_some_stopped() {
         let mut manager = PtyManager::new();
         let id1 = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         let _id2 = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/zsh".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/zsh".to_string() },
             TerminalSize::default(),
         );
 
@@ -684,9 +606,7 @@ mod tests {
     fn test_manager_active_sessions_none_active() {
         let mut manager = PtyManager::new();
         let id = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         manager.get_session_mut(id).unwrap().stop();
@@ -701,28 +621,18 @@ mod tests {
     fn test_manager_stop_all() {
         let mut manager = PtyManager::new();
         let id1 = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
         let id2 = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/zsh".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/zsh".to_string() },
             TerminalSize::default(),
         );
 
         manager.stop_all();
 
-        assert_eq!(
-            manager.get_session(id1).unwrap().state,
-            PtySessionState::Stopped
-        );
-        assert_eq!(
-            manager.get_session(id2).unwrap().state,
-            PtySessionState::Stopped
-        );
+        assert_eq!(manager.get_session(id1).unwrap().state, PtySessionState::Stopped);
+        assert_eq!(manager.get_session(id2).unwrap().state, PtySessionState::Stopped);
         assert!(manager.active_sessions().is_empty());
         // Sessions still exist, just stopped
         assert_eq!(manager.session_count(), 2);
@@ -794,9 +704,7 @@ mod tests {
         let mut manager = PtyManager::new();
 
         let local_id = manager.create_session(
-            PtySource::LocalShell {
-                shell_path: "/bin/bash".to_string(),
-            },
+            PtySource::LocalShell { shell_path: "/bin/bash".to_string() },
             TerminalSize::default(),
         );
 
