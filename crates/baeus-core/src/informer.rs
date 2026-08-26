@@ -64,7 +64,8 @@ impl InformerManager {
     /// that can be used to reference the informer later.
     pub fn register(&mut self, config: InformerConfig) -> Uuid {
         let id = Uuid::new_v4();
-        self.informers.insert(id, InformerEntry { config, state: InformerState::Idle, cancel: None });
+        self.informers
+            .insert(id, InformerEntry { config, state: InformerState::Idle, cancel: None });
         id
     }
 

@@ -2248,23 +2248,27 @@ impl AppShell {
 
         // Spawn the actual kube-rs watcher on the Tokio runtime.
         tokio_handle.spawn(async move {
-            let result = baeus_core::client::watch_events(&client, Some(token_for_spawn), move |event_info| {
-                let dashboard_event = DashboardEvent::with_details(
-                    event_info.reason.clone(),
-                    event_info.message.clone(),
-                    event_info.timestamp,
-                    event_info.is_warning,
-                    event_info.namespace.clone(),
-                    event_info.involved_object_kind.clone(),
-                    event_info.involved_object_name.clone(),
-                    event_info.source.clone(),
-                    event_info.count,
-                    event_info.last_seen,
-                );
-                // Send to the GPUI-side receiver; ignore errors if the receiver
-                // has been dropped (cluster disconnected).
-                let _ = tx.send(dashboard_event);
-            })
+            let result = baeus_core::client::watch_events(
+                &client,
+                Some(token_for_spawn),
+                move |event_info| {
+                    let dashboard_event = DashboardEvent::with_details(
+                        event_info.reason.clone(),
+                        event_info.message.clone(),
+                        event_info.timestamp,
+                        event_info.is_warning,
+                        event_info.namespace.clone(),
+                        event_info.involved_object_kind.clone(),
+                        event_info.involved_object_name.clone(),
+                        event_info.source.clone(),
+                        event_info.count,
+                        event_info.last_seen,
+                    );
+                    // Send to the GPUI-side receiver; ignore errors if the receiver
+                    // has been dropped (cluster disconnected).
+                    let _ = tx.send(dashboard_event);
+                },
+            )
             .await;
 
             if let Err(e) = result {

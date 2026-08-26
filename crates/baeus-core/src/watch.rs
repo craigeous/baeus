@@ -94,12 +94,8 @@ impl ResourceWatchBridge {
     /// Cancels every token for that cluster, removes bridge state, then
     /// delegates to the manager for cache and informer-state cleanup.
     pub fn stop_for_cluster(&mut self, cluster_id: &Uuid) {
-        let keys: Vec<_> = self
-            .watcher_ids
-            .keys()
-            .filter(|(cid, _)| cid == cluster_id)
-            .cloned()
-            .collect();
+        let keys: Vec<_> =
+            self.watcher_ids.keys().filter(|(cid, _)| cid == cluster_id).cloned().collect();
         for key in keys {
             if let Some(entry) = self.watcher_ids.remove(&key) {
                 entry.cancel.cancel();
@@ -199,7 +195,8 @@ mod tests {
     fn test_register_watcher_stores_config_correctly() {
         let mut bridge = make_bridge();
         let cluster = test_cluster_id();
-        let (id, _cancel) = bridge.register_watcher(cluster, "Deployment", "apps/v1", Some("kube-system"));
+        let (id, _cancel) =
+            bridge.register_watcher(cluster, "Deployment", "apps/v1", Some("kube-system"));
 
         let config = bridge.informer_manager().config(&id).unwrap();
         assert_eq!(config.cluster_id, cluster);

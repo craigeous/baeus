@@ -6,13 +6,13 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use futures::{Stream, TryStreamExt};
-use tokio_util::sync::CancellationToken;
 use k8s_openapi::api::core::v1::{Event, Namespace, Node, Pod};
 use kube::{Api, Client, Config, api::ListParams};
 use kube_runtime::WatchStreamExt;
 use kube_runtime::watcher::{self, Event as WatcherEvent};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use tokio_util::sync::CancellationToken;
 
 // ---------------------------------------------------------------------------
 // T364: RBAC error handling for 403 Forbidden responses
@@ -1130,7 +1130,11 @@ pub async fn create_resource(
 /// Takes the stream by value (making the future `'static` for `tokio::spawn`).
 /// Polls the cancellation token first (`biased;`) so a cancel signal stops the loop
 /// within one poll cycle, satisfying spec 06 0002-H1 acceptance criterion 1a.
-async fn watch_events_inner<S, F>(stream: S, token: CancellationToken, mut on_event: F) -> Result<()>
+async fn watch_events_inner<S, F>(
+    stream: S,
+    token: CancellationToken,
+    mut on_event: F,
+) -> Result<()>
 where
     S: Stream<Item = Result<WatcherEvent<Event>, watcher::Error>> + Send + 'static,
     F: FnMut(EventInfo) + Send,
@@ -1217,9 +1221,15 @@ where
 ///
 /// Mirrors `watch_events_inner` for dynamic-object streams. Maintains a local
 /// snapshot of items and calls `on_change` on every mutation event.
-async fn watch_resources_inner<S, F>(stream: S, token: CancellationToken, mut on_change: F) -> Result<()>
+async fn watch_resources_inner<S, F>(
+    stream: S,
+    token: CancellationToken,
+    mut on_change: F,
+) -> Result<()>
 where
-    S: Stream<Item = Result<WatcherEvent<kube::api::DynamicObject>, watcher::Error>> + Send + 'static,
+    S: Stream<Item = Result<WatcherEvent<kube::api::DynamicObject>, watcher::Error>>
+        + Send
+        + 'static,
     F: FnMut(Vec<serde_json::Value>) + Send,
 {
     tokio::pin!(stream);

@@ -798,8 +798,7 @@ pub enum EksTokenRefreshError {
 }
 
 /// Boxed async refresh future returned by a `RefreshFn`.
-type RefreshFuture =
-    Pin<Box<dyn Future<Output = Result<TokenState, EksTokenRefreshError>> + Send>>;
+type RefreshFuture = Pin<Box<dyn Future<Output = Result<TokenState, EksTokenRefreshError>> + Send>>;
 /// Boxed refresh closure: takes no args, returns a `RefreshFuture`.
 type RefreshFn = Arc<dyn Fn() -> RefreshFuture + Send + Sync>;
 
@@ -942,11 +941,9 @@ where
             );
             req.headers_mut().insert(
                 http::header::AUTHORIZATION,
-                header_value.parse().map_err(
-                    |e: http::header::InvalidHeaderValue| {
-                        Box::new(e) as Box<dyn std::error::Error + Send + Sync>
-                    },
-                )?,
+                header_value.parse().map_err(|e: http::header::InvalidHeaderValue| {
+                    Box::new(e) as Box<dyn std::error::Error + Send + Sync>
+                })?,
             );
             inner.call(req).await.map_err(Into::into)
         })
@@ -1035,10 +1032,9 @@ pub async fn create_eks_client(
         ..Default::default()
     };
 
-    let kube_config =
-        kube::Config::from_custom_kubeconfig(kubeconfig, &Default::default())
-            .await
-            .context("Failed to build kube config from EKS cluster data")?;
+    let kube_config = kube::Config::from_custom_kubeconfig(kubeconfig, &Default::default())
+        .await
+        .context("Failed to build kube config from EKS cluster data")?;
     let default_ns = kube_config.default_namespace.clone();
 
     // Build the layered HTTP service: base_uri → auth_refresh → hyper_util::Client.
@@ -1380,24 +1376,21 @@ mod tests {
 
     #[tokio::test]
     async fn eks_refresh_layer_refreshes_token_and_updates_authorization_header() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use kube::client::ConfigExt as _;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use tower::ServiceBuilder;
-        use wiremock::{Mock, MockServer, ResponseTemplate};
         use wiremock::matchers::any;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         // --- 1. Start a wiremock K8S API server mock --------------------------------
         let mock_server = MockServer::start().await;
         Mock::given(any())
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(serde_json::json!({
-                        "kind": "NamespaceList",
-                        "apiVersion": "v1",
-                        "metadata": {},
-                        "items": []
-                    })),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "kind": "NamespaceList",
+                "apiVersion": "v1",
+                "metadata": {},
+                "items": []
+            })))
             .expect(2) // exactly two requests total
             .mount(&mock_server)
             .await;
