@@ -4,6 +4,9 @@
 //! Eliminates the need for the AWS CLI by using `aws-sdk-rust` directly.
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result};
@@ -772,23 +775,235 @@ async fn build_eks_presigned_token(
 }
 
 // ---------------------------------------------------------------------------
+// EKS token refresh — spec 06 0002-H2
+// ---------------------------------------------------------------------------
+
+/// Token material and its expiry timestamp.
+pub struct TokenState {
+    /// The bearer token (presigned STS URL as EKS k8s-aws-v1.… string).
+    pub token: secrecy::SecretString,
+    /// Wall-clock instant at which the token expires.
+    pub expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Errors produced by `EksTokenRefresher::refresh`.
+#[derive(Debug, thiserror::Error)]
+pub enum EksTokenRefreshError {
+    /// `generate_eks_token` failed to re-sign the presigned URL.
+    #[error("Failed to regenerate EKS presigned token: {0}")]
+    PresignFailed(String),
+    /// The write lock on the token state was poisoned by a panicking writer.
+    #[error("Refresh state lock poisoned")]
+    LockPoisoned,
+}
+
+/// Boxed async refresh future returned by a `RefreshFn`.
+type RefreshFuture = Pin<Box<dyn Future<Output = Result<TokenState, EksTokenRefreshError>> + Send>>;
+/// Boxed refresh closure: takes no args, returns a `RefreshFuture`.
+type RefreshFn = Arc<dyn Fn() -> RefreshFuture + Send + Sync>;
+
+/// Number of seconds before expiry at which `should_refresh()` returns `true`.
+const REFRESH_LEEWAY_SECS: i64 = 10;
+
+/// Holds a refreshable EKS bearer token.
+///
+/// - `current_token()` / `should_refresh()` / `expires_at()` are synchronous and
+///   cheap (short-lived `std::sync::RwLock` read).
+/// - `refresh()` is async and serialised by a `tokio::sync::Mutex` so two
+///   concurrent callers never double-presign.
+pub struct EksTokenRefresher {
+    inner: Arc<RwLock<TokenState>>,
+    refresh_fn: RefreshFn,
+    in_flight: Arc<tokio::sync::Mutex<()>>,
+}
+
+impl EksTokenRefresher {
+    /// Construct with an initial `TokenState` and a boxed async refresh closure.
+    pub fn new(initial: TokenState, refresh_fn: RefreshFn) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(initial)),
+            refresh_fn,
+            in_flight: Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
+
+    /// Returns `true` when the token is at or past `expires_at - 10s`.
+    ///
+    /// The 10-second leeway (spec 06 0002-H2 acceptance criterion 2c) gives the
+    /// request pipeline time to complete before the token actually expires.
+    pub fn should_refresh(&self) -> bool {
+        let state = self.inner.read().expect("EksTokenRefresher lock poisoned");
+        chrono::Utc::now() + chrono::Duration::seconds(REFRESH_LEEWAY_SECS) >= state.expires_at
+    }
+
+    /// Clone the current token (`SecretString::clone` is `O(len)` but cheap for
+    /// a short AWS presigned URL string).
+    pub fn current_token(&self) -> secrecy::SecretString {
+        let state = self.inner.read().expect("EksTokenRefresher lock poisoned");
+        state.token.clone()
+    }
+
+    /// Read the current expiry timestamp.
+    pub fn expires_at(&self) -> chrono::DateTime<chrono::Utc> {
+        let state = self.inner.read().expect("EksTokenRefresher lock poisoned");
+        state.expires_at
+    }
+
+    /// Perform a refresh if `should_refresh()` still returns `true` after
+    /// acquiring the in-flight mutex.
+    ///
+    /// Concurrent callers wait on the mutex; the first caller refreshes and the
+    /// rest re-check `should_refresh()` on entry — if the first caller already
+    /// refreshed, the subsequent callers return immediately.
+    pub async fn refresh(&self) -> Result<(), EksTokenRefreshError> {
+        let _guard = self.in_flight.lock().await;
+        // Re-check after acquiring the guard: a prior holder may have just refreshed.
+        if !self.should_refresh() {
+            return Ok(());
+        }
+        let new_state = (self.refresh_fn)().await?;
+        let mut w = self.inner.write().map_err(|_| EksTokenRefreshError::LockPoisoned)?;
+        *w = new_state;
+        Ok(())
+    }
+
+    /// Shallow-clone this refresher: the returned handle shares the same `Arc`s
+    /// (same token state, same refresh closure, same in-flight guard) so the
+    /// middleware and the returned refresher stay in sync.
+    pub fn clone_handle(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            refresh_fn: self.refresh_fn.clone(),
+            in_flight: self.in_flight.clone(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// tower `AuthRefreshLayer` — injects a refreshed bearer token before each
+// outbound request to the Kubernetes API server.
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+struct AuthRefreshLayer {
+    refresher: Arc<EksTokenRefresher>,
+}
+
+impl<S> tower::Layer<S> for AuthRefreshLayer {
+    type Service = AuthRefreshService<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        AuthRefreshService { inner, refresher: self.refresher.clone() }
+    }
+}
+
+#[derive(Clone)]
+struct AuthRefreshService<S> {
+    inner: S,
+    refresher: Arc<EksTokenRefresher>,
+}
+
+impl<S, B> tower::Service<http::Request<B>> for AuthRefreshService<S>
+where
+    S: tower::Service<http::Request<B>, Response = http::Response<hyper::body::Incoming>>
+        + Clone
+        + Send
+        + 'static,
+    S::Future: Send + 'static,
+    S::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
+    B: Send + 'static,
+{
+    type Response = S::Response;
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx).map_err(Into::into)
+    }
+
+    fn call(&mut self, mut req: http::Request<B>) -> Self::Future {
+        let refresher = self.refresher.clone();
+        let mut inner = self.inner.clone();
+        Box::pin(async move {
+            if refresher.should_refresh() {
+                refresher
+                    .refresh()
+                    .await
+                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+            }
+            let token = refresher.current_token();
+            let header_value = format!(
+                "Bearer {}",
+                <secrecy::SecretString as secrecy::ExposeSecret<str>>::expose_secret(&token)
+            );
+            req.headers_mut().insert(
+                http::header::AUTHORIZATION,
+                header_value.parse().map_err(|e: http::header::InvalidHeaderValue| {
+                    Box::new(e) as Box<dyn std::error::Error + Send + Sync>
+                })?,
+            );
+            inner.call(req).await.map_err(Into::into)
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
 // kube::Client creation
 // ---------------------------------------------------------------------------
 
 /// Create a `kube::Client` for an EKS cluster using AWS credentials.
+///
+/// Returns `(client, refresher)`. The `client` is backed by an `AuthRefreshLayer`
+/// that calls `EksTokenRefresher::refresh()` before each outbound API request
+/// whenever the current token is within 10 seconds of expiry (spec 06 0002-H2).
+///
+/// The returned `EksTokenRefresher` allows callers to inspect the token expiry
+/// and populate `ClusterConnection::token_expiry` for display in the UI.
 pub async fn create_eks_client(
     cluster: &EksCluster,
     credentials: &Credentials,
-) -> Result<kube::Client> {
-    let token = generate_eks_token(&cluster.name, credentials, &cluster.region).await?;
+) -> Result<(kube::Client, EksTokenRefresher)> {
+    use kube::client::ConfigExt as _;
+    use tower::ServiceBuilder;
 
     let ca_data = cluster
         .certificate_authority_data
         .as_deref()
         .context("Cluster is missing certificate authority data")?;
 
-    // The kube crate expects certificate_authority_data as the raw base64 string —
-    // it decodes it internally. Pass it through as-is from the EKS API.
+    // Build initial token and set up the refresh closure.
+    let initial_token = generate_eks_token(&cluster.name, credentials, &cluster.region).await?;
+    let initial_state = TokenState {
+        token: secrecy::SecretString::new(initial_token.clone().into()),
+        expires_at: chrono::Utc::now() + chrono::Duration::seconds(60),
+    };
+
+    // Capture cluster identity + credentials for the refresh closure.
+    let creds_for_refresh = credentials.clone();
+    let cluster_name_for_refresh = cluster.name.clone();
+    let region_for_refresh = cluster.region.clone();
+    let refresh_fn: RefreshFn = Arc::new(move || {
+        let creds = creds_for_refresh.clone();
+        let cluster_name = cluster_name_for_refresh.clone();
+        let region = region_for_refresh.clone();
+        Box::pin(async move {
+            let token = generate_eks_token(&cluster_name, &creds, &region)
+                .await
+                .map_err(|e| EksTokenRefreshError::PresignFailed(e.to_string()))?;
+            Ok(TokenState {
+                token: secrecy::SecretString::new(token.into()),
+                expires_at: chrono::Utc::now() + chrono::Duration::seconds(60),
+            })
+        })
+    });
+    let refresher = EksTokenRefresher::new(initial_state, refresh_fn);
+
+    // Build the kubeconfig with the initial static token (inert under the custom
+    // service assembly below — `auth_layer` is not applied so this token is never
+    // consulted for outbound requests).
     let kubeconfig = kube::config::Kubeconfig {
         clusters: vec![kube::config::NamedCluster {
             name: cluster.name.clone(),
@@ -801,7 +1016,7 @@ pub async fn create_eks_client(
         auth_infos: vec![kube::config::NamedAuthInfo {
             name: format!("eks-{}", cluster.name),
             auth_info: Some(kube::config::AuthInfo {
-                token: Some(secrecy::SecretString::new(token.into())),
+                token: Some(secrecy::SecretString::new(initial_token.into())),
                 ..Default::default()
             }),
         }],
@@ -820,8 +1035,22 @@ pub async fn create_eks_client(
     let kube_config = kube::Config::from_custom_kubeconfig(kubeconfig, &Default::default())
         .await
         .context("Failed to build kube config from EKS cluster data")?;
+    let default_ns = kube_config.default_namespace.clone();
 
-    kube::Client::try_from(kube_config).context("Failed to create kube client for EKS cluster")
+    // Build the layered HTTP service: base_uri → auth_refresh → hyper_util::Client.
+    let https = kube_config
+        .rustls_https_connector()
+        .context("Failed to build rustls connector for EKS cluster")?;
+    let http_client =
+        hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+            .build(https);
+    let service = ServiceBuilder::new()
+        .layer(kube_config.base_uri_layer())
+        .layer(AuthRefreshLayer { refresher: Arc::new(refresher.clone_handle()) })
+        .service(http_client);
+    let client = kube::Client::new(service, default_ns);
+
+    Ok((client, refresher))
 }
 
 /// Generate the context name for an EKS cluster.
@@ -1045,5 +1274,206 @@ mod tests {
     fn test_base64_url_encode() {
         let encoded = base64_url_encode(b"hello world");
         assert_eq!(encoded, "aGVsbG8gd29ybGQ");
+    }
+
+    // --- Slice B step 4: EksTokenRefresher unit tests ---
+
+    fn make_fixed_refresher(
+        initial_expires_at: chrono::DateTime<chrono::Utc>,
+    ) -> (EksTokenRefresher, Arc<std::sync::atomic::AtomicUsize>) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        let refresh_fn: RefreshFn = Arc::new(move || {
+            let n = counter_clone.fetch_add(1, Ordering::SeqCst) + 1;
+            let token_str = format!("token-{}", n);
+            // Return expires_at well inside leeway so subsequent calls also refresh.
+            let expires = chrono::Utc::now() + chrono::Duration::seconds(5);
+            Box::pin(async move {
+                Ok(TokenState {
+                    token: secrecy::SecretString::new(token_str.into()),
+                    expires_at: expires,
+                })
+            })
+        });
+        let initial = TokenState {
+            token: secrecy::SecretString::new("token-0".to_string().into()),
+            expires_at: initial_expires_at,
+        };
+        (EksTokenRefresher::new(initial, refresh_fn), counter)
+    }
+
+    #[test]
+    fn should_refresh_returns_true_when_within_ten_seconds_of_expiry() {
+        // within leeway: now + 9s → should refresh
+        let (r, _) = make_fixed_refresher(chrono::Utc::now() + chrono::Duration::seconds(9));
+        assert!(r.should_refresh(), "9s remaining must trigger refresh");
+
+        // outside leeway: now + 11s → should NOT refresh
+        let (r2, _) = make_fixed_refresher(chrono::Utc::now() + chrono::Duration::seconds(11));
+        assert!(!r2.should_refresh(), "11s remaining must not trigger refresh");
+
+        // already expired: now - 1s → should refresh
+        let (r3, _) = make_fixed_refresher(chrono::Utc::now() - chrono::Duration::seconds(1));
+        assert!(r3.should_refresh(), "expired token must trigger refresh");
+    }
+
+    #[tokio::test]
+    async fn refresher_produces_fresh_token_on_call() {
+        use secrecy::ExposeSecret as _;
+        // seed with expires_at = now + 5s (within leeway) so both refreshes are seen through.
+        let initial_expires = chrono::Utc::now() + chrono::Duration::seconds(5);
+        let (r, counter) = make_fixed_refresher(initial_expires);
+
+        // First call — should_refresh() is true, so refresh fires.
+        r.refresh().await.expect("first refresh should succeed");
+        let t1 = r.current_token();
+
+        // Second call — expires_at is still within leeway (+5s), refresh fires again.
+        r.refresh().await.expect("second refresh should succeed");
+        let t2 = r.current_token();
+
+        // The two tokens must differ (counter was incremented twice).
+        assert_ne!(
+            t1.expose_secret(),
+            t2.expose_secret(),
+            "successive refreshes must produce distinct tokens"
+        );
+        assert_eq!(
+            counter.load(std::sync::atomic::Ordering::SeqCst),
+            2,
+            "exactly two refreshes should have fired"
+        );
+    }
+
+    #[tokio::test]
+    async fn refresher_surfaces_typed_error_on_failure() {
+        let refresh_fn: RefreshFn = Arc::new(|| {
+            Box::pin(async {
+                Err(EksTokenRefreshError::PresignFailed("injected failure".to_string()))
+            })
+        });
+        // Seed with expires_at in the past so should_refresh() == true immediately.
+        let initial = TokenState {
+            token: secrecy::SecretString::new("stale".to_string().into()),
+            expires_at: chrono::Utc::now() - chrono::Duration::seconds(1),
+        };
+        let r = EksTokenRefresher::new(initial, refresh_fn);
+        match r.refresh().await {
+            Err(EksTokenRefreshError::PresignFailed(msg)) => {
+                assert_eq!(msg, "injected failure");
+            }
+            other => panic!("expected PresignFailed, got {:?}", other),
+        }
+    }
+
+    // --- Slice B step 6: wiremock acceptance test (K8S API server + counter refresh) ---
+    //
+    // Placed inline (rather than in tests/) because `AuthRefreshLayer` is private to
+    // this module. The `#[cfg(test)] mod tests { use super::*; }` pattern gives full
+    // access. wiremock is a dev-dependency; this test exercises the real middleware
+    // code path as specified in spec 06 0002-H2 acceptance criterion 2a.
+
+    #[tokio::test]
+    async fn eks_refresh_layer_refreshes_token_and_updates_authorization_header() {
+        use kube::client::ConfigExt as _;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use tower::ServiceBuilder;
+        use wiremock::matchers::any;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        // --- 1. Start a wiremock K8S API server mock --------------------------------
+        let mock_server = MockServer::start().await;
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "kind": "NamespaceList",
+                "apiVersion": "v1",
+                "metadata": {},
+                "items": []
+            })))
+            .expect(2) // exactly two requests total
+            .mount(&mock_server)
+            .await;
+
+        // --- 2. Construct an EksTokenRefresher directly ----------------------------
+        //
+        // Initial expires_at = Utc::now() + 12s — outside the 10-second leeway, so
+        // the first request takes the fast path (no refresh).
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        let refresh_fn: RefreshFn = Arc::new(move || {
+            let n = counter_clone.fetch_add(1, Ordering::SeqCst) + 1;
+            let token_str = format!("token-{}", n);
+            let expires = chrono::Utc::now() + chrono::Duration::seconds(60);
+            Box::pin(async move {
+                Ok(TokenState {
+                    token: secrecy::SecretString::new(token_str.into()),
+                    expires_at: expires,
+                })
+            })
+        });
+        let initial = TokenState {
+            token: secrecy::SecretString::new("token-0".to_string().into()),
+            expires_at: chrono::Utc::now() + chrono::Duration::seconds(12),
+        };
+        let refresher = EksTokenRefresher::new(initial, refresh_fn);
+
+        // --- 3. Build kube::Client pointing at the mock server ---------------------
+        let server_uri: http::Uri = mock_server.uri().parse().expect("valid URI");
+        let kube_config = kube::Config::new(server_uri);
+        let default_ns = kube_config.default_namespace.clone();
+
+        let mut http = hyper_util::client::legacy::connect::HttpConnector::new();
+        http.enforce_http(false);
+        let http_client =
+            hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+                .build(http);
+        let service = ServiceBuilder::new()
+            .layer(kube_config.base_uri_layer())
+            .layer(AuthRefreshLayer { refresher: Arc::new(refresher.clone_handle()) })
+            .service(http_client);
+        let client = kube::Client::new(service, default_ns);
+
+        // --- 4. First request: fast path, no refresh --------------------------------
+        let api: kube::Api<k8s_openapi::api::core::v1::Namespace> = kube::Api::all(client.clone());
+        let _ = api.list(&Default::default()).await;
+
+        {
+            let requests = mock_server.received_requests().await.expect("requests");
+            assert_eq!(requests.len(), 1, "exactly one request after first list()");
+            let auth = requests[0]
+                .headers
+                .get("authorization")
+                .map(|v| v.to_str().unwrap_or(""))
+                .unwrap_or("");
+            assert_eq!(auth, "Bearer token-0", "first request should carry initial token");
+            assert_eq!(
+                counter.load(Ordering::SeqCst),
+                0,
+                "counter must be zero — no refresh on the fast path"
+            );
+        }
+
+        // --- 5. Sleep past the leeway: remaining = 12 - 3 = 9s < 10s ---------------
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+        // --- 6. Second request: refresh fires, new token in header ------------------
+        let _ = api.list(&Default::default()).await;
+
+        {
+            let requests = mock_server.received_requests().await.expect("requests");
+            assert_eq!(requests.len(), 2, "exactly two requests after second list()");
+            let auth = requests[1]
+                .headers
+                .get("authorization")
+                .map(|v| v.to_str().unwrap_or(""))
+                .unwrap_or("");
+            assert_eq!(auth, "Bearer token-1", "second request should carry refreshed token");
+            assert_eq!(
+                counter.load(Ordering::SeqCst),
+                1,
+                "exactly one presign issued between the two API calls"
+            );
+        }
     }
 }

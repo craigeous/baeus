@@ -1,6 +1,6 @@
 # Slice B — Watch Cancellation + EKS Token Refresh
 
-Status: Plan Review
+Status: Ready to Publish
 Target specs: `.docs/spec/06-remediation-highs.md` (§ 0002-H1 "Cancellation
 surface on `watch_events` / `watch_resources`", § 0002-H2 "EKS bearer token
 60-second TTL with no refresh path"); gate defined by
@@ -583,9 +583,17 @@ call-site adjustments), the plan uses a small parallel map:
 
 - Add a new field to `AppShell`: `resource_watch_cancels: HashMap<
   ResourceListKey, CancellationToken>` (single map, no wrapper struct).
-  This is one added field — well under spec 06 0003-H1's future 25-field
-  target. Wire it into `AppShell::new` (line ~708 area) with `HashMap::
-  new()`.
+  Spec 06 0002-H1's Affected-files list names `watch.rs` and — via the
+  0002-H2 note — the wider `baeus-core` surface, and does not bound
+  Slice B's UI edits (the "call-site adjustments" phrase in spec 06
+  line 595 belongs to 0005-H5, not to Slice B). The parallel-map
+  approach is chosen here because it keeps AppShell's per-resource
+  watcher state in exactly the same idiom (`HashSet` +
+  `HashMap` on `ResourceListKey`) that already exists at
+  `app_shell.rs:2627, :2643, :2718`, avoiding an ad-hoc sub-struct
+  in this slice; the new field is one added field, well under spec 06
+  0003-H1's future 25-field target. Wire it into `AppShell::new` (line
+  ~708 area) with `HashMap::new()`.
 - In `start_resource_watcher`, after the duplicate-watcher guard (app_shell.
   rs:2627) and before spawning the Tokio task, create a `CancellationToken`,
   clone it into the spawn closure, and insert it into
@@ -623,7 +631,16 @@ if inline hits any budget constraint):
   closure that returns a monotonic counter as the token string, wraps in
   `EksTokenRefresher`, calls `.refresh().await` twice, asserts
   `.current_token()` returns two different `SecretString` values across
-  the calls.
+  the calls. **Precondition on the closure's returned `expires_at`.** The
+  in-flight guard in `refresh()` re-checks `should_refresh()` after
+  acquiring the mutex; if the closure's returned `expires_at` is
+  outside the 10-second leeway, the second `.refresh().await` short-
+  circuits and observes the first-refresh token, and the two-different-
+  tokens assertion fails. The test therefore constructs the closure
+  to return `expires_at = Utc::now() + seconds(5)` (well inside the
+  leeway) so both refreshes are seen through. The initial `TokenState`
+  passed to `EksTokenRefresher::new` uses the same +5 s expiry so the
+  first `.refresh()` call also has `should_refresh() == true`.
 - `refresher_surfaces_typed_error_on_failure` — refresh closure returns
   `Err(EksTokenRefreshError::PresignFailed(...))`; asserts `.refresh().
   await` returns the typed error variant, not an opaque `anyhow::Error`.
@@ -714,8 +731,20 @@ Notes constraining this design:
 
 - Critical sections in `std::sync::RwLock` are strictly `Clone` +
   timestamp compare / assign — no `.await` inside the lock, so no
-  blocking-in-async-context risk. Poisoned-lock cases surface as
-  `EksTokenRefreshError::LockPoisoned` rather than panic-in-request-path.
+  blocking-in-async-context risk. Poisoned-lock semantics are split
+  by call site rather than uniformly typed: the two request-path
+  getters (`should_refresh`, `current_token`) treat poisoning as an
+  unrecoverable invariant break and `.expect("lock poisoned")` —
+  standard Rust `RwLock` practice, and appropriate given that a
+  poisoned lock here means a prior `refresh()` writer panicked and
+  no forward progress is possible on the token state. The async
+  `refresh()` method itself, which *is* the writer, maps its own
+  write-guard `PoisonError` to `EksTokenRefreshError::LockPoisoned`
+  rather than propagating a bare panic — so the writer-side failure
+  is typed, while readers fail loudly. The design note earlier drafted
+  a uniform typed-error story; this revision documents the split
+  explicitly so the sketched signatures and the rationale are
+  consistent.
 - `refresh_fn` is a boxed async closure. In production, it captures the
   cluster's `Credentials` (which `impl Clone`) + cluster name + region
   and calls `generate_eks_token` (aws_eks.rs:688). In tests, it captures
@@ -851,12 +880,19 @@ method names have shifted, the developer verifies via `cargo doc --open
 speculate about renames — it names the surface the vendored source
 exposes today.
 
-Leave the static token in the synthesised `Kubeconfig` (aws_eks.rs:
-804) as a fail-safe fallback: if the layer's `Authorization` header
-write is ever removed, kube-rs's own auth handling will still send the
-initial token for the first 60 s. The middleware `insert` (not `append`)
-overwrites any existing header, so both paths coexist without duplicate
-`Authorization` values.
+The static `token` field in the synthesised `Kubeconfig`
+(aws_eks.rs:804) remains in the code but is **inert** under the custom-
+service assembly above: the layered service pipeline does not apply
+kube-rs's `auth_layer`, so the kubeconfig-embedded token is never
+consulted for outbound requests — the middleware's `AUTHORIZATION`
+header write is the sole authentication path. Removing the static
+`token` from the kubeconfig is out of scope for this slice (it stays a
+diagnostic hint for any future reader who inspects the config), but
+must not be described as a "fail-safe fallback" — there is no path in
+which its absence would degrade to the initial token; requests would
+simply carry no `Authorization` header at all. The middleware uses
+`HeaderMap::insert` (not `append`) so no duplicate-header case arises
+regardless.
 
 ### 5. `crates/baeus-core/src/cluster.rs` — reuse existing `set_token_expiry`
 
@@ -867,9 +903,15 @@ method or test is added.** The round-1 draft proposed both; both were
 duplicative.
 
 The only edit to cluster.rs is a doc-comment addition on `set_token_expiry`
-noting that it is now called from the 0002-H2 refresh path (once a caller
-of `create_eks_client` exists to invoke it — see step 6 note). No behaviour
-change.
+noting that it is **intended for future callers of `create_eks_client`**
+that construct `ClusterConnection` records for refresher-backed clients.
+Post-slice-B there is no such caller — `create_eks_client` remains
+uncalled workspace-wide (the finalize spec 06 clarification queued in
+step 7 acknowledges this gap), so `ClusterConnection.token_expiry`
+stays unpopulated by this slice. The doc comment must therefore be
+written in the future tense ("will be populated by callers that hold an
+`EksTokenRefresher`") — not the present tense — so it does not falsely
+imply a call relationship that does not exist yet. No behaviour change.
 
 ### 6. Wiring `create_eks_client`'s new return shape — and what does not need wiring
 
@@ -906,46 +948,47 @@ are observed:
 
 Add `crates/baeus-core/tests/aws_eks_refresh_integration.rs` (new file):
 
-1. Start a `wiremock::MockServer` with two mount rules:
+1. Start a `wiremock::MockServer` with a single mount rule:
    - `Mock::given(any()).respond_with(ResponseTemplate::new(200).
      set_body_json(json!({"kind": "Status", ...})))` — accept any GET,
-     record the request.
-   - Capture each incoming request via `MockServer::received_requests()`.
+     record every incoming request via
+     `MockServer::received_requests()`.
 2. Construct an `EksTokenRefresher` directly (bypassing
-   `create_eks_client`, which reaches AWS SDK internals): initial
+   `create_eks_client`, which reaches AWS SDK internals). Choose the
+   initial `TokenState.expires_at` **outside** the 10-second
+   `REFRESH_LEEWAY` so `should_refresh()` returns false on the first
+   request — the fast path — and only becomes true after the
+   sleep advances wall-clock time past `expires_at - 10s`. Concretely:
    `TokenState { token = "token-0", expires_at = Utc::now() +
-   seconds(2) }` (well inside the 10-second `REFRESH_LEEWAY` so the very
-   first `should_refresh` returns true — but the test triggers refresh
-   explicitly by using an initially-not-should-refresh state and then
-   advancing wall-clock past the leeway; see next bullet). Refresh
-   closure captures an `Arc<AtomicUsize>` counter; increments on each
-   call and returns `TokenState { token = format!("token-{}", n),
-   expires_at = Utc::now() + seconds(60) }`.
+   seconds(12) }`. Refresh closure captures an `Arc<AtomicUsize>`
+   counter, increments on each call, and returns
+   `TokenState { token = format!("token-{}", n), expires_at =
+   Utc::now() + seconds(60) }` (well outside the leeway so the new
+   token in turn takes the fast path). `n` is the value read after the
+   increment; the first refresh yields `n == 1`.
 3. Build a real `kube::Client` pointing at `mock_server.uri()` (kube-rs
    accepts a bare URL for the API server), with the `AuthRefreshLayer`
    installed as in step 4. This exercises the *actual middleware code
    path*, not a mock of it.
 4. `let _ = client.list::<...>().await;` — first request. Assert
    `mock_server.received_requests().len() == 1`; assert the recorded
-   `Authorization` header on request 0 starts with `Bearer token-0`
-   (or `Bearer token-1` if the initial-should-refresh path was
-   exercised — the test checks the *value* of the counter, not the
-   name).
-5. Sleep past expiry (`tokio::time::sleep(Duration::from_secs(3)).
-   await` for the 2 s expiry above) — bounded, single-digit-seconds.
-   Wall-clock sleep is acceptable here because the test is
-   integration-scoped and CI budget accommodates a 3 s sleep. If
-   nextest budget is tight, use `tokio::time::advance` with
-   `tokio::time::pause()` and a `Duration::from_secs(3)` advance
-   instead. Choose the sleep form because `Utc::now()` reads system
-   clock, not the tokio clock, and `tokio::time::advance` does not
-   move `Utc::now()`.
+   `Authorization` header on request 0 equals `Bearer token-0` exactly
+   — proving the fast path (spec 06 acceptance 2c) and that no
+   spurious refresh fires before the leeway triggers.
+5. Sleep past the leeway (`tokio::time::sleep(Duration::from_secs(3)).
+   await`). Given the +12 s initial expiry, after a 3 s sleep the
+   remaining lifetime is 9 s, which is inside the 10-second leeway;
+   the next `should_refresh()` call therefore returns true. Bounded
+   at single-digit seconds. Wall-clock sleep is required here because
+   `Utc::now()` reads the system clock, and `tokio::time::advance`
+   does not move `Utc::now()`.
 6. `let _ = client.list::<...>().await;` — second request. Assert
    `mock_server.received_requests().len() == 2`; assert the recorded
-   `Authorization` header on request 1 starts with `Bearer token-`
-   followed by a *higher* counter value than request 0.
-7. Assert `counter.load(Ordering::SeqCst) >= 2` — a second presign
-   was issued.
+   `Authorization` header on request 1 equals `Bearer token-1`
+   exactly — proving one refresh fired between the two API calls.
+7. Assert `counter.load(Ordering::SeqCst) == 1` — exactly one presign
+   was issued (the second one; the fast-path first request did not
+   refresh).
 
 Justification of this substitution against the frozen spec 06 test
 expectation: spec 06 defines the observation as "a second
@@ -1066,11 +1109,15 @@ gate steps on all three legs.
 **0002-H2 acceptance:**
 
 2a. A `kube::Client` produced by `create_eks_client` succeeds on API
-    calls made after simulated ≥60 s elapse (step 6 integration test:
-    two-second expiry + three-second sleep + real `kube::Client +
-    AuthRefreshLayer` stack; assertion is second request's
-    `Authorization` header differs from the first and the refresh
-    counter incremented).
+    calls made after simulated ≥60 s elapse — the step-6 integration
+    test asserts this by seeding the refresher with an initial
+    `expires_at = Utc::now() + 12s` (outside the 10-second leeway),
+    sleeping 3 s (which lands the remaining lifetime *inside* the
+    leeway), and issuing a second real `kube::Client` request through
+    the `AuthRefreshLayer`. Request 0 carries `Bearer token-0` (fast
+    path); request 1 carries `Bearer token-1` (post-refresh);
+    `counter == 1` (exactly one presign issued between the two API
+    calls).
 2b. Refresh failure surfaces as `EksTokenRefreshError`, not opaque
     `anyhow::Error` (test:
     `refresher_surfaces_typed_error_on_failure`).
@@ -1078,8 +1125,11 @@ gate steps on all three legs.
     `should_refresh()` returns false and no refresh call is issued
     (verified by
     `should_refresh_returns_true_when_within_ten_seconds_of_expiry`'s
-    false-branch case, plus step 6's initial request when the initial
-    `TokenState.expires_at` is more than 10 s ahead of `Utc::now()`).
+    false-branch case, plus step 6's *first* API call, which is
+    seeded with `expires_at = Utc::now() + 12s` and asserted to
+    carry the initial `Bearer token-0` with the counter still at
+    zero — proof that the fast path fired without issuing a
+    presign).
 
 ### Gate (spec 03 + slice-specific)
 
@@ -1119,3 +1169,40 @@ gate steps on all three legs.
   `create_eks_client + EksTokenRefresher`, or (b) delete `create_eks_client`
   in favour of the exec-plugin path — either resolution rewrites the
   Affected-files list.
+
+  Riding along with the same finalize clarification: spec 06 0002-H2's
+  Affected-files expectation "`token_expiry` field now populated" stays
+  **unmet** by this slice. `ClusterConnection.token_expiry` remains
+  `None` post-slice-B because `create_eks_client` is uncalled — the
+  new refresher's `expires_at()` accessor is available for any future
+  caller to feed into `set_token_expiry`, but the wiring itself is out
+  of scope. This gap is intrinsic to the Affected-files inaccuracy
+  above (until a live caller exists, the field cannot be populated)
+  and resolves along with whichever migration option (a) or (b) the
+  future planner chooses.
+
+- **2026-08-26 — Spec 06 Slice Breakdown row for Slice B does not
+  name `app_shell.rs`.** Spec 06's Slice B row lists only
+  `crates/baeus-core/src/{client.rs, aws_eks.rs, cluster.rs, watch.rs}`
+  and `crates/baeus-core/Cargo.toml` as Primary files. This slice
+  edits `crates/baeus-ui/src/layout/app_shell.rs` at two call sites
+  (`start_event_watcher` at :2240, `start_resource_watcher` at :2658),
+  adds one new field (`resource_watch_cancels`), and wires
+  cancellation across `start_event_watcher`, `start_resource_watcher`,
+  and `stop_event_watcher` — the round-1 evaluation required this
+  wiring, and spec 06 0002-H1's fix approach ("public entry points
+  accept a `CancellationToken`; propagate to informer + watch bridge;
+  cancel on cluster switch / disconnect") is not satisfiable without
+  it. Slices D, F, and G's rows list `app_shell.rs` explicitly when
+  their fixes require UI edits; the Slice B row was drafted before
+  the plan-eval round-1 UI-wiring guidance and does not include it.
+  Because an Approved spec is frozen (ADR 0005), the correction is
+  handled as a **dated additive amendment** to spec 06 in the same
+  finalize pass that queues the 0002-H2 Affected-files clarification
+  above — the Slice B row is amended to add
+  `crates/baeus-ui/src/layout/app_shell.rs` (start_event_watcher,
+  start_resource_watcher, stop_event_watcher call-site wiring and
+  the `resource_watch_cancels` field) to its Primary files list. No
+  other section of spec 06 is altered. This is called out here so
+  that finalize does not merge the plan without carrying the
+  amendment through.

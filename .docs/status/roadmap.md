@@ -20,8 +20,8 @@ records, the owner decides.
   **DONE** (code-eval PASS, PR landing on `slice/a-ci-hardening`).
 - ~~**Slice A2** — CI toolchain pin (owner-directed, spec 06 Amendments)~~
   **DONE** (code-eval PASS, PR landing on `slice/a2-ci-toolchain-pin`).
-- **Slice B** — watch cancellation + EKS token refresh (0006-H5 + EKS-auth
-  highs from research 0002) — **next after slice A merges**.
+- ~~**Slice B** — watch cancellation + EKS token refresh (0002-H1, 0002-H2)~~
+  **DONE** (code-eval PASS, PR landing on `slice/b-watch-eks`).
 - **Slices C–G** — remaining spec 06 highs, to be planned in order.
 
 Candidate opportunities noted during the alignment survey (for the owner to
