@@ -165,7 +165,13 @@ pub async fn create_client_from_path(
         .with_context(|| format!("Failed to read kubeconfig from '{kubeconfig_path}'"))?;
 
     if let Some(profile) = aws_profile {
-        crate::aws_sso::inject_aws_profile_into_kubeconfig(&mut kubeconfig, context_name, profile)?;
+        crate::aws_sso::inject_aws_profile_into_kubeconfig(&mut kubeconfig, context_name, profile)
+            .with_context(|| {
+                format!(
+                    "Injecting AWS profile '{profile}' into kubeconfig context \
+                     '{context_name}' failed"
+                )
+            })?;
     }
 
     let config = Config::from_custom_kubeconfig(
@@ -205,7 +211,12 @@ pub async fn create_client_from_path_with_aws_creds(
         access_key_id,
         secret_access_key,
         session_token,
-    )?;
+    )
+    .with_context(|| {
+        format!(
+            "Injecting wizard AWS credentials into kubeconfig context '{context_name}' failed"
+        )
+    })?;
 
     let config = Config::from_custom_kubeconfig(
         kubeconfig,

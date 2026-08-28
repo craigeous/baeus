@@ -47,3 +47,4 @@ aws-smithy-runtime-api.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 tempfile.workspace = true
 wiremock = "0.6"
+aws-smithy-http-client = { version = "1.1", features = ["test-util"] }
