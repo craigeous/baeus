@@ -382,3 +382,203 @@ flagged above:
 - Non-goal discipline, `pub` + `#[doc(hidden)]` seam reasoning,
   UI no-edit verification (step 5), and scope fidelity to Slice C's
   row are unchanged from round 0 and still correct.
+
+
+---
+
+# Evaluation: slice-c-injection-errors-async-tests (re-review, round 3)
+
+Verdict: PASS
+Round: 2
+Reviewed against: `.docs/spec/06-remediation-highs.md` (§ 0002-H3, §
+0002-H4, Slice Breakdown row C), the round-2 evaluation section of
+`.docs/evaluations/slice-c-injection-errors-async-tests-eval.md`, the
+`git diff fd8f0f5..ac50b19` of the artifact, and the unchanged
+post-slice-B tree: `crates/baeus-core/src/{aws_eks.rs, aws_sso.rs}`,
+`Cargo.lock`, `.github/workflows/ci.yml`, and the vendored
+`aws-smithy-http-client-1.1.12`, `aws-smithy-runtime-1.10.3`,
+`kube-client-0.98.0` sources. No reviewed code has changed since round 2
+(aws_eks.rs :806/:834-837/:858-863/:965-1054 and slice B's test at
+:1377-1478 spot-rechecked verbatim).
+
+## Round-2 findings — resolution status
+
+- [BLOCKER, round 2] *Step 6 refresher assertion mechanically
+  impossible (refresh() no-ops below the 10s leeway; 60s hardcoded
+  initial TTL).* **Resolved — re-walked the new timeline against the
+  real code; it is sound.** The revision prescribes a
+  `pub #[doc(hidden)] create_eks_client_with_initial_ttl_secs(cluster,
+  credentials, initial_ttl_secs: i64)` seam: the current body
+  (aws_eks.rs:965-1054, verified) moves into the inner with the
+  hardcoded `now + 60s` at :981 replaced by
+  `Duration::seconds(initial_ttl_secs)` (i64 — signature-compatible),
+  and public `create_eks_client` becomes a one-line delegate at 60s.
+  Verified the gating arithmetic directly: `should_refresh()`
+  (:834-837) computes `Utc::now() + 10s >= expires_at` with `>=`, and
+  `REFRESH_LEEWAY_SECS = 10` (:806). With the seeded 12s TTL: at
+  `t ≈ t0`, `t0+10s < t0+12s` → fast path, no refresh (the early return
+  at :861-863 under the `tokio::sync::Mutex` is not reached via
+  `AuthRefreshService`); after the disclosed 3s wall-clock sleep,
+  `t0+13s >= t0+12s` (13 ≥ 12) → the second `list()` drives
+  `AuthRefreshService::call()` into `refresher.refresh()`, the mutex
+  re-check passes, and the captured closure (:988-1001) re-invokes
+  `generate_eks_token`, yielding a presigned URL distinct at least in
+  `X-Amz-Date`/`X-Amz-Signature` 3s later. This mirrors slice B's
+  proven pattern exactly (12s seed at :1415-1416, 3s sleep at :1458,
+  `.expect(2)` mock at :1386-1396), which passes all three CI legs
+  today. The closure's own post-refresh `expires_at = now + 60s` (:998)
+  is intentionally unchanged — after the single refresh
+  `should_refresh()` goes false again, so exactly two requests hit the
+  mock and `.expect(2)` guards phantoms. The returned refresher and the
+  layer's `clone_handle()` share `Arc` state (:1049, :870-879), so the
+  `current_token()` == bearer-tail assertions hold on both requests.
+  The 4a proof text now describes this actual mechanism (seeded TTL +
+  sleep + two observed bearers) rather than round 2's impossible
+  immediate-`refresh()` call, and the "Why the seam is required"
+  paragraph's mechanical argument (:981 hardcode vs :806 leeway vs
+  :861-863 early return) checks out line-for-line. The 51s-sleep
+  alternative is correctly rejected against spec 06 0002-H4's
+  CI-runtime-budget test expectation; the seam is the minimum honest
+  fix and is the same shape (pub + `#[doc(hidden)]` inner, unchanged
+  public wrapper) spec 06's "minimal API surface tweaks" clause
+  authorises. One fixture-level flaw in this test's construction is
+  flagged as a new MINOR below; it does not touch the seam, timeline,
+  or assertions.
+- [MINOR, round 2] *Green-path test's second-call "no longer contains"
+  contradicts insert-only semantics.* **Resolved.** Step 1 now
+  prescribes a second, fresh kubeconfig for the `session_token = None`
+  call with a "does not contain" assertion, and documents why
+  (aws_sso.rs:155-169 is insert-only — re-verified: the
+  `if let Some(token) = session_token` block only inserts/updates, never
+  removes).
+- [MINOR, round 2] *Deprecated StaticReplayClient path trips
+  `-D warnings`.* **Resolved.** Step 0 now dev-deps
+  `aws-smithy-http-client = { version = "1.1", features = ["test-util"] }`
+  and step 4 imports `aws_smithy_http_client::test_util::StaticReplayClient`.
+  Verified against the vendored tree: the type is defined non-deprecated
+  at aws-smithy-http-client 1.1.12 `src/test_util/replay.rs:154`
+  (`pub struct StaticReplayClient`), while the
+  `aws_smithy_runtime::client::http::test_util` module carries
+  `#[deprecated = "… Please use the `test-util` feature from
+  `aws-smithy-http-client` instead"]` at aws-smithy-runtime 1.10.3
+  `src/client/http.rs:12` exactly as the plan claims. Both crates are in
+  `Cargo.lock` at the stated versions.
+- [MINOR, round 2] *"does not add a new crate" claim false.*
+  **Resolved.** Step 0's "Dep-tree delta (accurate accounting)"
+  discloses `aws-smithy-protocol-test` as net-new to the lockfile
+  (verified: `grep -c aws-smithy-protocol-test Cargo.lock` = 0 pre-slice;
+  the crate is `dep:aws-smithy-protocol-test` under
+  aws-smithy-http-client's `test-util` feature), requires a post-add
+  `cargo tree` / `cargo deny check` with the diff captured in the commit,
+  and gates licence/advisory failure to Needs Clarification. A residual
+  inaccuracy in the parenthetical naming is flagged below.
+- [MINOR, round 2] *Nine-vs-eight misstatement.* **Resolved.** Both the
+  In-scope section and step 4's per-call review now say "all eight SDK
+  operations exercised by the smoke file," with an explicit parenthetical
+  that the ninth/tenth 0002-H4 functions (`create_eks_client`,
+  `generate_eks_token`) live in step 6.
+
+## New findings
+
+- [MINOR] **Step 6's CA fixture must be base64-encoded PEM, not the raw
+  PEM const the text describes.** The test body prescribes an
+  `EksCluster` whose `certificate_authority_data` is "a valid
+  self-signed CA PEM (embedded as a `const &str` … a well-formed
+  `-----BEGIN CERTIFICATE-----` payload that rustls-pemfile parses)".
+  Verified against the locked kube-client 0.98.0:
+  `from_custom_kubeconfig` → `new_from_loader` → `loader.ca_bundle()?`
+  (file_loader.rs:113-121) → `load_certificate_authority()` →
+  `load_from_base64_or_file` → `base64::engine::general_purpose::
+  STANDARD.decode` (file_config.rs:641-646) — unconditionally, with no
+  raw-PEM fallback — and only then `certs()` PEM-parses the decoded
+  bytes (config/mod.rs:377-388). A raw `-----BEGIN CERTIFICATE-----`
+  string fails base64 decode (`-` is outside the alphabet), so
+  `create_eks_client_with_initial_ttl_secs(...).await?` would return
+  `Err` at construction and the test would fail on its first statement
+  if the text is followed literally. The fix is one line — base64-encode
+  the PEM, matching EKS's real wire format (`certificate.authority.data`
+  is base64, passed through unchanged at aws_eks.rs:660-663) and the
+  repo's own fixture convention (`"LS0tLS1..."` at aws_eks.rs:1150).
+  Same defect class round 2 rated MINOR (instruction-as-written fails;
+  trivial local correction; no change to seam, timeline, assertions,
+  counts, or gate).
+- [MINOR] **Step 0's "other transitively-pulled crates" parenthetical
+  names the wrong crates for the crate it prescribes.** The text says
+  the other pulls under the feature are "`tracing-subscriber`, `http`
+  0.2, `hyper` 0.14" — that is the closure of *aws-smithy-runtime*'s
+  `test-util` feature (vendored Cargo.toml:72-77, which does pull
+  `dep:tracing-subscriber`). The prescribed
+  `aws-smithy-http-client/test-util` (vendored Cargo.toml:113-123)
+  actually pulls `dep:serde`, `dep:serde_json`, `dep:indexmap`,
+  `dep:bytes`, `dep:http-1x`, `dep:http-body-1x`,
+  `aws-smithy-runtime-api/http-1x`, `aws-smithy-types/http-body-1-x`,
+  `tokio/rt` — all already locked (indexmap, http 1.x, http-body 1.x,
+  serde/serde_json/bytes confirmed in `Cargo.lock`). The load-bearing
+  claim — only `aws-smithy-protocol-test` is net-new, everything else
+  already locked, `cargo deny check` gates the delta — remains true;
+  only the illustrative parenthetical is stale (carried over from the
+  round-2 eval's description of the previous crate choice).
+
+## Required changes (for FAIL)
+
+None — no BLOCKERs and no MAJORs. The two MINORs above are one-line
+corrections at implementation (base64-encode the CA const; fix the
+parenthetical's crate names) and do not require re-planning.
+
+## Notes
+
+Fresh-attack pass performed for this round, beyond the flagged items:
+
+- **Seam-composition check (step 3 `_with_config` vs step 6
+  `_with_initial_ttl_secs`).** No overlap or conflict: step 3's eight
+  seams cover exactly the functions that build `aws_config::defaults`
+  inline (:235/:263/:299/:344/:383/:422/:480/:512/:621 — re-spot-checked);
+  `create_eks_client` builds no `SdkConfig` (its only AWS interaction is
+  the client-side presign via `generate_eks_token`), so it is correctly
+  absent from step 3's list, and the TTL seam is a disjoint surface.
+  The Notes section's two-seam discussion (pub + `#[doc(hidden)]`
+  uniformity, inline-test placement making `pub(crate)` technically
+  sufficient for step 6) is coherent, and the last-resort TLS-bypass
+  seam's composition is stated unambiguously (the http-client seam takes
+  both an initial TTL and a pre-built client; the public wrapper passes
+  60s + the default TLS-backed client).
+- **Timeline re-walk (independent).** t0 defined at constructor return
+  while `expires_at` is set milliseconds earlier inside the constructor
+  only widens the refresh-path margin (t0+13+δ ≥ t0+12) and leaves ~2s
+  of slack on the fast path (t0+10+δ < t0+12 for any sub-second δ) —
+  identical margins to slice B's in-tree test that passes CI today.
+  The `>=` comparison in `should_refresh()` matches the plan's
+  "13 ≥ 12" presentation. No new arithmetic errors introduced.
+- **HTTP-mock feasibility re-verified.** kube-client 0.98.0's
+  `rustls_https_connector()` builds `HttpConnector` with
+  `enforce_http(false)` (config_ext.rs:222) and
+  `https_or_http()` (config_ext.rs:238), so an `http://` wiremock URI
+  passes through the assembled service without TLS — the primary
+  no-TLS-seam path is plausible and the fallback seam is an acceptable
+  contingency. Slice B's analogous pattern (aws_eks.rs:1421-1435) uses
+  the same `enforce_http(false)` mechanism.
+- **Test-count consistency.** +15 = 5 (step 1) + 8 (step 4) + 2
+  (step 6), consistent across Verification §3, the gate table, step 4's
+  own count note ("8 tests, one fewer than the pre-fold 9"), and 4a's
+  7-of-nine-smoke + 2-inline accounting (the smoke file's 8th test
+  covers `discover_clusters_in_region`, outside the nine — correctly
+  excluded from the 4a count but included in the +15).
+- **Spec 06 0002-H4 re-read verbatim.** The fix-approach minimum
+  ("`create_eks_client` round-trip (which now includes the refresher
+  from 0002-H2)"), the nine-function list, the per-call mock
+  conditional, the `[dev-dependencies]` budget, and the nextest gate
+  wording are all as the plan cites. The TTL seam stays within the
+  "minimal API surface tweaks" shape (one scalar parameter, unchanged
+  public wrapper, `#[doc(hidden)]`), and is the resolution path the
+  round-2 evaluation's Required change 1(c) explicitly offered; for
+  `create_eks_client` a `SdkConfig` parameter would be meaningless (no
+  SDK client is built), so the spec's parenthetical does not apply to
+  this function.
+- **Trivial citation drift (not a finding).** Step 0 cites "ci.yml:75"
+  for the clippy line; clippy is at ci.yml:81 (:75-76 is the
+  `cargo deny check` step). The nextest citation (ci.yml:86) is exact.
+- **rustls availability for the CA fallback.** `rustls.workspace = true`
+  is a direct dependency (crates/baeus-core/Cargo.toml:30), so the "CA
+  data note" fallback's "already a workspace dep" claim is accurate
+  (whether rustls itself generates certs is beside the point — the
+  primary const path, once base64-encoded, suffices).

@@ -1,6 +1,6 @@
 # Slice C — AWS credential-injection typed errors + async wizard tests
 
-Status: Plan Review
+Status: Approved
 Target specs: `.docs/spec/06-remediation-highs.md` (§ 0002-H3 "Silent no-op
 when exec block is absent in credential injection", § 0002-H4 "Zero async
 tests for AWS SDK paths"); gate defined by
