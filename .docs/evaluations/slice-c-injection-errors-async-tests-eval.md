@@ -761,3 +761,112 @@ Everything not flagged above was verified mechanically and checks out:
 - **Prior-round accounting** — plan-eval rounds 1 and 2 FAILed; the round-3
   plan review PASSed at Round 2 (repeats the FAIL number). The standing
   counter is 2; this code-review FAIL increments it to Round 3.
+
+
+---
+
+# Code re-evaluation (round 3, resolving)
+
+# Code evaluation (round 3 re-review)
+
+# Evaluation: slice-c-injection-errors-async-tests (code review, re-review after round-3 FAIL)
+
+Verdict: PASS
+Round: 3
+Reviewed against: `.docs/slice-plans/slice-c-injection-errors-async-tests.md`
+(Implemented), `.docs/spec/06-remediation-highs.md` (§ 0002-H3, § 0002-H4), the
+prior round-3 code-eval section in
+`.docs/evaluations/slice-c-injection-errors-async-tests-eval.md` (the open FAIL),
+the review-findings artifact
+`.docs/evaluations/slice-c-injection-errors-review-findings.md` (including its
+new "Delta after round-3 fmt fix" section), and the fix-commit diff
+`git diff 8c04363^..HEAD` on branch `slice/c-injection-errors` (HEAD = 66c6cdd;
+fix commit 8c04363 "Fix fmt blocker in aws_wizard_smoke.rs; gate green
+(Implemented)").
+
+## Gate re-run (verified, not trusted — pinned Rust 1.98.0 via rust-toolchain.toml)
+
+| Step | Command | Result |
+|------|---------|--------|
+| format | `cargo fmt --check` | **PASS, exit 0** — no diff; the round-3 BLOCKER is resolved |
+| lint | `RUST_MIN_STACK=268435456 cargo clippy --workspace --all-targets -- -D warnings` | PASS, exit 0 (0 errors; only cargo-level future-incompat notes for transitive deps block/proc-macro-error2, identical to round 3) |
+| test | `RUST_MIN_STACK=268435456 cargo test --workspace` | PASS, exit 0 — **3706 passed, 0 failed** (summed across all suites), exactly matching the round-3 count |
+
+The 15 slice tests were re-confirmed individually present and passing:
+- 5 in `aws_sso.rs`: `test_inject_credentials_returns_context_not_found`,
+  `test_inject_credentials_returns_auth_info_not_found`,
+  `test_inject_credentials_returns_exec_block_missing_when_absent`,
+  `test_inject_profile_returns_exec_block_missing_when_absent`,
+  `test_inject_credentials_sets_aws_env_vars_on_valid_context`
+- 8 in `tests/aws_wizard_smoke.rs` (run as its own integration binary, `8
+  passed; 0 failed`): `sso_register_client_returns_client_id_and_secret`,
+  `sso_start_device_auth_returns_device_and_user_codes`,
+  `sso_poll_for_token_returns_pending_then_success`,
+  `sso_list_accounts_paginates_and_returns_all`,
+  `sso_get_role_credentials_returns_session`,
+  `authenticate_with_access_key_returns_session`,
+  `assume_role_returns_session_with_temporary_credentials`,
+  `discover_clusters_in_region_returns_described_clusters`
+- 2 inline in `aws_eks.rs`: `create_eks_client_returns_bearer_token_and_refreshes_past_leeway`,
+  `generate_eks_token_returns_prefixed_and_base64_url_encoded`
+
+## Findings
+
+- [MINOR] **(persists from round 3) The eight StaticReplayClient smoke tests
+  never call `assert_requests_match`, so `stub_request` URIs are decorative.**
+  The fix commit did not touch the smoke-test bodies; the round-3 analysis
+  stands unchanged: response-path coverage is real, request-construction
+  regressions would not be caught. Plan-prescribed shape; bounds what the
+  smoke suite guards. Non-blocking.
+- [MINOR] **(persists from round 3) `aws-smithy-types = "1"` dev-dep beyond
+  step 0's prescribed line.** `crates/baeus-core/Cargo.toml` untouched by the
+  fix commit; deviation from plan text remains, harmless and within spec 06
+  0002-H4's dev-dep budget. Non-blocking.
+- [MINOR] **(persists from round 3) Net-new lockfile set larger than step 0's
+  "only aws-smithy-protocol-test net-new" disclosure.** `Cargo.lock` untouched
+  by the fix commit; all additions remain dev-transitives of
+  aws-smithy-protocol-test, nothing in production graphs, `cargo deny check`
+  passed in round 3 and no dependency changed since. Non-blocking.
+
+No new findings introduced by the fix commit.
+
+## Required changes (for FAIL)
+
+None — no blockers, no majors.
+
+## Notes
+
+- **Round-3 BLOCKER resolved — cite the diff.** The fix commit
+  (`git diff 8c04363^..HEAD --
+  crates/baeus-core/tests/aws_wizard_smoke.rs`) joins the previously split
+  `let list_body = r#"{"clusters":["cluster-1","cluster-2"],"nextToken":null}"#.to_string();`
+  onto one line (89 chars < max_width=100) — exactly the one-line mechanical
+  fix the round-3 eval prescribed. The raw-string literal content is
+  byte-identical; only source whitespace changed. `cargo fmt --check` now
+  exits 0 on the pinned toolchain, so CI's format leg will pass.
+- **The fix diff is fmt-only; no semantic edits smuggled in.** The full
+  `git diff 8c04363^..HEAD` touches exactly three files: (1) the test-file
+  join above; (2) the slice-plan status line (`In Progress` → `Implemented`),
+  which is expected bookkeeping; (3) a "Delta after round-3 fmt fix" note
+  appended to the review-findings artifact stating the fix is
+  formatting-only in a test-only file (excluded category) and that the prior
+  `/security-review` ran-clean result stands — accurate per the diff. Zero
+  changes to `aws_eks.rs`, `aws_sso.rs`, `client.rs`, `Cargo.toml`, or
+  `Cargo.lock`; zero spec/ADR edits.
+- **Round-3 verified-clean areas carry over.** Because the fix diff provably
+  touches none of the files where round 3 verified the following, its
+  verification results carry over unchanged: all 8 `_with_config` seams +
+  the `create_eks_client_with_initial_ttl_secs` TTL seam (aws_sso.rs /
+  aws_eks.rs), the H3 `KubeconfigInjectionError` typed errors covering every
+  previously-silent path with anyhow-context call-site wraps (aws_sso.rs /
+  client.rs), the H4 direct-`create_eks_client` test with the adjudicated
+  t0+12s → 3s sleep → exactly-one-refresh timeline (aws_eks.rs), and the
+  no-spec/ADR-edits scope discipline. Spot-check of the one touched test
+  (`discover_clusters_in_region_returns_described_clusters`): passes, and
+  the joined `list_body` string is content-identical.
+- **Review-findings adjudication for the delta.** The appended delta note is
+  a documentation claim about the fix commit; verified accurate (fmt-only,
+  test-only). The round-3 security ran-clean adjudication stands.
+- **Round accounting.** The standing counter after round-3's code-review FAIL
+  is 3. Per the counting rule, a PASS resolving a prior FAIL repeats that
+  FAIL's round number: Round: 3 (not advanced).
