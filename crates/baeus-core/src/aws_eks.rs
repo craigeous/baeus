@@ -237,7 +237,18 @@ pub async fn sso_register_client(region: &str) -> Result<(String, String)> {
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_ssooidc::Client::new(&config);
+    sso_register_client_with_config(&config).await
+}
+
+/// Test-injection seam for `sso_register_client`. Public consumers must use
+/// `sso_register_client`, which delegates here with a default `SdkConfig`.
+/// The parameter exists so tests can inject a `StaticReplayClient` via
+/// `.http_client(...)` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_register_client_with_config(
+    config: &aws_config::SdkConfig,
+) -> Result<(String, String)> {
+    let client = aws_sdk_ssooidc::Client::new(config);
 
     let resp = client
         .register_client()
@@ -265,7 +276,20 @@ pub async fn sso_start_device_auth(
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_ssooidc::Client::new(&config);
+    sso_start_device_auth_with_config(&config, client_id, client_secret, start_url).await
+}
+
+/// Test-injection seam for `sso_start_device_auth`. Public consumers must use
+/// `sso_start_device_auth`. The parameter exists so tests can inject a
+/// `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_start_device_auth_with_config(
+    config: &aws_config::SdkConfig,
+    client_id: &str,
+    client_secret: &str,
+    start_url: &str,
+) -> Result<SsoDeviceAuth> {
+    let client = aws_sdk_ssooidc::Client::new(config);
 
     let resp = client
         .start_device_authorization()
@@ -301,7 +325,20 @@ pub async fn sso_poll_for_token(
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_ssooidc::Client::new(&config);
+    sso_poll_for_token_with_config(&config, client_id, client_secret, device_code).await
+}
+
+/// Test-injection seam for `sso_poll_for_token`. Public consumers must use
+/// `sso_poll_for_token`. The parameter exists so tests can inject a
+/// `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_poll_for_token_with_config(
+    config: &aws_config::SdkConfig,
+    client_id: &str,
+    client_secret: &str,
+    device_code: &str,
+) -> Result<SsoTokenResult> {
+    let client = aws_sdk_ssooidc::Client::new(config);
 
     let result = client
         .create_token()
@@ -346,7 +383,18 @@ pub async fn sso_list_accounts(region: &str, access_token: &str) -> Result<Vec<S
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_sso::Client::new(&config);
+    sso_list_accounts_with_config(&config, access_token).await
+}
+
+/// Test-injection seam for `sso_list_accounts`. Public consumers must use
+/// `sso_list_accounts`. The parameter exists so tests can inject a
+/// `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_list_accounts_with_config(
+    config: &aws_config::SdkConfig,
+    access_token: &str,
+) -> Result<Vec<SsoAccount>> {
+    let client = aws_sdk_sso::Client::new(config);
 
     let mut accounts = Vec::new();
     let mut next_token: Option<String> = None;
@@ -424,7 +472,23 @@ pub async fn sso_get_role_credentials(
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_sso::Client::new(&config);
+    sso_get_role_credentials_with_config(&config, access_token, account_id, role_name, region).await
+}
+
+/// Test-injection seam for `sso_get_role_credentials`. Public consumers must use
+/// `sso_get_role_credentials`. The `region` parameter is retained explicitly because
+/// it is embedded in `AwsSession.region` and may differ from what the `SdkConfig`
+/// holds in tests. The `sdk_config` parameter exists so tests can inject a
+/// `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_get_role_credentials_with_config(
+    sdk_config: &aws_config::SdkConfig,
+    access_token: &str,
+    account_id: &str,
+    role_name: &str,
+    region: &str,
+) -> Result<AwsSession> {
+    let client = aws_sdk_sso::Client::new(sdk_config);
 
     let resp = client
         .get_role_credentials()
@@ -483,7 +547,26 @@ pub async fn authenticate_with_access_key(config: &AccessKeyConfig) -> Result<Aw
         .load()
         .await;
 
-    let sts = aws_sdk_sts::Client::new(&sdk_config);
+    authenticate_with_access_key_with_config(&sdk_config, config).await
+}
+
+/// Test-injection seam for `authenticate_with_access_key`. Public consumers must use
+/// `authenticate_with_access_key`. The `sdk_config` parameter exists so tests can
+/// inject a `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn authenticate_with_access_key_with_config(
+    sdk_config: &aws_config::SdkConfig,
+    config: &AccessKeyConfig,
+) -> Result<AwsSession> {
+    let credentials = Credentials::new(
+        &config.access_key_id,
+        &config.secret_access_key,
+        config.session_token.clone(),
+        None,
+        "baeus-access-key",
+    );
+
+    let sts = aws_sdk_sts::Client::new(sdk_config);
     let identity = sts
         .get_caller_identity()
         .send()
@@ -515,7 +598,19 @@ pub async fn assume_role(
         .load()
         .await;
 
-    let sts = aws_sdk_sts::Client::new(&sdk_config);
+    assume_role_with_config(&sdk_config, config).await
+}
+
+/// Test-injection seam for `assume_role`. Public consumers must use `assume_role`,
+/// which builds a default `SdkConfig` with the source credentials and delegates here.
+/// The `sdk_config` parameter exists so tests can inject a `StaticReplayClient`
+/// (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn assume_role_with_config(
+    sdk_config: &aws_config::SdkConfig,
+    config: &AssumeRoleConfig,
+) -> Result<AwsSession> {
+    let sts = aws_sdk_sts::Client::new(sdk_config);
     let session_name = config.session_name.as_deref().unwrap_or("baeus-session");
 
     let mut req = sts.assume_role().role_arn(&config.role_arn).role_session_name(session_name);
@@ -624,7 +719,19 @@ pub async fn discover_clusters_in_region(
         .load()
         .await;
 
-    let eks = aws_sdk_eks::Client::new(&sdk_config);
+    discover_clusters_in_region_with_config(&sdk_config, region).await
+}
+
+/// Test-injection seam for `discover_clusters_in_region`. Public consumers must use
+/// `discover_clusters_in_region`. The `region` parameter is retained explicitly for
+/// `EksCluster.region` tagging. The `sdk_config` parameter exists so tests can inject
+/// a `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn discover_clusters_in_region_with_config(
+    sdk_config: &aws_config::SdkConfig,
+    region: &str,
+) -> Result<Vec<EksCluster>> {
+    let eks = aws_sdk_eks::Client::new(sdk_config);
 
     // List cluster names
     let mut cluster_names = Vec::new();
@@ -966,6 +1073,20 @@ pub async fn create_eks_client(
     cluster: &EksCluster,
     credentials: &Credentials,
 ) -> Result<(kube::Client, EksTokenRefresher)> {
+    create_eks_client_with_initial_ttl_secs(cluster, credentials, 60).await
+}
+
+/// Test-injection seam for `create_eks_client`. Public consumers must use
+/// `create_eks_client`, which delegates here with a 60-second initial TTL.
+/// The parameter exists only so async wizard tests can seed an initial expiry
+/// outside/inside the 10-second refresh leeway deterministically (spec 06 0002-H4
+/// acceptance 4a for `create_eks_client`).
+#[doc(hidden)]
+pub async fn create_eks_client_with_initial_ttl_secs(
+    cluster: &EksCluster,
+    credentials: &Credentials,
+    initial_ttl_secs: i64,
+) -> Result<(kube::Client, EksTokenRefresher)> {
     use kube::client::ConfigExt as _;
     use tower::ServiceBuilder;
 
@@ -978,7 +1099,7 @@ pub async fn create_eks_client(
     let initial_token = generate_eks_token(&cluster.name, credentials, &cluster.region).await?;
     let initial_state = TokenState {
         token: secrecy::SecretString::new(initial_token.clone().into()),
-        expires_at: chrono::Utc::now() + chrono::Duration::seconds(60),
+        expires_at: chrono::Utc::now() + chrono::Duration::seconds(initial_ttl_secs),
     };
 
     // Capture cluster identity + credentials for the refresh closure.
