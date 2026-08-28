@@ -2,13 +2,13 @@
 
 Status source of truth and decision index.
 
-- **Phase**: remediation in flight — slices A and A2 LANDED (2026-08-26), slices B–G queued
-- **Last action**: slice A2 code-eval PASS (Ready to Publish → Archived); PR landing on
-  branch `slice/a2-ci-toolchain-pin`. Pins Rust toolchain to `1.88` in CI to eliminate
-  toolchain-drift failures.
-- **Next**: slice B development on branch `slice/b-watch-eks` — watch cancellation + EKS
-  token refresh (spec 06 findings 0002-H1, 0002-H2). Also pending: Plan Review of
-  back-filled specs 01–05 (roadmap milestone 2).
+- **Phase**: remediation in flight — slices A + A2 landed, B landing (PR open), slices C–G queued
+- **Last action**: slice B code-eval PASS (Ready to Publish, 2026-08-28);
+  plan archived to `.docs/slice-plans/archive/slice-b-watch-cancellation-eks-refresh.md`.
+  PR landing on branch `slice/b-watch-eks` (watch cancellation + EKS token refresh).
+- **Next**: slice-plan C — AWS credential injection error + async wizard tests
+  (spec 06 findings 0002-H3, 0002-H4). Also pending: Plan Review of back-filled
+  specs 01–05 (roadmap milestone 2).
 
 ## Decision index
 

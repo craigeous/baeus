@@ -110,6 +110,13 @@ impl ClusterConnection {
     }
 
     /// Set the token expiry time.
+    ///
+    /// Will be populated by callers that hold an `EksTokenRefresher` (from
+    /// `baeus_core::aws_eks::create_eks_client`) to keep the UI's expiry
+    /// indicator in sync with the refresher's `expires_at()`. No such caller
+    /// exists yet in this slice — the wiring is deferred to a future planning
+    /// cycle once `create_eks_client` is integrated into the live EKS-connect
+    /// path.
     pub fn set_token_expiry(&mut self, expiry: DateTime<Utc>) {
         self.token_expiry = Some(expiry);
     }

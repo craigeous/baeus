@@ -5,13 +5,14 @@
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use futures::TryStreamExt;
+use futures::{Stream, TryStreamExt};
 use k8s_openapi::api::core::v1::{Event, Namespace, Node, Pod};
 use kube::{Api, Client, Config, api::ListParams};
 use kube_runtime::WatchStreamExt;
 use kube_runtime::watcher::{self, Event as WatcherEvent};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use tokio_util::sync::CancellationToken;
 
 // ---------------------------------------------------------------------------
 // T364: RBAC error handling for 403 Forbidden responses
@@ -1124,65 +1125,168 @@ pub async fn create_resource(
     Ok(response)
 }
 
+/// Inner loop for `watch_events`: drives a pre-constructed stream with cancellation.
+///
+/// Takes the stream by value (making the future `'static` for `tokio::spawn`).
+/// Polls the cancellation token first (`biased;`) so a cancel signal stops the loop
+/// within one poll cycle, satisfying spec 06 0002-H1 acceptance criterion 1a.
+async fn watch_events_inner<S, F>(
+    stream: S,
+    token: CancellationToken,
+    mut on_event: F,
+) -> Result<()>
+where
+    S: Stream<Item = Result<WatcherEvent<Event>, watcher::Error>> + Send + 'static,
+    F: FnMut(EventInfo) + Send,
+{
+    tokio::pin!(stream);
+    loop {
+        tokio::select! {
+            biased;
+            _ = token.cancelled() => return Ok(()),
+            next = stream.try_next() => {
+                match next.context("Event watcher stream error")? {
+                    Some(watch_event) => {
+                        match watch_event {
+                            WatcherEvent::Apply(evt) | WatcherEvent::InitApply(evt) => {
+                                let reason = evt.reason.clone().unwrap_or_default();
+                                let message = evt.message.clone().unwrap_or_default();
+                                let is_warning = evt.type_.as_deref() == Some("Warning");
+                                let timestamp = evt
+                                    .last_timestamp
+                                    .as_ref()
+                                    .map(|t| t.0)
+                                    .or_else(|| evt.event_time.as_ref().map(|t| t.0))
+                                    .unwrap_or_else(Utc::now);
+                                let last_seen = evt
+                                    .last_timestamp
+                                    .as_ref()
+                                    .map(|t| t.0)
+                                    .or_else(|| evt.event_time.as_ref().map(|t| t.0));
+                                on_event(EventInfo {
+                                    reason,
+                                    message,
+                                    timestamp,
+                                    is_warning,
+                                    namespace: evt.metadata.namespace.clone(),
+                                    involved_object_kind: evt.involved_object.kind.clone(),
+                                    involved_object_name: evt.involved_object.name.clone(),
+                                    source: evt.source.as_ref().and_then(|s| s.component.clone()),
+                                    count: evt.count.unwrap_or(1).max(0) as u32,
+                                    last_seen,
+                                });
+                            }
+                            WatcherEvent::Delete(_) | WatcherEvent::Init | WatcherEvent::InitDone => {
+                                // Deletions and bookmark/init events are not surfaced to the UI event feed.
+                            }
+                        }
+                    }
+                    None => return Ok(()),
+                }
+            }
+        }
+    }
+}
+
 /// Watch Kubernetes Events in real time and invoke a callback for each new event.
 ///
 /// This opens a kube-rs watcher stream on `core/v1/Event` resources (cluster-wide)
 /// and calls `on_event` for each event received. The callback receives an `EventInfo`
 /// describing the event.
 ///
-/// The function runs until the watcher stream ends or an error occurs.
+/// Pass `Some(token)` to stop the loop deterministically by cancelling the token.
+/// Pass `None` to get the previous behaviour: a fresh token is created internally
+/// and the loop runs until the stream ends or an error occurs (backward-compatible).
+///
 /// Callers should run this on a background Tokio task and use the callback to
 /// forward events to the UI thread.
 ///
 /// T326: Used by AppShell::start_event_watcher.
-pub async fn watch_events<F>(client: &Client, mut on_event: F) -> Result<()>
+pub async fn watch_events<F>(
+    client: &Client,
+    cancel: Option<CancellationToken>,
+    on_event: F,
+) -> Result<()>
 where
     F: FnMut(EventInfo) + Send,
 {
+    let token = cancel.unwrap_or_default();
     let events_api: Api<Event> = Api::all(client.clone());
     let watch_config = watcher::Config::default();
     let stream = kube_runtime::watcher(events_api, watch_config).default_backoff();
+    watch_events_inner(stream, token, on_event).await
+}
+
+/// Inner loop for `watch_resources`: drives a pre-constructed stream with cancellation.
+///
+/// Mirrors `watch_events_inner` for dynamic-object streams. Maintains a local
+/// snapshot of items and calls `on_change` on every mutation event.
+async fn watch_resources_inner<S, F>(
+    stream: S,
+    token: CancellationToken,
+    mut on_change: F,
+) -> Result<()>
+where
+    S: Stream<Item = Result<WatcherEvent<kube::api::DynamicObject>, watcher::Error>>
+        + Send
+        + 'static,
+    F: FnMut(Vec<serde_json::Value>) + Send,
+{
     tokio::pin!(stream);
-
-    // Process watcher events from the stream.
-    while let Some(watch_event) = stream.try_next().await.context("Event watcher stream error")? {
-        match watch_event {
-            WatcherEvent::Apply(evt) | WatcherEvent::InitApply(evt) => {
-                let reason = evt.reason.clone().unwrap_or_default();
-                let message = evt.message.clone().unwrap_or_default();
-                let is_warning = evt.type_.as_deref() == Some("Warning");
-                let timestamp = evt
-                    .last_timestamp
-                    .as_ref()
-                    .map(|t| t.0)
-                    .or_else(|| evt.event_time.as_ref().map(|t| t.0))
-                    .unwrap_or_else(Utc::now);
-                let last_seen = evt
-                    .last_timestamp
-                    .as_ref()
-                    .map(|t| t.0)
-                    .or_else(|| evt.event_time.as_ref().map(|t| t.0));
-
-                on_event(EventInfo {
-                    reason,
-                    message,
-                    timestamp,
-                    is_warning,
-                    namespace: evt.metadata.namespace.clone(),
-                    involved_object_kind: evt.involved_object.kind.clone(),
-                    involved_object_name: evt.involved_object.name.clone(),
-                    source: evt.source.as_ref().and_then(|s| s.component.clone()),
-                    count: evt.count.unwrap_or(1).max(0) as u32,
-                    last_seen,
-                });
-            }
-            WatcherEvent::Delete(_) | WatcherEvent::Init | WatcherEvent::InitDone => {
-                // Deletions and bookmark/init events are not surfaced to the UI event feed.
+    let mut items: Vec<serde_json::Value> = Vec::new();
+    loop {
+        tokio::select! {
+            biased;
+            _ = token.cancelled() => return Ok(()),
+            next = stream.try_next() => {
+                match next.context("Resource watcher stream error")? {
+                    Some(watch_event) => {
+                        match watch_event {
+                            WatcherEvent::Init => {
+                                items.clear();
+                            }
+                            WatcherEvent::InitApply(obj) => {
+                                if let Ok(val) = serde_json::to_value(&obj) {
+                                    items.push(val);
+                                }
+                            }
+                            WatcherEvent::InitDone => {
+                                on_change(items.clone());
+                            }
+                            WatcherEvent::Apply(obj) => {
+                                // Upsert: replace existing item with same UID, or add new.
+                                let new_uid = obj.metadata.uid.as_deref().unwrap_or("");
+                                if let Ok(val) = serde_json::to_value(&obj) {
+                                    if let Some(pos) = items.iter().position(|item| {
+                                        item.pointer("/metadata/uid")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("")
+                                            == new_uid
+                                    }) {
+                                        items[pos] = val;
+                                    } else {
+                                        items.push(val);
+                                    }
+                                    on_change(items.clone());
+                                }
+                            }
+                            WatcherEvent::Delete(obj) => {
+                                let del_uid = obj.metadata.uid.as_deref().unwrap_or("");
+                                items.retain(|item| {
+                                    item.pointer("/metadata/uid")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        != del_uid
+                                });
+                                on_change(items.clone());
+                            }
+                        }
+                    }
+                    None => return Ok(()),
+                }
             }
         }
     }
-
-    Ok(())
 }
 
 /// Watch a specific resource kind in real time and invoke callbacks for changes.
@@ -1191,16 +1295,22 @@ where
 /// and optional namespace. `on_change` is called with the full updated list of items
 /// whenever a change occurs (full snapshot replacement strategy).
 ///
+/// Pass `Some(token)` to stop the loop deterministically by cancelling the token.
+/// Pass `None` to get the previous behaviour: a fresh token is created internally
+/// and the loop runs until the stream ends or an error occurs (backward-compatible).
+///
 /// T327b: Used by AppShell for informer-backed live updates on resource list views.
 pub async fn watch_resources<F>(
     client: &Client,
     kind: &str,
     namespace: Option<&str>,
-    mut on_change: F,
+    cancel: Option<CancellationToken>,
+    on_change: F,
 ) -> Result<()>
 where
     F: FnMut(Vec<serde_json::Value>) + Send,
 {
+    let token = cancel.unwrap_or_default();
     let api_resource = resolve_api_resource(kind);
 
     // Use kube's dynamic API via raw JSON to build a watcher.
@@ -1229,52 +1339,7 @@ where
 
     let watch_config = watcher::Config::default();
     let stream = kube_runtime::watcher(api, watch_config).default_backoff();
-    tokio::pin!(stream);
-
-    // Maintain a local snapshot of all items.
-    let mut items: Vec<serde_json::Value> = Vec::new();
-
-    while let Some(watch_event) =
-        stream.try_next().await.context("Resource watcher stream error")?
-    {
-        match watch_event {
-            WatcherEvent::Init => {
-                items.clear();
-            }
-            WatcherEvent::InitApply(obj) => {
-                if let Ok(val) = serde_json::to_value(&obj) {
-                    items.push(val);
-                }
-            }
-            WatcherEvent::InitDone => {
-                on_change(items.clone());
-            }
-            WatcherEvent::Apply(obj) => {
-                // Upsert: replace existing item with same UID, or add new.
-                let new_uid = obj.metadata.uid.as_deref().unwrap_or("");
-                if let Ok(val) = serde_json::to_value(&obj) {
-                    if let Some(pos) = items.iter().position(|item| {
-                        item.pointer("/metadata/uid").and_then(|v| v.as_str()).unwrap_or("")
-                            == new_uid
-                    }) {
-                        items[pos] = val;
-                    } else {
-                        items.push(val);
-                    }
-                    on_change(items.clone());
-                }
-            }
-            WatcherEvent::Delete(obj) => {
-                let del_uid = obj.metadata.uid.as_deref().unwrap_or("");
-                items.retain(|item| {
-                    item.pointer("/metadata/uid").and_then(|v| v.as_str()).unwrap_or("") != del_uid
-                });
-                on_change(items.clone());
-            }
-        }
-    }
-
-    Ok(())
+    watch_resources_inner(stream, token, on_change).await
 }
 
 // ---------------------------------------------------------------------------
@@ -1838,5 +1903,40 @@ mod tests {
         let denied =
             rbac_denied_from_error("API error: 404 Not Found", "get", "Pods", Some("default"));
         assert!(denied.is_none());
+    }
+
+    // --- Slice B step 1: watch inner helper cancellation tests ---
+
+    #[tokio::test]
+    async fn watch_events_inner_stops_on_cancellation() {
+        use futures::stream;
+        let pending = stream::pending::<Result<WatcherEvent<Event>, watcher::Error>>();
+        let token = CancellationToken::new();
+        let token_for_task = token.clone();
+        let handle = tokio::spawn(async move {
+            watch_events_inner(pending, token_for_task, |_| {}).await.unwrap();
+        });
+        token.cancel();
+        tokio::time::timeout(std::time::Duration::from_millis(100), handle)
+            .await
+            .expect("watch_events_inner did not stop within 100 ms after cancellation")
+            .expect("task join error");
+    }
+
+    #[tokio::test]
+    async fn watch_resources_inner_stops_on_cancellation() {
+        use futures::stream;
+        let pending =
+            stream::pending::<Result<WatcherEvent<kube::api::DynamicObject>, watcher::Error>>();
+        let token = CancellationToken::new();
+        let token_for_task = token.clone();
+        let handle = tokio::spawn(async move {
+            watch_resources_inner(pending, token_for_task, |_| {}).await.unwrap();
+        });
+        token.cancel();
+        tokio::time::timeout(std::time::Duration::from_millis(100), handle)
+            .await
+            .expect("watch_resources_inner did not stop within 100 ms after cancellation")
+            .expect("task join error");
     }
 }
