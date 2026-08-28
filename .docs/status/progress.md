@@ -2,13 +2,13 @@
 
 Status source of truth and decision index.
 
-- **Phase**: remediation in flight — slice A landed (PR open), slices B–G queued
-- **Last action**: slice A (CI & deny-gate hardening) code-eval PASS — status
-  Ready to Publish; PR open on branch `slice/a-ci-hardening` awaiting owner
-  merge (2026-08-25).
-- **Next**: slice-plan B — watch cancellation + EKS token refresh (spec 06
-  findings 0006-H5 and the first EKS-auth high); begin after slice A merges.
-  Also pending: Plan Review of back-filled specs 01–05 (roadmap milestone 2).
+- **Phase**: remediation in flight — slices A and A2 LANDED (2026-08-26), slices B–G queued
+- **Last action**: slice A2 code-eval PASS (Ready to Publish → Archived); PR landing on
+  branch `slice/a2-ci-toolchain-pin`. Pins Rust toolchain to `1.88` in CI to eliminate
+  toolchain-drift failures.
+- **Next**: slice B development on branch `slice/b-watch-eks` — watch cancellation + EKS
+  token refresh (spec 06 findings 0002-H1, 0002-H2). Also pending: Plan Review of
+  back-filled specs 01–05 (roadmap milestone 2).
 
 ## Decision index
 

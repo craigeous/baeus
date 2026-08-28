@@ -8,7 +8,7 @@
    action, decision index.
 3. Check [`.docs/status/roadmap.md`](roadmap.md) — what the owner wants next.
 
-## Current context (2026-08-25)
+## Current context (2026-08-26)
 
 - The repo is loom-shaped as of today's `/loom:init` alignment pass
   (Unaligned-bare → aligned). Future `/loom:*` runs detect **Initialized**.
@@ -21,7 +21,7 @@
 
 ## Immediate next step
 
-**Slice A Ready to Publish — PR open (2026-08-25):** branch
-`slice/a-ci-hardening` awaits owner merge. After merge: author slice-plan B
-(watch cancellation + EKS token refresh, per spec 06). Remaining slices:
-B → C → D → E → F → G.
+**Slice A2 PR open, awaiting owner merge** (branch `slice/a2-ci-toolchain-pin`).
+After merge: slice B developer starts on branch `slice/b-watch-eks` — watch
+cancellation + EKS token refresh (spec 06 findings 0002-H1, 0002-H2).
+Remaining: C → D → E → F → G.

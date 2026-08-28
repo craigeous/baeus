@@ -29,8 +29,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned to Rust 1.98.0 per spec-06 Slice A2 (2026-08-26). Do not
+      # bump to @stable — cadence policy is a monthly bump PR (owner
+      # direction); the enforcing automation is deferred to slice A3.
+      # Until A3 lands, bumps are manual: open a PR that edits this pin
+      # and rust-toolchain.toml together and lets the full CI matrix
+      # verify the new version before merge.
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.98.0
         with:
           targets: ${{ matrix.target }}
           components: rustfmt, clippy

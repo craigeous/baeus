@@ -18,10 +18,15 @@ Active slice-plans live here; landed ones move to
 
 ## Active
 
-_None at present._ Slice B (watch cancellation + EKS token refresh) is next.
+- [`slice-b-watch-cancellation-eks-refresh.md`](slice-b-watch-cancellation-eks-refresh.md) —
+  Status: Plan Review — Core watch cancellation + EKS token refresh
+  (spec 06 findings 0002-H1, 0002-H2).
 
 ## Archived
 
 - [`archive/slice-a-ci-hardening.md`](archive/slice-a-ci-hardening.md) —
   Status: Archived — CI & release hygiene (spec 06 findings 0006-H1, H2, H3,
   H4). Code-eval PASS; PR landing on branch `slice/a-ci-hardening`.
+- [`archive/slice-a2-ci-toolchain-pin.md`](archive/slice-a2-ci-toolchain-pin.md) —
+  Status: Archived — CI toolchain pin (owner-directed 2026-08-26, spec 06
+  Amendments). Code-eval PASS; PR landing on branch `slice/a2-ci-toolchain-pin`.

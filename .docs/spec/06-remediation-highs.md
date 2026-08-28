@@ -10,6 +10,30 @@ groups those fixes into a slice breakdown for sequential development. It does
 **not** touch medium- or low-severity findings — those await a later planning
 cycle.
 
+## Amendments
+
+An Approved spec is frozen (ADR 0005); the only sanctioned mutation is a
+minimal, dated amendment authorised by the project owner, recorded here so
+that any later reader can trace what changed and why. Each amendment names
+its authority and confines its edits to the sections listed. Slice-plans
+produced under an amendment go through the same Plan Review lifecycle as
+every other slice-plan; the amendment itself does not shortcut evaluation.
+
+- **2026-08-26 — Slice A2 (CI toolchain pin) added.** *Authority:* owner
+  direction, queued at slice A close (see the "Follow-up queued by owner"
+  entry in
+  `.docs/slice-plans/archive/slice-a-ci-hardening.md#landed-receipt`).
+  *Rationale:* slice A hit a toolchain-drift class defect — local clippy
+  (rustc 1.94) passed but CI's newer `dtolnay/rust-toolchain@stable`
+  (rustc 1.98) failed with seven new lints, requiring an in-slice fix
+  commit (`3b518de`). The class is structural: `@stable` floats with
+  every GitHub-hosted-runner update, so any subsequent slice can hit the
+  same defect. Owner directs a permanent pin. *Scope of amendment:* adds
+  the "Slice A2 — CI toolchain pin" section below (new severity-agnostic
+  entry — not a research finding, an owner-directed hygiene item)
+  **and** adds an A2 row to the Slice Breakdown table with A2 ordered
+  between A and B. No other section of this spec is altered.
+
 ## Authority
 
 - ADR 0002 (`kube-rs` client) — bounds the watch/informer surface being repaired.
@@ -693,6 +717,96 @@ own. This eliminates both the split-brain risk and the hardcoded `0.1.0`.
 **Test expectations:** Verification is CI itself; a dry-run push to a
 throwaway branch validates the new job wiring before landing.
 
+### Slice A2 — CI toolchain pin (owner-directed, 2026-08-26)
+
+**Origin:** Owner direction (see Amendments above), not a research finding.
+Added to spec 06 because the class it kills (toolchain drift) is
+directly adjacent to 0006-H1..H4 (CI hygiene) and belongs in the same
+remediation programme.
+
+**Problem:** `.github/workflows/ci.yml` and `.github/workflows/release.yml`
+resolve the Rust toolchain via `dtolnay/rust-toolchain@stable`, which
+tracks whatever stable rustc is current at CI-run time. Between local
+development runs and CI runs (and between one CI run and the next), the
+resolved toolchain can shift silently. Slice A demonstrated the failure
+mode empirically: seven `-D warnings` clippy lints newly emitted by
+rustc 1.98 broke CI after the same code passed locally under 1.94.
+Fixing individual lints does not close the class — the next stable
+release can introduce new lints or MSRV movement, and the repro/fix
+loop is asymmetric (developer runs the wrong compiler).
+
+**Fix approach:** Replace the floating `@stable` reference with an
+explicit rustc version pin in **both** workflow files. Two pinning
+mechanisms exist; use the one that is minimally invasive and matches
+existing action shape:
+
+1. **Workflow-level pin (baseline requirement):** Change every
+   `uses: dtolnay/rust-toolchain@stable` in `ci.yml` and `release.yml`
+   to `uses: dtolnay/rust-toolchain@<version>` where `<version>` is a
+   specific Rust minor release (e.g. `1.98.0`). This is the primary
+   deliverable of the slice and is sufficient to kill the drift class
+   for CI.
+2. **Repo-root `rust-toolchain.toml` (optional, recommended by the
+   slice-plan):** A `[toolchain]` file pinning the same version at the
+   repo root additionally locks local developer builds to the same
+   rustc, closing the local/CI asymmetry that slice A's postmortem
+   exposed. Slice-plan A2 decides whether to include this file or defer
+   to a later slice; if included, the version string must match the
+   workflow pin exactly.
+
+**Upgrade cadence policy (in-scope for this slice):** The pin creates a
+maintenance obligation — new stable releases will not be adopted
+automatically. Slice A2 must document, in a location a subsequent
+developer can find without re-reading the slice-plan, the cadence and
+the ownership. Two options:
+
+- Monthly bump PR (owner-preferred anchor): a scheduled PR (opened by a
+  scheduled workflow, or by convention on a fixed day of month) bumps
+  the pin to the latest stable rustc, runs the full CI matrix, and
+  lands only if all three legs stay green. Any resulting clippy or
+  rustc lint output is fixed *in that PR*, not deferred.
+- Quarterly bump PR (alternative, less churn): same shape, longer
+  cadence. Trades responsiveness for review overhead.
+
+The slice-plan picks one (owner direction defaults to monthly) and
+records it in a location the code evaluator can verify: either an
+inline comment at the pin sites in both workflow files, or a dedicated
+short section in `.docs/spec/03-toolchain-and-gate.md` (a spec 03
+revision is admissible under a subsequent planning cycle — the A2
+slice-plan may itself queue that revision as a follow-up rather than
+edit spec 03).
+
+**Affected files:**
+
+- `.github/workflows/ci.yml` — pin `dtolnay/rust-toolchain@stable` in
+  every step that uses it.
+- `.github/workflows/release.yml` — pin the equivalent references
+  (`build-macos`, `check-linux`, `build-linux`, `check-windows`,
+  `build-windows`) so release-time and CI-time toolchains match.
+- `rust-toolchain.toml` at repo root (optional, per slice-plan
+  decision) — one file with `[toolchain] channel = "<version>"` and
+  the components list matching what CI installs.
+- Documentation of the bump cadence (see policy above) — location
+  decided by the slice-plan.
+
+**Acceptance criteria:**
+
+- No `dtolnay/rust-toolchain@stable` reference remains anywhere under
+  `.github/workflows/`; every reference names an explicit version.
+- The workflow-pin version matches the `rust-toolchain.toml` channel
+  (if included).
+- CI matrix (macOS / Linux / Windows) passes on the pinned toolchain
+  with `-D warnings` enforced, unchanged.
+- The bump cadence policy is discoverable from a documented location
+  (inline workflow comment or spec 03 pointer).
+
+**Test expectations:** Verification is CI itself, as with 0006-H1..H4.
+No new Rust `#[test]` code; the spec-06 invariant "no decrease in test
+count" holds because this is a pure workflow / documentation change,
+covered by the same explicit exception spec 06 grants for the 0006
+slice ("carries at least one new automated test unless the fix is a
+pure workflow / documentation change").
+
 ## Slice Breakdown
 
 Slices are **sequentially ordered so file overlaps do not cause conflicts**;
@@ -716,6 +830,7 @@ Order chosen so that shared-dependency slices land before their consumers.
 | # | Slice | Highs remediated | Primary crates / files | Rough size |
 |---|-------|-------------------|-------------------------|------------|
 | A | CI & release hygiene | 0006-H1, H2, H3, H4 | `.github/workflows/ci.yml`, `.github/workflows/release.yml` | S |
+| A2 | CI toolchain pin (owner-directed, 2026-08-26) | *(none — hygiene item, see Amendments)* | `.github/workflows/ci.yml`, `.github/workflows/release.yml`, optional `rust-toolchain.toml` | S |
 | B | Core watch cancellation + EKS token refresh | 0002-H1, H2 | `crates/baeus-core/src/{client.rs, aws_eks.rs, cluster.rs, watch.rs}`, `crates/baeus-core/Cargo.toml` | M |
 | C | AWS credential injection error + async wizard tests | 0002-H3, H4 | `crates/baeus-core/src/{aws_sso.rs, client.rs, aws_eks.rs}` (error propagation + mock-injection tweaks), `crates/baeus-core/tests/aws_wizard_smoke.rs` (new), `crates/baeus-core/Cargo.toml` (dev-deps) | M |
 | D | Editor / Plugin / Helm safety & wiring | 0005-H1, H2, H3, H4 | `crates/baeus-plugins/src/loader.rs`, `crates/baeus-helm/src/operations.rs`, `crates/baeus-editor/src/diff.rs`, `crates/baeus-app/src/main.rs` (or equivalent startup), `crates/baeus-ui/src/views/plugin_manager.rs`, `crates/baeus-ui/src/layout/app_shell.rs` (registry-handle injection only) | M |
@@ -728,6 +843,14 @@ Ordering rationale:
   deny gate). The change is small and isolated to workflow YAML — merging it
   early exposes latent format or dependency issues so B–G can fix them
   incrementally.
+- **A2 immediately after A.** The toolchain pin edits the same two workflow
+  files A just touched, has the same "workflow-only, no `crates/**`
+  changes" shape, and closes the drift class A's postmortem surfaced.
+  Landing A2 before B means every subsequent slice (B–G) runs against a
+  fixed toolchain, so future clippy or rustc-lint deltas surface as
+  intentional bump PRs rather than accidental slice failures. A2 does
+  not overlap on files with any of B–G, so its position is a scheduling
+  preference, not a hard dependency.
 - **B before C.** C's async tests target the API surface that B changes
   (`create_eks_client` shape, error propagation from injections). C also
   edits the same `client.rs`, `aws_eks.rs`, and `baeus-core/Cargo.toml` B

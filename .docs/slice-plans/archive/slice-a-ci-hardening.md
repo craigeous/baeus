@@ -1,6 +1,6 @@
 # Slice A — CI & Release Hygiene
 
-Status: Archived
+Status: Landed
 Target specs: `.docs/spec/06-remediation-highs.md` (findings 0006-H1, 0006-H2, 0006-H3, 0006-H4); gate defined by `.docs/spec/03-toolchain-and-gate.md`.
 
 ## Context
@@ -696,3 +696,11 @@ verified per its two-part scheme in the Remote verification section).
 _None._ If a role has a clarifying question, add a dated entry here and
 set the artifact status to `Needs Clarification` per the loom role
 contract.
+
+---
+
+## Landed receipt
+
+- **Landed:** 2026-08-26 via PR #5 (merge commit `5e903819986c7734a707e24eda916a3791248cea` on `main`, remote-verified).
+- **Post-publish triage** (same branch, merged in the same PR): RUSTSEC-2026-0190 (anyhow) bumped to 1.0.104; 7 clippy errors from CI's newer stable toolchain (1.94 → 1.98) fixed for CI parity.
+- **Follow-up queued by owner:** pin the CI toolchain version to kill the toolchain-drift class permanently — routed to the planner's next pass as a spec-06 amendment candidate.
