@@ -582,3 +582,182 @@ Fresh-attack pass performed for this round, beyond the flagged items:
   data note" fallback's "already a workspace dep" claim is accurate
   (whether rustls itself generates certs is beside the point — the
   primary const path, once base64-encoded, suffices).
+
+
+---
+
+# Code evaluation (round 3)
+
+# Evaluation: slice-c-injection-errors-async-tests (code review)
+
+Verdict: FAIL
+Round: 3
+Reviewed against: `.docs/slice-plans/slice-c-injection-errors-async-tests.md`
+(Implemented), `.docs/spec/06-remediation-highs.md` (§ 0002-H3, § 0002-H4),
+`.docs/research/0002-core-client-aws-review.md` (§4), the prior plan-eval rounds
+in `.docs/evaluations/slice-c-injection-errors-async-tests-eval.md`, the
+review-findings artifact `.docs/evaluations/slice-c-injection-errors-review-
+findings.md`, the commit diff `git diff 246434b..HEAD` on branch
+`slice/c-injection-errors` (HEAD = 20b5857), the vendored
+aws-smithy-http-client-1.1.12 sources, and a fresh gate re-run on the pinned
+Rust 1.98.0 toolchain (rust-toolchain.toml, matching CI's
+dtolnay/rust-toolchain@1.98.0).
+
+## Gate re-run (verified, not trusted)
+
+| Step | Command | Result |
+|------|---------|--------|
+| format | `cargo fmt --all -- --check` (and plain `cargo fmt --check`) | **FAIL, exit 1** — one diff: `crates/baeus-core/tests/aws_wizard_smoke.rs:334-335` |
+| lint | `RUST_MIN_STACK=268435456 cargo clippy --workspace --all-targets -- -D warnings` | PASS, exit 0 (0 errors; only cargo-level future-incompat notes for transitive deps) |
+| test | `RUST_MIN_STACK=268435456 cargo test --workspace` | PASS, exit 0 — **3706 passed, 0 failed** across 77 suites; all 15 new tests individually confirmed present and passing |
+| deny | `cargo deny check` | PASS, exit 0 — advisories ok, bans ok, licenses ok, sources ok |
+
+The 15 new tests were each grepped out of the test log (`... ok`): 5 in
+aws_sso.rs, 8 in tests/aws_wizard_smoke.rs, 2 inline in aws_eks.rs. Net +15
+confirmed by inspection: no test deletions (the three `is_aws_sso_auth_error`
+tests and the two profile green-path tests were moved below the new tests, not
+removed; the retitled `test_inject_missing_context_returns_context_not_found`
+is a rename with a strengthened typed-variant assertion).
+
+## Findings
+
+- [BLOCKER] **The format gate is red at HEAD; the recorded "gate green
+  (Implemented)" evidence does not match reality.** `cargo fmt --all --
+  --check` (and the project gate's plain `cargo fmt --check`) exits 1 on the
+  pinned 1.98.0 toolchain — the same toolchain CI runs. The single violation
+  is in the slice's own new file: `crates/baeus-core/tests/aws_wizard_smoke.rs`
+  lines 334-335 split
+  `let list_body = r#"{"clusters":["cluster-1","cluster-2"],"nextToken":null}"#.to_string();`
+  across two lines; rustfmt requires it joined (89 chars < max_width=100).
+  Rubric: "A red gate is an automatic BLOCKER"; severity.md: "the gate is red"
+  is a BLOCKER. CI's format leg would fail identically. One-line mechanical
+  fix (`cargo fmt`), but the gate must actually be green before landing.
+- [MINOR] **The eight StaticReplayClient smoke tests never call
+  `assert_requests_match`, so the `stub_request` URIs are decorative.**
+  Verified in the vendored aws-smithy-http-client 1.1.12
+  (`src/test_util/replay.rs:215-235`): request/expected matching runs only
+  inside `assert_requests_match`; during a call the client records the actual
+  request and pops the next queued response unconditionally. Consequently the
+  tests prove the response path end-to-end (real SDK operation builders,
+  response deserialization, error mapping — the 400 `__type:
+  AuthorizationPendingException` → `SsoTokenResult::Pending` mapping and the
+  two-page `nextToken` pagination would both fail if the functions mishandled
+  them) but would NOT catch a regression in request construction (wrong URI,
+  missing query param, wrong next-token propagation). The plan prescribed
+  exactly this shape, so this is not plan-divergent; it bounds what the smoke
+  suite guards. Not a tautology — response assertions flow through the real
+  SDK parsers and the functions' own parsing logic — hence MINOR, not MAJOR.
+- [MINOR] **`aws-smithy-types = "1"` dev-dep added beyond step 0's prescribed
+  line.** Step 0 prescribes only `aws-smithy-http-client = { version = "1.1",
+  features = ["test-util"] }`. The implementation also dev-deps
+  `aws-smithy-types` (used for `SdkBody` in the smoke file). Harmless and
+  within spec 06 0002-H4's dev-dep budget, but a plan-text deviation.
+- [MINOR] **The net-new lockfile set is larger than step 0's "only
+  aws-smithy-protocol-test net-new" disclosure.** `git diff 246434b..HEAD --
+  Cargo.lock` adds: aws-smithy-protocol-test, pretty_assertions, yansi, diff,
+  ciborium, ciborium-io, ciborium-ll, cbor-diag, bs58, separator, roxmltree
+  (0.20.0). `cargo tree -i` confirms all trace to aws-smithy-protocol-test
+  (dev-transitive under the `test-util` feature); nothing enters production
+  dependency graphs; `cargo deny check` passes. This is the round-3 plan-eval
+  "stale parenthetical" MINOR surfacing in fact: the load-bearing claims
+  (licence-clean, deny-gated, dev-only) all hold; only the accounting prose
+  was optimistic.
+
+## Required changes (for FAIL)
+
+1. Run `cargo fmt` (joins the two-line `let list_body = ...` in
+   `crates/baeus-core/tests/aws_wizard_smoke.rs`), re-run the full gate, and
+   amend the Implemented commit so the recorded "gate green" claim is true.
+   No other code change is required.
+
+## Notes
+
+Everything not flagged above was verified mechanically and checks out:
+
+- **0002-H3 typed errors — every previously-silent path now errors.**
+  `KubeconfigInjectionError` (aws_sso.rs) has exactly the three prescribed
+  variants, each Display-interpolating the offending context name. Both
+  injection functions now return `Result<(), KubeconfigInjectionError>`; the
+  double-`if let Some` fall-through is replaced by `ok_or_else` chains that
+  return `ExecBlockMissing` when either `auth_info` or `exec` is `None` — no
+  path reaches `Ok(())` without performing the injection. Context lookup →
+  `ContextNotFound`, auth-info lookup → `AuthInfoNotFound` (the profile
+  function previously lacked the context name in this message; the typed
+  variant now carries both `user` and `context`). Mutating env-insertion
+  bodies are byte-for-byte equivalent to the pre-slice logic.
+- **Call-site anyhow-context wraps name the offending context** — client.rs
+  `create_client_from_path` ("Injecting AWS profile '{profile}' into
+  kubeconfig context '{context_name}' failed") and
+  `create_client_from_path_with_aws_creds` ("Injecting wizard AWS credentials
+  into kubeconfig context '{context_name}' failed"), both via
+  `.with_context(...)?`, so `format!("{e:#}")` at app_shell.rs:1712 prints the
+  wrap plus the typed Display. Step 5's UI no-edit claim spot-verified:
+  `format!("{e:#}")` at app_shell.rs:1712, 18 `connection_errors` matches,
+  no baeus-ui changes in the diff.
+- **The eight `_with_config` seams exist** (`sso_register_client`,
+  `sso_start_device_auth`, `sso_poll_for_token`, `sso_list_accounts`,
+  `sso_get_role_credentials`, `authenticate_with_access_key`, `assume_role`,
+  `discover_clusters_in_region`), each `pub` + `#[doc(hidden)]` with the
+  test-injection doc-comment, each taking `&aws_config::SdkConfig` first, and
+  each public wrapper preserving its signature and delegating after building
+  the default config (region/credentials/no-credentials wiring unchanged —
+  e.g. `assume_role` still injects `source_credentials` into the default
+  config before delegating; `sso_get_role_credentials` retains the explicit
+  `region` parameter per the plan). `authenticate_with_access_key_with_config`'s
+  local `credentials` is live (returned in `AwsSession`), not dead code.
+- **`create_eks_client_with_initial_ttl_secs` seam + 60s delegate** — public
+  `create_eks_client` is a one-line delegate with `initial_ttl_secs = 60`; the
+  hardcoded `now + 60s` became `Duration::seconds(initial_ttl_secs)`; the
+  refresh closure's own 60s expiry is intentionally unchanged. Exactly the
+  adjudicated shape.
+- **The two evaluator implementation notes are resolved.** (1) Base64 CA
+  fixture: `TEST_CA_B64` is base64(PEM) with a comment citing kube-client
+  0.98.0's unconditional base64 decode (file_config.rs:641-646) — the round-3
+  MINOR is correctly handled. (2) Feature parenthetical: the plan's stale
+  crate-name parenthetical is not a code matter; the actual dep tree is
+  dev-only and deny-clean (see MINOR #3 above for the accurate accounting).
+- **H4 acceptance — `create_eks_client` is directly exercised.**
+  `create_eks_client_returns_bearer_token_and_refreshes_past_leeway` (inline
+  in aws_eks.rs) invokes `create_eks_client_with_initial_ttl_secs(&cluster,
+  &credentials, 12)` — the full body of the public entry point (the public
+  wrapper is a pure delegate, so covering the seam covers
+  `create_eks_client`). The round-1 BLOCKER (no test invoking the function)
+  is resolved through the round-3-adjudicated seam.
+- **Step-6 timeline implements the adjudicated t0+12s → 3s sleep →
+  exactly-one-refresh → counter==1 sequence** and would FAIL if refresh were
+  broken (conceptual mutation check): seeded TTL 12s vs `REFRESH_LEEWAY_SECS =
+  10`; first `list()` asserts `requests.len() == 1`, `Bearer k8s-aws-v1.`
+  header, `!refresher.should_refresh()`, and
+  `current_token()` == bearer_1 tail; 3s wall-clock sleep (mirroring slice B's
+  proven pattern); second `list()` asserts `requests.len() == 2`,
+  `bearer_2 != bearer_1` (mutation: closure never fires ⇒ bearer_2 == bearer_1
+  ⇒ assert_ne fails; premature refresh at request 1 ⇒ the
+  `!should_refresh()` and token-match assertions fail; refresher state not
+  updated ⇒ the `current_token()` == bearer_2 assertion fails); wiremock
+  `.expect(2)` guards phantom requests. The `generate_eks_token` test asserts
+  the `k8s-aws-v1.` prefix and base64url-decodes the tail to check
+  `Action=GetCallerIdentity`, `X-Amz-Signature`, and the credential prefix.
+- **Green-path injection test asserts real env-var behavior** —
+  `test_inject_credentials_sets_aws_env_vars_on_valid_context` asserts
+  `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` values
+  after injection with `Some(token)`, then re-injects into a **fresh**
+  kubeconfig with `None` and asserts `AWS_SESSION_TOKEN` absent — exactly the
+  fresh-kubeconfig framing the round-2 eval demanded against the insert-only
+  semantics.
+- **Scope discipline** — `git diff 246434b..HEAD --stat` touches only:
+  baeus-core (Cargo.toml, aws_eks.rs, aws_sso.rs, client.rs,
+  tests/aws_wizard_smoke.rs), Cargo.lock, the slice-plan status line, and the
+  orchestrator's review-findings artifact. Zero spec/ADR edits. No drive-by
+  changes.
+- **Review-findings adjudication** (per rubric): `/security-review`
+  ran-clean — independently spot-confirmed: typed-error Display paths
+  interpolate only context/user/profile names (never keys/tokens); injection
+  writes to the in-memory kubeconfig only; seams accept caller-built configs
+  while production wrappers still resolve real credentials; the TTL seam
+  seeds only client-side refresh timing. Confirmed clean, no findings to map.
+  `/code-review` skipped: command-unavailable — informational only; not read
+  as a clean review; this evaluation performed the code-review dimension
+  directly.
+- **Prior-round accounting** — plan-eval rounds 1 and 2 FAILed; the round-3
+  plan review PASSed at Round 2 (repeats the FAIL number). The standing
+  counter is 2; this code-review FAIL increments it to Round 3.
