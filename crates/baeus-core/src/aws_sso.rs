@@ -76,13 +76,9 @@ pub fn inject_aws_profile_into_kubeconfig(
     aws_profile: &str,
 ) -> Result<(), KubeconfigInjectionError> {
     // Find the context entry to get its user name.
-    let ctx = kubeconfig
-        .contexts
-        .iter()
-        .find(|c| c.name == context_name)
-        .ok_or_else(|| KubeconfigInjectionError::ContextNotFound {
-            context: context_name.to_string(),
-        })?;
+    let ctx = kubeconfig.contexts.iter().find(|c| c.name == context_name).ok_or_else(|| {
+        KubeconfigInjectionError::ContextNotFound { context: context_name.to_string() }
+    })?;
 
     let user_name = ctx.context.as_ref().and_then(|c| c.user.clone()).unwrap_or_default();
 
@@ -95,8 +91,8 @@ pub fn inject_aws_profile_into_kubeconfig(
             }
         })?;
 
-    let ai = auth_info.auth_info.as_mut().ok_or_else(|| KubeconfigInjectionError::ExecBlockMissing {
-        context: context_name.to_string(),
+    let ai = auth_info.auth_info.as_mut().ok_or_else(|| {
+        KubeconfigInjectionError::ExecBlockMissing { context: context_name.to_string() }
     })?;
     let exec_cfg = ai.exec.as_mut().ok_or_else(|| KubeconfigInjectionError::ExecBlockMissing {
         context: context_name.to_string(),
@@ -137,13 +133,9 @@ pub fn inject_aws_credentials_into_kubeconfig(
     secret_access_key: &str,
     session_token: Option<&str>,
 ) -> Result<(), KubeconfigInjectionError> {
-    let ctx = kubeconfig
-        .contexts
-        .iter()
-        .find(|c| c.name == context_name)
-        .ok_or_else(|| KubeconfigInjectionError::ContextNotFound {
-            context: context_name.to_string(),
-        })?;
+    let ctx = kubeconfig.contexts.iter().find(|c| c.name == context_name).ok_or_else(|| {
+        KubeconfigInjectionError::ContextNotFound { context: context_name.to_string() }
+    })?;
 
     let user_name = ctx.context.as_ref().and_then(|c| c.user.clone()).unwrap_or_default();
 
@@ -155,17 +147,15 @@ pub fn inject_aws_credentials_into_kubeconfig(
             }
         })?;
 
-    let ai = auth_info.auth_info.as_mut().ok_or_else(|| KubeconfigInjectionError::ExecBlockMissing {
-        context: context_name.to_string(),
+    let ai = auth_info.auth_info.as_mut().ok_or_else(|| {
+        KubeconfigInjectionError::ExecBlockMissing { context: context_name.to_string() }
     })?;
     let exec_cfg = ai.exec.as_mut().ok_or_else(|| KubeconfigInjectionError::ExecBlockMissing {
         context: context_name.to_string(),
     })?;
 
-    let env_vars = vec![
-        ("AWS_ACCESS_KEY_ID", access_key_id),
-        ("AWS_SECRET_ACCESS_KEY", secret_access_key),
-    ];
+    let env_vars =
+        vec![("AWS_ACCESS_KEY_ID", access_key_id), ("AWS_SECRET_ACCESS_KEY", secret_access_key)];
 
     for (name, value) in env_vars {
         let mut env_var = HashMap::new();
@@ -272,7 +262,9 @@ mod tests {
     // ---------------------------------------------------------------------------
 
     fn make_kubeconfig_no_exec() -> kube::config::Kubeconfig {
-        use kube::config::{AuthInfo, Context as KubeContext, Kubeconfig, NamedAuthInfo, NamedContext};
+        use kube::config::{
+            AuthInfo, Context as KubeContext, Kubeconfig, NamedAuthInfo, NamedContext,
+        };
         Kubeconfig {
             contexts: vec![NamedContext {
                 name: "my-cluster".to_string(),
@@ -381,8 +373,7 @@ mod tests {
             Some("session-token-1"),
         );
         assert!(result.is_ok(), "injection into valid exec block must succeed");
-        let exec =
-            kc1.auth_infos[0].auth_info.as_ref().unwrap().exec.as_ref().unwrap();
+        let exec = kc1.auth_infos[0].auth_info.as_ref().unwrap().exec.as_ref().unwrap();
         let envs = exec.env.as_ref().expect("env must be set after injection");
         let get_env = |name: &str| {
             envs.iter()
@@ -403,15 +394,16 @@ mod tests {
             None,
         )
         .unwrap();
-        let exec2 =
-            kc2.auth_infos[0].auth_info.as_ref().unwrap().exec.as_ref().unwrap();
+        let exec2 = kc2.auth_infos[0].auth_info.as_ref().unwrap().exec.as_ref().unwrap();
         let envs2 = exec2.env.as_ref().expect("env must be set after injection");
-        let get_env2 = |name: &str| {
-            envs2.iter().any(|e| e.get("name").map(|n| n.as_str()) == Some(name))
-        };
+        let get_env2 =
+            |name: &str| envs2.iter().any(|e| e.get("name").map(|n| n.as_str()) == Some(name));
         assert!(get_env2("AWS_ACCESS_KEY_ID"), "must contain AWS_ACCESS_KEY_ID");
         assert!(get_env2("AWS_SECRET_ACCESS_KEY"), "must contain AWS_SECRET_ACCESS_KEY");
-        assert!(!get_env2("AWS_SESSION_TOKEN"), "must NOT contain AWS_SESSION_TOKEN when None passed");
+        assert!(
+            !get_env2("AWS_SESSION_TOKEN"),
+            "must NOT contain AWS_SESSION_TOKEN when None passed"
+        );
     }
 
     // ---------------------------------------------------------------------------

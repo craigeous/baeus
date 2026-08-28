@@ -1597,4 +1597,167 @@ mod tests {
             );
         }
     }
+
+    // --- Slice C step 6: inline tests for generate_eks_token and create_eks_client ---
+
+    /// Base64-encoded self-signed CA PEM for test use.
+    ///
+    /// kube-client 0.98.0 unconditionally base64-decodes `certificate_authority_data`
+    /// before PEM-parsing (file_config.rs:641-646), so the fixture must be
+    /// base64(PEM), not raw PEM.  This constant matches EKS's real wire format and
+    /// the repo's own fixture convention at aws_eks.rs:1150.
+    const TEST_CA_B64: &str = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJPRENCNjZBREFnRUNBaFJqRm5ybDIwbWJvWXNqcTNndTZnc3ZtYnBlNkRBRkJnTXJaWEF3RWpFUU1BNEcKQTFVRUF3d0hkR1Z6ZEMxallUQWVGdzB5TmpBNE1qZ3hPVFUxTlRaYUZ3MHlOakE0TWpreE9UVTFOVFphTUJJeApFREFPQmdOVkJBTU1CM1JsYzNRdFkyRXdLakFGQmdNclpYQURJUURjbGwzSTBYeEk5V3lieGorMUNLeWtrQmNXCnpnTVJqZWI4WUZKajc5TDBrNk5UTUZFd0hRWURWUjBPQkJZRUZKaDJ0RXdiUW4zdDRLREFJL1lUVVhQd1IxVFMKTUI4R0ExVWRJd1FZTUJhQUZKaDJ0RXdiUW4zdDRLREFJL1lUVVhQd1IxVFNNQThHQTFVZEV3RUIvd1FGTUFNQgpBZjh3QlFZREsyVndBMEVBRDJFRk5EMkRjZmx6ejZTUUl1YlJkTld1SEpsMjBlbXd0QjlEL0tYZllQZjM2ekdqCm9MNVFvKzQ0SmtqMWZ4Z3hpb2pCL21EWjVuQ0tWTjN5U2UrN0N3PT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=";
+
+    #[tokio::test]
+    async fn generate_eks_token_returns_prefixed_and_base64_url_encoded() {
+        let creds = aws_credential_types::Credentials::new(
+            "AKIAEXAMPLE",
+            "secretkey",
+            None,
+            None,
+            "test-provider",
+        );
+        let token = generate_eks_token("my-cluster", &creds, "us-east-1")
+            .await
+            .expect("generate_eks_token must succeed");
+
+        // Token must start with "k8s-aws-v1."
+        assert!(
+            token.starts_with("k8s-aws-v1."),
+            "token must have k8s-aws-v1. prefix, got: {token}"
+        );
+
+        // Decode the base64url tail and verify it's a valid STS pre-signed URL.
+        let tail = &token["k8s-aws-v1.".len()..];
+        let decoded = base64_url_decode(tail);
+        let url = std::str::from_utf8(&decoded).expect("decoded token must be valid UTF-8");
+        assert!(
+            url.contains("Action=GetCallerIdentity"),
+            "URL must contain Action=GetCallerIdentity"
+        );
+        assert!(url.contains("X-Amz-Signature="), "URL must contain X-Amz-Signature");
+        assert!(url.contains("AKIAEXAMPLE"), "URL must contain the credential access key prefix");
+    }
+
+    #[tokio::test]
+    async fn create_eks_client_returns_bearer_token_and_refreshes_past_leeway() {
+        use secrecy::ExposeSecret as _;
+        use wiremock::matchers::any;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        // rustls requires a process-level CryptoProvider when building TLS clients.
+        // In tests there is no app-startup init, so install the ring provider (already
+        // a direct dep in this crate). `install_default` errors if already set; ignore.
+        let _ = rustls::crypto::ring::default_provider().install_default();
+
+        // --- 1. Start a wiremock K8s API server mock -----------------------------------
+        //
+        // Expects exactly 2 requests (initial + post-refresh), matching slice B's
+        // eks_refresh_layer_... pattern (aws_eks.rs:1394-1396, :1458).
+        let mock_server = MockServer::start().await;
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "kind": "NamespaceList",
+                "apiVersion": "v1",
+                "metadata": {},
+                "items": []
+            })))
+            .expect(2)
+            .mount(&mock_server)
+            .await;
+
+        // --- 2. Build an EksCluster pointing at the mock server -----------------------
+        //
+        // `certificate_authority_data` must be base64-encoded PEM so that
+        // kube-client's `from_custom_kubeconfig` → `load_certificate_authority()` path
+        // (file_config.rs:641-646) succeeds when base64-decoding the field.
+        let cluster = EksCluster {
+            name: "test-cluster".to_string(),
+            arn: "arn:aws:eks:us-east-1:123456789012:cluster/test-cluster".to_string(),
+            endpoint: mock_server.uri(),
+            region: "us-east-1".to_string(),
+            version: Some("1.28".to_string()),
+            status: Some("ACTIVE".to_string()),
+            certificate_authority_data: Some(TEST_CA_B64.to_string()),
+            tags: HashMap::new(),
+        };
+        let credentials =
+            aws_credential_types::Credentials::new("AKIAEXAMPLE", "secretkey", None, None, "test");
+
+        // --- 3. Call `create_eks_client_with_initial_ttl_secs` with 12s TTL ----------
+        //
+        // At t0: expires_at = t0 + 12s. With REFRESH_LEEWAY_SECS = 10, should_refresh()
+        // computes `now + 10s >= expires_at`, which is false at t0 (t0+10 < t0+12).
+        let (client, refresher) =
+            create_eks_client_with_initial_ttl_secs(&cluster, &credentials, 12)
+                .await
+                .expect("create_eks_client_with_initial_ttl_secs must succeed");
+
+        // --- 4. First request: fast path — should_refresh() is false -----------------
+        let api: kube::Api<k8s_openapi::api::core::v1::Namespace> = kube::Api::all(client.clone());
+        let _ = api.list(&Default::default()).await;
+
+        let requests = mock_server.received_requests().await.expect("requests");
+        assert_eq!(requests.len(), 1, "exactly one request after first list()");
+        let bearer_1 = requests[0]
+            .headers
+            .get("authorization")
+            .map(|v| v.to_str().unwrap_or(""))
+            .unwrap_or("")
+            .to_string();
+        assert!(bearer_1.starts_with("Bearer k8s-aws-v1."), "first header must be k8s-aws-v1.");
+
+        // Refresher state: no refresh has fired yet.
+        assert!(
+            !refresher.should_refresh(),
+            "should_refresh must be false immediately after construction"
+        );
+        let initial_token = refresher.current_token();
+        // The token in the refresher is the k8s-aws-v1.… string without the "Bearer " prefix.
+        assert_eq!(
+            format!("Bearer {}", initial_token.expose_secret()),
+            bearer_1,
+            "refresher.current_token() must match the bearer sent in request 1"
+        );
+
+        // --- 5. Sleep 3s: t0 + 3s + 10s = t0 + 13s ≥ t0 + 12s → refresh path -------
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+        // --- 6. Second request: refresh fires, new token written to Authorization -----
+        //
+        // AuthRefreshService::call() observes should_refresh() == true (13 >= 12),
+        // calls refresher.refresh(), which invokes the closure captured by
+        // create_eks_client_with_initial_ttl_secs (re-calls generate_eks_token →
+        // new presigned URL that differs at least in X-Amz-Date + X-Amz-Signature).
+        let _ = api.list(&Default::default()).await;
+
+        let requests = mock_server.received_requests().await.expect("requests");
+        assert_eq!(requests.len(), 2, "exactly 2 requests after second list()");
+        let bearer_2 = requests[1]
+            .headers
+            .get("authorization")
+            .map(|v| v.to_str().unwrap_or(""))
+            .unwrap_or("")
+            .to_string();
+        assert!(bearer_2.starts_with("Bearer k8s-aws-v1."), "second header must be k8s-aws-v1.");
+        assert_ne!(
+            bearer_1, bearer_2,
+            "refreshed bearer must differ from initial (new X-Amz-Date)"
+        );
+
+        // Refresher holds the new token.
+        let refreshed_token = refresher.current_token();
+        assert_eq!(
+            format!("Bearer {}", refreshed_token.expose_secret()),
+            bearer_2,
+            "refresher.current_token() must match the bearer sent in request 2"
+        );
+    }
+
+    /// Decode a base64url (no padding) string into bytes — used in the
+    /// `generate_eks_token` test above.
+    fn base64_url_decode(s: &str) -> Vec<u8> {
+        use base64::Engine as _;
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(s).expect("valid base64url")
+    }
 }

@@ -213,9 +213,7 @@ pub async fn create_client_from_path_with_aws_creds(
         session_token,
     )
     .with_context(|| {
-        format!(
-            "Injecting wizard AWS credentials into kubeconfig context '{context_name}' failed"
-        )
+        format!("Injecting wizard AWS credentials into kubeconfig context '{context_name}' failed")
     })?;
 
     let config = Config::from_custom_kubeconfig(
