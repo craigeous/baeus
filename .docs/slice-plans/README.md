@@ -18,7 +18,10 @@ Active slice-plans live here; landed ones move to
 
 ## Active
 
-_(none — all current slices are in archive)_
+- [`slice-c-injection-errors-async-tests.md`](slice-c-injection-errors-async-tests.md) —
+  Status: Plan Review — AWS credential-injection typed errors + async
+  wizard tests (spec 06 findings 0002-H3, 0002-H4). Branch:
+  `docs/slice-c-plan`.
 
 ## Archived
 
