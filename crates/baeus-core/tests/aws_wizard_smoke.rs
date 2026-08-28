@@ -331,8 +331,7 @@ async fn assume_role_returns_session_with_temporary_credentials() {
 async fn discover_clusters_in_region_returns_described_clusters() {
     // Base64-encoded self-signed CA PEM (same fixture convention as aws_eks.rs:1150)
     let ca_data = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJJRENDQVFXZ0F3SUJBZ0lVWWVQNitVa2tQdlZmemRtMTZsVWQ2M1lYWDFBd0NnWUlLb1pJemowRUF3SXcKRlRFVE1CRUdBMVVFQXd3S2JXa3RhWFFnVWtOQk1CNFhEVEkxTURnd01UQXdNREF3TUZvWERUSTFNRGt3TURBdwpNREF3TUZvd0ZURVRNQkVHQTFVRUF3d0tiV2t0YVhRZ1VrTkJNRmt3RXdZSEtvWkl6ajBDQVFZSUtvWkl6ajBECkFRY0RRZ0FFdHNldjIzdXZ6SkVsTHdnalpCeXAxdkRXaXVlVW9OYTN3UVhGZVgwMm4yR1ZsK2txclMraU9LcEsKaVR2MXRKR3Y2YWdPTEViOHlpSEZRMHFkdXZzcWFOME1Bb3dIUVlEVlIwT0JCWUVGTXJxWHpteGtoVlAxejhHCjFqRVJVZzMvRkh3TE1Bb0dBMVVkRXdFQi93UUlNQVlCQWY4Q0FRTXdDZ1lJS29aSXpqMEVBd0lEU0FBd1JRSWgKQU5Zd2VuNFh6ejhqNHg1bGJnM3Z1cXVLSW5CUER3Z3Rndzl1Q04reCtWRWtBaUFpS3VyUFVGM0N1bEdXbjBECjZjb3QvWndFNWkwZ0dGMHJjVTBsckQ5M3p3PT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=";
-    let list_body =
-        r#"{"clusters":["cluster-1","cluster-2"],"nextToken":null}"#.to_string();
+    let list_body = r#"{"clusters":["cluster-1","cluster-2"],"nextToken":null}"#.to_string();
     let describe1 = format!(
         r#"{{"cluster":{{"name":"cluster-1","arn":"arn:aws:eks:us-east-1:123456789012:cluster/cluster-1","endpoint":"https://ENDPOINT1.eks.amazonaws.com","version":"1.28","status":"ACTIVE","certificateAuthority":{{"data":"{ca_data}"}},"tags":{{}}}}}}"#
     );
