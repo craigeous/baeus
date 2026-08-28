@@ -24,4 +24,4 @@
 **Slice A2 PR open, awaiting owner merge** (branch `slice/a2-ci-toolchain-pin`).
 After merge: slice B developer starts on branch `slice/b-watch-eks` — watch
 cancellation + EKS token refresh (spec 06 findings 0002-H1, 0002-H2).
-Remaining: C → D → E → F → G.
+Remaining: C → D → E → F → G.# ci probe
