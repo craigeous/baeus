@@ -1206,3 +1206,10 @@ gate steps on all three legs.
   other section of spec 06 is altered. This is called out here so
   that finalize does not merge the plan without carrying the
   amendment through.
+
+---
+
+## Landed receipt
+
+- **Landed:** 2026-08-28 via PR #7 (merge commit `966576857914025ac0679991a39fc7efd317cac5` on `main`, remote-verified; CI green on all three OS legs after merging main's A2 lineage into the branch).
+- **Note:** CI initially did not trigger for PR #7 — GitHub cannot create the test-merge commit for a CONFLICTING PR, so `pull_request` workflows never queue (silent). Resolved by merging `origin/main` in (commit `1f38f68`).
