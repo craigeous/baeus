@@ -27,3 +27,11 @@ var names remain hardcoded constants with values via kube-rs YAML
 serialization (no shell); Cargo.lock adds only dev-dependency transitives, no
 production TLS/rustls changes. No candidate findings; finder executed
 normally.
+
+---
+
+## Delta after round-3 fmt fix
+
+The round-3 blocker fix (join a split `let` in `aws_wizard_smoke.rs`) is a
+formatting-only change in a test-only file — excluded category; the prior
+full-slice `/security-review` ran-clean result stands; no re-run required.
