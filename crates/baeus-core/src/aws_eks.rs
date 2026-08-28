@@ -237,7 +237,18 @@ pub async fn sso_register_client(region: &str) -> Result<(String, String)> {
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_ssooidc::Client::new(&config);
+    sso_register_client_with_config(&config).await
+}
+
+/// Test-injection seam for `sso_register_client`. Public consumers must use
+/// `sso_register_client`, which delegates here with a default `SdkConfig`.
+/// The parameter exists so tests can inject a `StaticReplayClient` via
+/// `.http_client(...)` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_register_client_with_config(
+    config: &aws_config::SdkConfig,
+) -> Result<(String, String)> {
+    let client = aws_sdk_ssooidc::Client::new(config);
 
     let resp = client
         .register_client()
@@ -265,7 +276,20 @@ pub async fn sso_start_device_auth(
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_ssooidc::Client::new(&config);
+    sso_start_device_auth_with_config(&config, client_id, client_secret, start_url).await
+}
+
+/// Test-injection seam for `sso_start_device_auth`. Public consumers must use
+/// `sso_start_device_auth`. The parameter exists so tests can inject a
+/// `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_start_device_auth_with_config(
+    config: &aws_config::SdkConfig,
+    client_id: &str,
+    client_secret: &str,
+    start_url: &str,
+) -> Result<SsoDeviceAuth> {
+    let client = aws_sdk_ssooidc::Client::new(config);
 
     let resp = client
         .start_device_authorization()
@@ -301,7 +325,20 @@ pub async fn sso_poll_for_token(
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_ssooidc::Client::new(&config);
+    sso_poll_for_token_with_config(&config, client_id, client_secret, device_code).await
+}
+
+/// Test-injection seam for `sso_poll_for_token`. Public consumers must use
+/// `sso_poll_for_token`. The parameter exists so tests can inject a
+/// `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_poll_for_token_with_config(
+    config: &aws_config::SdkConfig,
+    client_id: &str,
+    client_secret: &str,
+    device_code: &str,
+) -> Result<SsoTokenResult> {
+    let client = aws_sdk_ssooidc::Client::new(config);
 
     let result = client
         .create_token()
@@ -346,7 +383,18 @@ pub async fn sso_list_accounts(region: &str, access_token: &str) -> Result<Vec<S
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_sso::Client::new(&config);
+    sso_list_accounts_with_config(&config, access_token).await
+}
+
+/// Test-injection seam for `sso_list_accounts`. Public consumers must use
+/// `sso_list_accounts`. The parameter exists so tests can inject a
+/// `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_list_accounts_with_config(
+    config: &aws_config::SdkConfig,
+    access_token: &str,
+) -> Result<Vec<SsoAccount>> {
+    let client = aws_sdk_sso::Client::new(config);
 
     let mut accounts = Vec::new();
     let mut next_token: Option<String> = None;
@@ -424,7 +472,23 @@ pub async fn sso_get_role_credentials(
         .no_credentials()
         .load()
         .await;
-    let client = aws_sdk_sso::Client::new(&config);
+    sso_get_role_credentials_with_config(&config, access_token, account_id, role_name, region).await
+}
+
+/// Test-injection seam for `sso_get_role_credentials`. Public consumers must use
+/// `sso_get_role_credentials`. The `region` parameter is retained explicitly because
+/// it is embedded in `AwsSession.region` and may differ from what the `SdkConfig`
+/// holds in tests. The `sdk_config` parameter exists so tests can inject a
+/// `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn sso_get_role_credentials_with_config(
+    sdk_config: &aws_config::SdkConfig,
+    access_token: &str,
+    account_id: &str,
+    role_name: &str,
+    region: &str,
+) -> Result<AwsSession> {
+    let client = aws_sdk_sso::Client::new(sdk_config);
 
     let resp = client
         .get_role_credentials()
@@ -483,7 +547,26 @@ pub async fn authenticate_with_access_key(config: &AccessKeyConfig) -> Result<Aw
         .load()
         .await;
 
-    let sts = aws_sdk_sts::Client::new(&sdk_config);
+    authenticate_with_access_key_with_config(&sdk_config, config).await
+}
+
+/// Test-injection seam for `authenticate_with_access_key`. Public consumers must use
+/// `authenticate_with_access_key`. The `sdk_config` parameter exists so tests can
+/// inject a `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn authenticate_with_access_key_with_config(
+    sdk_config: &aws_config::SdkConfig,
+    config: &AccessKeyConfig,
+) -> Result<AwsSession> {
+    let credentials = Credentials::new(
+        &config.access_key_id,
+        &config.secret_access_key,
+        config.session_token.clone(),
+        None,
+        "baeus-access-key",
+    );
+
+    let sts = aws_sdk_sts::Client::new(sdk_config);
     let identity = sts
         .get_caller_identity()
         .send()
@@ -515,7 +598,19 @@ pub async fn assume_role(
         .load()
         .await;
 
-    let sts = aws_sdk_sts::Client::new(&sdk_config);
+    assume_role_with_config(&sdk_config, config).await
+}
+
+/// Test-injection seam for `assume_role`. Public consumers must use `assume_role`,
+/// which builds a default `SdkConfig` with the source credentials and delegates here.
+/// The `sdk_config` parameter exists so tests can inject a `StaticReplayClient`
+/// (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn assume_role_with_config(
+    sdk_config: &aws_config::SdkConfig,
+    config: &AssumeRoleConfig,
+) -> Result<AwsSession> {
+    let sts = aws_sdk_sts::Client::new(sdk_config);
     let session_name = config.session_name.as_deref().unwrap_or("baeus-session");
 
     let mut req = sts.assume_role().role_arn(&config.role_arn).role_session_name(session_name);
@@ -624,7 +719,19 @@ pub async fn discover_clusters_in_region(
         .load()
         .await;
 
-    let eks = aws_sdk_eks::Client::new(&sdk_config);
+    discover_clusters_in_region_with_config(&sdk_config, region).await
+}
+
+/// Test-injection seam for `discover_clusters_in_region`. Public consumers must use
+/// `discover_clusters_in_region`. The `region` parameter is retained explicitly for
+/// `EksCluster.region` tagging. The `sdk_config` parameter exists so tests can inject
+/// a `StaticReplayClient` (spec 06 0002-H4).
+#[doc(hidden)]
+pub async fn discover_clusters_in_region_with_config(
+    sdk_config: &aws_config::SdkConfig,
+    region: &str,
+) -> Result<Vec<EksCluster>> {
+    let eks = aws_sdk_eks::Client::new(sdk_config);
 
     // List cluster names
     let mut cluster_names = Vec::new();
@@ -966,6 +1073,20 @@ pub async fn create_eks_client(
     cluster: &EksCluster,
     credentials: &Credentials,
 ) -> Result<(kube::Client, EksTokenRefresher)> {
+    create_eks_client_with_initial_ttl_secs(cluster, credentials, 60).await
+}
+
+/// Test-injection seam for `create_eks_client`. Public consumers must use
+/// `create_eks_client`, which delegates here with a 60-second initial TTL.
+/// The parameter exists only so async wizard tests can seed an initial expiry
+/// outside/inside the 10-second refresh leeway deterministically (spec 06 0002-H4
+/// acceptance 4a for `create_eks_client`).
+#[doc(hidden)]
+pub async fn create_eks_client_with_initial_ttl_secs(
+    cluster: &EksCluster,
+    credentials: &Credentials,
+    initial_ttl_secs: i64,
+) -> Result<(kube::Client, EksTokenRefresher)> {
     use kube::client::ConfigExt as _;
     use tower::ServiceBuilder;
 
@@ -978,7 +1099,7 @@ pub async fn create_eks_client(
     let initial_token = generate_eks_token(&cluster.name, credentials, &cluster.region).await?;
     let initial_state = TokenState {
         token: secrecy::SecretString::new(initial_token.clone().into()),
-        expires_at: chrono::Utc::now() + chrono::Duration::seconds(60),
+        expires_at: chrono::Utc::now() + chrono::Duration::seconds(initial_ttl_secs),
     };
 
     // Capture cluster identity + credentials for the refresh closure.
@@ -1475,5 +1596,168 @@ mod tests {
                 "exactly one presign issued between the two API calls"
             );
         }
+    }
+
+    // --- Slice C step 6: inline tests for generate_eks_token and create_eks_client ---
+
+    /// Base64-encoded self-signed CA PEM for test use.
+    ///
+    /// kube-client 0.98.0 unconditionally base64-decodes `certificate_authority_data`
+    /// before PEM-parsing (file_config.rs:641-646), so the fixture must be
+    /// base64(PEM), not raw PEM.  This constant matches EKS's real wire format and
+    /// the repo's own fixture convention at aws_eks.rs:1150.
+    const TEST_CA_B64: &str = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJPRENCNjZBREFnRUNBaFJqRm5ybDIwbWJvWXNqcTNndTZnc3ZtYnBlNkRBRkJnTXJaWEF3RWpFUU1BNEcKQTFVRUF3d0hkR1Z6ZEMxallUQWVGdzB5TmpBNE1qZ3hPVFUxTlRaYUZ3MHlOakE0TWpreE9UVTFOVFphTUJJeApFREFPQmdOVkJBTU1CM1JsYzNRdFkyRXdLakFGQmdNclpYQURJUURjbGwzSTBYeEk5V3lieGorMUNLeWtrQmNXCnpnTVJqZWI4WUZKajc5TDBrNk5UTUZFd0hRWURWUjBPQkJZRUZKaDJ0RXdiUW4zdDRLREFJL1lUVVhQd1IxVFMKTUI4R0ExVWRJd1FZTUJhQUZKaDJ0RXdiUW4zdDRLREFJL1lUVVhQd1IxVFNNQThHQTFVZEV3RUIvd1FGTUFNQgpBZjh3QlFZREsyVndBMEVBRDJFRk5EMkRjZmx6ejZTUUl1YlJkTld1SEpsMjBlbXd0QjlEL0tYZllQZjM2ekdqCm9MNVFvKzQ0SmtqMWZ4Z3hpb2pCL21EWjVuQ0tWTjN5U2UrN0N3PT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=";
+
+    #[tokio::test]
+    async fn generate_eks_token_returns_prefixed_and_base64_url_encoded() {
+        let creds = aws_credential_types::Credentials::new(
+            "AKIAEXAMPLE",
+            "secretkey",
+            None,
+            None,
+            "test-provider",
+        );
+        let token = generate_eks_token("my-cluster", &creds, "us-east-1")
+            .await
+            .expect("generate_eks_token must succeed");
+
+        // Token must start with "k8s-aws-v1."
+        assert!(
+            token.starts_with("k8s-aws-v1."),
+            "token must have k8s-aws-v1. prefix, got: {token}"
+        );
+
+        // Decode the base64url tail and verify it's a valid STS pre-signed URL.
+        let tail = &token["k8s-aws-v1.".len()..];
+        let decoded = base64_url_decode(tail);
+        let url = std::str::from_utf8(&decoded).expect("decoded token must be valid UTF-8");
+        assert!(
+            url.contains("Action=GetCallerIdentity"),
+            "URL must contain Action=GetCallerIdentity"
+        );
+        assert!(url.contains("X-Amz-Signature="), "URL must contain X-Amz-Signature");
+        assert!(url.contains("AKIAEXAMPLE"), "URL must contain the credential access key prefix");
+    }
+
+    #[tokio::test]
+    async fn create_eks_client_returns_bearer_token_and_refreshes_past_leeway() {
+        use secrecy::ExposeSecret as _;
+        use wiremock::matchers::any;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        // rustls requires a process-level CryptoProvider when building TLS clients.
+        // In tests there is no app-startup init, so install the ring provider (already
+        // a direct dep in this crate). `install_default` errors if already set; ignore.
+        let _ = rustls::crypto::ring::default_provider().install_default();
+
+        // --- 1. Start a wiremock K8s API server mock -----------------------------------
+        //
+        // Expects exactly 2 requests (initial + post-refresh), matching slice B's
+        // eks_refresh_layer_... pattern (aws_eks.rs:1394-1396, :1458).
+        let mock_server = MockServer::start().await;
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "kind": "NamespaceList",
+                "apiVersion": "v1",
+                "metadata": {},
+                "items": []
+            })))
+            .expect(2)
+            .mount(&mock_server)
+            .await;
+
+        // --- 2. Build an EksCluster pointing at the mock server -----------------------
+        //
+        // `certificate_authority_data` must be base64-encoded PEM so that
+        // kube-client's `from_custom_kubeconfig` → `load_certificate_authority()` path
+        // (file_config.rs:641-646) succeeds when base64-decoding the field.
+        let cluster = EksCluster {
+            name: "test-cluster".to_string(),
+            arn: "arn:aws:eks:us-east-1:123456789012:cluster/test-cluster".to_string(),
+            endpoint: mock_server.uri(),
+            region: "us-east-1".to_string(),
+            version: Some("1.28".to_string()),
+            status: Some("ACTIVE".to_string()),
+            certificate_authority_data: Some(TEST_CA_B64.to_string()),
+            tags: HashMap::new(),
+        };
+        let credentials =
+            aws_credential_types::Credentials::new("AKIAEXAMPLE", "secretkey", None, None, "test");
+
+        // --- 3. Call `create_eks_client_with_initial_ttl_secs` with 12s TTL ----------
+        //
+        // At t0: expires_at = t0 + 12s. With REFRESH_LEEWAY_SECS = 10, should_refresh()
+        // computes `now + 10s >= expires_at`, which is false at t0 (t0+10 < t0+12).
+        let (client, refresher) =
+            create_eks_client_with_initial_ttl_secs(&cluster, &credentials, 12)
+                .await
+                .expect("create_eks_client_with_initial_ttl_secs must succeed");
+
+        // --- 4. First request: fast path — should_refresh() is false -----------------
+        let api: kube::Api<k8s_openapi::api::core::v1::Namespace> = kube::Api::all(client.clone());
+        let _ = api.list(&Default::default()).await;
+
+        let requests = mock_server.received_requests().await.expect("requests");
+        assert_eq!(requests.len(), 1, "exactly one request after first list()");
+        let bearer_1 = requests[0]
+            .headers
+            .get("authorization")
+            .map(|v| v.to_str().unwrap_or(""))
+            .unwrap_or("")
+            .to_string();
+        assert!(bearer_1.starts_with("Bearer k8s-aws-v1."), "first header must be k8s-aws-v1.");
+
+        // Refresher state: no refresh has fired yet.
+        assert!(
+            !refresher.should_refresh(),
+            "should_refresh must be false immediately after construction"
+        );
+        let initial_token = refresher.current_token();
+        // The token in the refresher is the k8s-aws-v1.… string without the "Bearer " prefix.
+        assert_eq!(
+            format!("Bearer {}", initial_token.expose_secret()),
+            bearer_1,
+            "refresher.current_token() must match the bearer sent in request 1"
+        );
+
+        // --- 5. Sleep 3s: t0 + 3s + 10s = t0 + 13s ≥ t0 + 12s → refresh path -------
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+        // --- 6. Second request: refresh fires, new token written to Authorization -----
+        //
+        // AuthRefreshService::call() observes should_refresh() == true (13 >= 12),
+        // calls refresher.refresh(), which invokes the closure captured by
+        // create_eks_client_with_initial_ttl_secs (re-calls generate_eks_token →
+        // new presigned URL that differs at least in X-Amz-Date + X-Amz-Signature).
+        let _ = api.list(&Default::default()).await;
+
+        let requests = mock_server.received_requests().await.expect("requests");
+        assert_eq!(requests.len(), 2, "exactly 2 requests after second list()");
+        let bearer_2 = requests[1]
+            .headers
+            .get("authorization")
+            .map(|v| v.to_str().unwrap_or(""))
+            .unwrap_or("")
+            .to_string();
+        assert!(bearer_2.starts_with("Bearer k8s-aws-v1."), "second header must be k8s-aws-v1.");
+        assert_ne!(
+            bearer_1, bearer_2,
+            "refreshed bearer must differ from initial (new X-Amz-Date)"
+        );
+
+        // Refresher holds the new token.
+        let refreshed_token = refresher.current_token();
+        assert_eq!(
+            format!("Bearer {}", refreshed_token.expose_secret()),
+            bearer_2,
+            "refresher.current_token() must match the bearer sent in request 2"
+        );
+    }
+
+    /// Decode a base64url (no padding) string into bytes — used in the
+    /// `generate_eks_token` test above.
+    fn base64_url_decode(s: &str) -> Vec<u8> {
+        use base64::Engine as _;
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(s).expect("valid base64url")
     }
 }

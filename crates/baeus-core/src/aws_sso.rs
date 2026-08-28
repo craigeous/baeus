@@ -8,6 +8,26 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 
+/// Typed errors returned by the kubeconfig injection functions.
+///
+/// Both `inject_aws_profile_into_kubeconfig` and
+/// `inject_aws_credentials_into_kubeconfig` return `Result<(),
+/// KubeconfigInjectionError>` so callers can distinguish a missing exec block
+/// (misconfigured kubeconfig) from a missing context or auth-info entry.
+#[derive(Debug, thiserror::Error)]
+pub enum KubeconfigInjectionError {
+    #[error("Kubeconfig context '{context}' not found")]
+    ContextNotFound { context: String },
+    #[error("AuthInfo '{user}' (referenced by context '{context}') not found")]
+    AuthInfoNotFound { user: String, context: String },
+    #[error(
+        "Kubeconfig context '{context}' has no `exec` block; AWS credential \
+         injection requires an exec plugin. Add an `exec` block referencing \
+         `aws eks get-token` or select a different context."
+    )]
+    ExecBlockMissing { context: String },
+}
+
 /// Parsed result from `aws sts get-caller-identity`.
 #[derive(Debug, Clone)]
 pub struct CallerIdentity {
@@ -54,46 +74,49 @@ pub fn inject_aws_profile_into_kubeconfig(
     kubeconfig: &mut kube::config::Kubeconfig,
     context_name: &str,
     aws_profile: &str,
-) -> Result<()> {
+) -> Result<(), KubeconfigInjectionError> {
     // Find the context entry to get its user name.
-    let ctx = kubeconfig
-        .contexts
-        .iter()
-        .find(|c| c.name == context_name)
-        .with_context(|| format!("Context '{context_name}' not found in kubeconfig"))?;
+    let ctx = kubeconfig.contexts.iter().find(|c| c.name == context_name).ok_or_else(|| {
+        KubeconfigInjectionError::ContextNotFound { context: context_name.to_string() }
+    })?;
 
     let user_name = ctx.context.as_ref().and_then(|c| c.user.clone()).unwrap_or_default();
 
     // Find the matching auth info entry and inject the env var.
     let auth_info =
-        kubeconfig.auth_infos.iter_mut().find(|a| a.name == user_name).with_context(|| {
-            format!("AuthInfo '{user_name}' (referenced by context '{context_name}') not found")
+        kubeconfig.auth_infos.iter_mut().find(|a| a.name == user_name).ok_or_else(|| {
+            KubeconfigInjectionError::AuthInfoNotFound {
+                user: user_name.clone(),
+                context: context_name.to_string(),
+            }
         })?;
 
-    if let Some(ref mut ai) = auth_info.auth_info {
-        if let Some(ref mut exec_cfg) = ai.exec {
-            // Build the env entry as a HashMap with "name" and "value" keys
-            // (this is how kube-rs models exec env vars).
-            let mut env_var = HashMap::new();
-            env_var.insert("name".to_string(), "AWS_PROFILE".to_string());
-            env_var.insert("value".to_string(), aws_profile.to_string());
+    let ai = auth_info.auth_info.as_mut().ok_or_else(|| {
+        KubeconfigInjectionError::ExecBlockMissing { context: context_name.to_string() }
+    })?;
+    let exec_cfg = ai.exec.as_mut().ok_or_else(|| KubeconfigInjectionError::ExecBlockMissing {
+        context: context_name.to_string(),
+    })?;
 
-            match exec_cfg.env {
-                Some(ref mut envs) => {
-                    // Replace existing AWS_PROFILE or append.
-                    if let Some(existing) = envs
-                        .iter_mut()
-                        .find(|e| e.get("name").map(|n| n.as_str()) == Some("AWS_PROFILE"))
-                    {
-                        existing.insert("value".to_string(), aws_profile.to_string());
-                    } else {
-                        envs.push(env_var);
-                    }
-                }
-                None => {
-                    exec_cfg.env = Some(vec![env_var]);
-                }
+    // Build the env entry as a HashMap with "name" and "value" keys
+    // (this is how kube-rs models exec env vars).
+    let mut env_var = HashMap::new();
+    env_var.insert("name".to_string(), "AWS_PROFILE".to_string());
+    env_var.insert("value".to_string(), aws_profile.to_string());
+
+    match exec_cfg.env {
+        Some(ref mut envs) => {
+            // Replace existing AWS_PROFILE or append.
+            if let Some(existing) =
+                envs.iter_mut().find(|e| e.get("name").map(|n| n.as_str()) == Some("AWS_PROFILE"))
+            {
+                existing.insert("value".to_string(), aws_profile.to_string());
+            } else {
+                envs.push(env_var);
             }
+        }
+        None => {
+            exec_cfg.env = Some(vec![env_var]);
         }
     }
 
@@ -109,63 +132,63 @@ pub fn inject_aws_credentials_into_kubeconfig(
     access_key_id: &str,
     secret_access_key: &str,
     session_token: Option<&str>,
-) -> Result<()> {
-    let ctx = kubeconfig
-        .contexts
-        .iter()
-        .find(|c| c.name == context_name)
-        .with_context(|| format!("Context '{context_name}' not found in kubeconfig"))?;
+) -> Result<(), KubeconfigInjectionError> {
+    let ctx = kubeconfig.contexts.iter().find(|c| c.name == context_name).ok_or_else(|| {
+        KubeconfigInjectionError::ContextNotFound { context: context_name.to_string() }
+    })?;
 
     let user_name = ctx.context.as_ref().and_then(|c| c.user.clone()).unwrap_or_default();
 
-    let auth_info = kubeconfig
-        .auth_infos
-        .iter_mut()
-        .find(|a| a.name == user_name)
-        .with_context(|| format!("AuthInfo '{user_name}' not found"))?;
+    let auth_info =
+        kubeconfig.auth_infos.iter_mut().find(|a| a.name == user_name).ok_or_else(|| {
+            KubeconfigInjectionError::AuthInfoNotFound {
+                user: user_name.clone(),
+                context: context_name.to_string(),
+            }
+        })?;
 
-    if let Some(ref mut ai) = auth_info.auth_info {
-        if let Some(ref mut exec_cfg) = ai.exec {
-            let env_vars = vec![
-                ("AWS_ACCESS_KEY_ID", access_key_id),
-                ("AWS_SECRET_ACCESS_KEY", secret_access_key),
-            ];
+    let ai = auth_info.auth_info.as_mut().ok_or_else(|| {
+        KubeconfigInjectionError::ExecBlockMissing { context: context_name.to_string() }
+    })?;
+    let exec_cfg = ai.exec.as_mut().ok_or_else(|| KubeconfigInjectionError::ExecBlockMissing {
+        context: context_name.to_string(),
+    })?;
 
-            for (name, value) in env_vars {
-                let mut env_var = HashMap::new();
-                env_var.insert("name".to_string(), name.to_string());
-                env_var.insert("value".to_string(), value.to_string());
-                match exec_cfg.env {
-                    Some(ref mut envs) => {
-                        if let Some(existing) = envs
-                            .iter_mut()
-                            .find(|e| e.get("name").map(|n| n.as_str()) == Some(name))
-                        {
-                            existing.insert("value".to_string(), value.to_string());
-                        } else {
-                            envs.push(env_var);
-                        }
-                    }
-                    None => {
-                        exec_cfg.env = Some(vec![env_var]);
-                    }
+    let env_vars =
+        vec![("AWS_ACCESS_KEY_ID", access_key_id), ("AWS_SECRET_ACCESS_KEY", secret_access_key)];
+
+    for (name, value) in env_vars {
+        let mut env_var = HashMap::new();
+        env_var.insert("name".to_string(), name.to_string());
+        env_var.insert("value".to_string(), value.to_string());
+        match exec_cfg.env {
+            Some(ref mut envs) => {
+                if let Some(existing) =
+                    envs.iter_mut().find(|e| e.get("name").map(|n| n.as_str()) == Some(name))
+                {
+                    existing.insert("value".to_string(), value.to_string());
+                } else {
+                    envs.push(env_var);
                 }
             }
+            None => {
+                exec_cfg.env = Some(vec![env_var]);
+            }
+        }
+    }
 
-            if let Some(token) = session_token {
-                let mut env_var = HashMap::new();
-                env_var.insert("name".to_string(), "AWS_SESSION_TOKEN".to_string());
-                env_var.insert("value".to_string(), token.to_string());
-                if let Some(ref mut envs) = exec_cfg.env {
-                    if let Some(existing) = envs
-                        .iter_mut()
-                        .find(|e| e.get("name").map(|n| n.as_str()) == Some("AWS_SESSION_TOKEN"))
-                    {
-                        existing.insert("value".to_string(), token.to_string());
-                    } else {
-                        envs.push(env_var);
-                    }
-                }
+    if let Some(token) = session_token {
+        let mut env_var = HashMap::new();
+        env_var.insert("name".to_string(), "AWS_SESSION_TOKEN".to_string());
+        env_var.insert("value".to_string(), token.to_string());
+        if let Some(ref mut envs) = exec_cfg.env {
+            if let Some(existing) = envs
+                .iter_mut()
+                .find(|e| e.get("name").map(|n| n.as_str()) == Some("AWS_SESSION_TOKEN"))
+            {
+                existing.insert("value".to_string(), token.to_string());
+            } else {
+                envs.push(env_var);
             }
         }
     }
@@ -191,6 +214,201 @@ pub fn is_aws_sso_auth_error(error_message: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---------------------------------------------------------------------------
+    // Helper: build a kubeconfig with a context that has a valid exec block.
+    // ---------------------------------------------------------------------------
+
+    fn make_kubeconfig_with_exec() -> kube::config::Kubeconfig {
+        use kube::config::{
+            AuthInfo, Context as KubeContext, ExecConfig, Kubeconfig, NamedAuthInfo, NamedContext,
+        };
+        Kubeconfig {
+            contexts: vec![NamedContext {
+                name: "my-cluster".to_string(),
+                context: Some(KubeContext {
+                    cluster: "my-cluster".to_string(),
+                    user: Some("my-user".to_string()),
+                    ..Default::default()
+                }),
+            }],
+            auth_infos: vec![NamedAuthInfo {
+                name: "my-user".to_string(),
+                auth_info: Some(AuthInfo {
+                    exec: Some(ExecConfig {
+                        api_version: Some("client.authentication.k8s.io/v1beta1".to_string()),
+                        command: Some("aws".to_string()),
+                        args: Some(vec![
+                            "eks".to_string(),
+                            "get-token".to_string(),
+                            "--cluster-name".to_string(),
+                            "my-cluster".to_string(),
+                        ]),
+                        env: None,
+                        drop_env: None,
+                        interactive_mode: None,
+                        provide_cluster_info: false,
+                        cluster: None,
+                    }),
+                    ..Default::default()
+                }),
+            }],
+            ..Default::default()
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Helper: build a kubeconfig with a context but NO exec block.
+    // ---------------------------------------------------------------------------
+
+    fn make_kubeconfig_no_exec() -> kube::config::Kubeconfig {
+        use kube::config::{
+            AuthInfo, Context as KubeContext, Kubeconfig, NamedAuthInfo, NamedContext,
+        };
+        Kubeconfig {
+            contexts: vec![NamedContext {
+                name: "my-cluster".to_string(),
+                context: Some(KubeContext {
+                    cluster: "my-cluster".to_string(),
+                    user: Some("my-user".to_string()),
+                    ..Default::default()
+                }),
+            }],
+            auth_infos: vec![NamedAuthInfo {
+                name: "my-user".to_string(),
+                auth_info: Some(AuthInfo { exec: None, ..Default::default() }),
+            }],
+            ..Default::default()
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Slice C step 1: new error-path tests (red → green with refactored fns)
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn test_inject_profile_returns_exec_block_missing_when_absent() {
+        let mut kc = make_kubeconfig_no_exec();
+        let result = inject_aws_profile_into_kubeconfig(&mut kc, "my-cluster", "secops");
+        match result {
+            Err(KubeconfigInjectionError::ExecBlockMissing { context }) => {
+                assert_eq!(context, "my-cluster");
+            }
+            other => panic!("expected ExecBlockMissing, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_inject_credentials_returns_exec_block_missing_when_absent() {
+        let mut kc = make_kubeconfig_no_exec();
+        let result = inject_aws_credentials_into_kubeconfig(
+            &mut kc,
+            "my-cluster",
+            "AKIAEXAMPLE",
+            "secret-key",
+            None,
+        );
+        match result {
+            Err(KubeconfigInjectionError::ExecBlockMissing { context }) => {
+                assert_eq!(context, "my-cluster");
+            }
+            other => panic!("expected ExecBlockMissing, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_inject_credentials_returns_context_not_found() {
+        let mut kc = kube::config::Kubeconfig::default();
+        let result = inject_aws_credentials_into_kubeconfig(
+            &mut kc,
+            "nonexistent",
+            "AKIAEXAMPLE",
+            "secret-key",
+            None,
+        );
+        match result {
+            Err(KubeconfigInjectionError::ContextNotFound { context }) => {
+                assert_eq!(context, "nonexistent");
+            }
+            other => panic!("expected ContextNotFound, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_inject_credentials_returns_auth_info_not_found() {
+        use kube::config::{Context as KubeContext, Kubeconfig, NamedContext};
+        // Context exists but references a user with no matching AuthInfo.
+        let mut kc = Kubeconfig {
+            contexts: vec![NamedContext {
+                name: "ctx".to_string(),
+                context: Some(KubeContext {
+                    cluster: "c".to_string(),
+                    user: Some("missing-user".to_string()),
+                    ..Default::default()
+                }),
+            }],
+            auth_infos: vec![],
+            ..Default::default()
+        };
+        let result =
+            inject_aws_credentials_into_kubeconfig(&mut kc, "ctx", "AKIAEXAMPLE", "secret", None);
+        match result {
+            Err(KubeconfigInjectionError::AuthInfoNotFound { user, context }) => {
+                assert_eq!(user, "missing-user");
+                assert_eq!(context, "ctx");
+            }
+            other => panic!("expected AuthInfoNotFound, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_inject_credentials_sets_aws_env_vars_on_valid_context() {
+        // Part 1: with session token.
+        let mut kc1 = make_kubeconfig_with_exec();
+        let result = inject_aws_credentials_into_kubeconfig(
+            &mut kc1,
+            "my-cluster",
+            "AKIAEXAMPLE",
+            "secret-key",
+            Some("session-token-1"),
+        );
+        assert!(result.is_ok(), "injection into valid exec block must succeed");
+        let exec = kc1.auth_infos[0].auth_info.as_ref().unwrap().exec.as_ref().unwrap();
+        let envs = exec.env.as_ref().expect("env must be set after injection");
+        let get_env = |name: &str| {
+            envs.iter()
+                .find(|e| e.get("name").map(|n| n.as_str()) == Some(name))
+                .and_then(|e| e.get("value").map(|v| v.as_str()))
+        };
+        assert_eq!(get_env("AWS_ACCESS_KEY_ID"), Some("AKIAEXAMPLE"));
+        assert_eq!(get_env("AWS_SECRET_ACCESS_KEY"), Some("secret-key"));
+        assert_eq!(get_env("AWS_SESSION_TOKEN"), Some("session-token-1"));
+
+        // Part 2: fresh kubeconfig, session_token = None → must NOT contain AWS_SESSION_TOKEN.
+        let mut kc2 = make_kubeconfig_with_exec();
+        inject_aws_credentials_into_kubeconfig(
+            &mut kc2,
+            "my-cluster",
+            "AKIAEXAMPLE",
+            "secret-key",
+            None,
+        )
+        .unwrap();
+        let exec2 = kc2.auth_infos[0].auth_info.as_ref().unwrap().exec.as_ref().unwrap();
+        let envs2 = exec2.env.as_ref().expect("env must be set after injection");
+        let get_env2 =
+            |name: &str| envs2.iter().any(|e| e.get("name").map(|n| n.as_str()) == Some(name));
+        assert!(get_env2("AWS_ACCESS_KEY_ID"), "must contain AWS_ACCESS_KEY_ID");
+        assert!(get_env2("AWS_SECRET_ACCESS_KEY"), "must contain AWS_SECRET_ACCESS_KEY");
+        assert!(
+            !get_env2("AWS_SESSION_TOKEN"),
+            "must NOT contain AWS_SESSION_TOKEN when None passed"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Existing tests (retained, one retitled for typed-variant assertion)
+    // ---------------------------------------------------------------------------
 
     #[test]
     fn test_is_aws_sso_auth_error_positive() {
@@ -222,42 +440,7 @@ mod tests {
 
     #[test]
     fn test_inject_aws_profile_into_kubeconfig() {
-        use kube::config::{
-            AuthInfo, Context as KubeContext, ExecConfig, Kubeconfig, NamedAuthInfo, NamedContext,
-        };
-
-        let mut kubeconfig = Kubeconfig {
-            contexts: vec![NamedContext {
-                name: "my-cluster".to_string(),
-                context: Some(KubeContext {
-                    cluster: "my-cluster".to_string(),
-                    user: Some("my-user".to_string()),
-                    ..Default::default()
-                }),
-            }],
-            auth_infos: vec![NamedAuthInfo {
-                name: "my-user".to_string(),
-                auth_info: Some(AuthInfo {
-                    exec: Some(ExecConfig {
-                        api_version: Some("client.authentication.k8s.io/v1beta1".to_string()),
-                        command: Some("aws".to_string()),
-                        args: Some(vec![
-                            "eks".to_string(),
-                            "get-token".to_string(),
-                            "--cluster-name".to_string(),
-                            "my-cluster".to_string(),
-                        ]),
-                        env: None,
-                        drop_env: None,
-                        interactive_mode: None,
-                        provide_cluster_info: false,
-                        cluster: None,
-                    }),
-                    ..Default::default()
-                }),
-            }],
-            ..Default::default()
-        };
+        let mut kubeconfig = make_kubeconfig_with_exec();
 
         let result = inject_aws_profile_into_kubeconfig(&mut kubeconfig, "my-cluster", "secops");
         assert!(result.is_ok());
@@ -323,10 +506,17 @@ mod tests {
         assert_eq!(envs[0].get("value").unwrap(), "new-profile");
     }
 
+    /// Retitled from `test_inject_missing_context_returns_error` — now asserts
+    /// the typed `ContextNotFound` variant.
     #[test]
-    fn test_inject_missing_context_returns_error() {
+    fn test_inject_missing_context_returns_context_not_found() {
         let mut kubeconfig = kube::config::Kubeconfig::default();
         let result = inject_aws_profile_into_kubeconfig(&mut kubeconfig, "nonexistent", "profile");
-        assert!(result.is_err());
+        match result {
+            Err(KubeconfigInjectionError::ContextNotFound { context }) => {
+                assert_eq!(context, "nonexistent");
+            }
+            other => panic!("expected ContextNotFound, got {:?}", other),
+        }
     }
 }

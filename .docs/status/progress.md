@@ -2,13 +2,13 @@
 
 Status source of truth and decision index.
 
-- **Phase**: remediation in flight — slices A + A2 landed, B landing (PR open), slices C–G queued
-- **Last action**: slice B code-eval PASS (Ready to Publish, 2026-08-28);
-  plan archived to `.docs/slice-plans/archive/slice-b-watch-cancellation-eks-refresh.md`.
-  PR landing on branch `slice/b-watch-eks` (watch cancellation + EKS token refresh).
-- **Next**: slice-plan C — AWS credential injection error + async wizard tests
-  (spec 06 findings 0002-H3, 0002-H4). Also pending: Plan Review of back-filled
-  specs 01–05 (roadmap milestone 2).
+- **Phase**: remediation in flight — slices A, A2, B landed; C landing (PR open); slices D–G queued
+- **Last action**: slice C code-eval PASS (Ready to Publish, 2026-08-28);
+  plan archived to `.docs/slice-plans/archive/slice-c-injection-errors-async-tests.md`.
+  PR landing on branch `slice/c-injection-errors` (AWS credential-injection typed errors +
+  async wizard tests).
+- **Next**: slice-plan D — plugin loader UB, helm CLI ops, diff-matrix cap (spec 06
+  remaining highs). Also pending: Plan Review of back-filled specs 01–05 (roadmap milestone 2).
 
 ## Decision index
 

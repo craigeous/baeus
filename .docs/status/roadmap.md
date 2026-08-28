@@ -22,7 +22,9 @@ records, the owner decides.
   **DONE** (code-eval PASS, PR landing on `slice/a2-ci-toolchain-pin`).
 - ~~**Slice B** — watch cancellation + EKS token refresh (0002-H1, 0002-H2)~~
   **DONE** (code-eval PASS, PR landing on `slice/b-watch-eks`).
-- **Slices C–G** — remaining spec 06 highs, to be planned in order.
+- ~~**Slice C** — AWS credential-injection typed errors + async wizard tests (0002-H3, 0002-H4)~~
+  **DONE** (code-eval PASS, PR landing on `slice/c-injection-errors`).
+- **Slices D–G** — remaining spec 06 highs, to be planned in order.
 
 Candidate opportunities noted during the alignment survey (for the owner to
 prioritize, none decided):
