@@ -1,6 +1,6 @@
 # Slice A2 — CI Toolchain Pin
 
-Status: Archived
+Status: Landed
 Target specs: `.docs/spec/06-remediation-highs.md` (§ "Slice A2 — CI toolchain
 pin (owner-directed, 2026-08-26)", authorised by the Amendments section, same
 spec); gate defined by `.docs/spec/03-toolchain-and-gate.md`.
@@ -322,3 +322,9 @@ Slice A2 is Complete when 1–5 are all observably true in CI runs against
 _None._ If a role has a clarifying question, add a dated entry here and
 set the artifact status to `Needs Clarification` per the loom role
 contract.
+
+---
+
+## Landed receipt
+
+- **Landed:** 2026-08-26 via PR #6 (merge commit `95418ffd746defcbc362a280b947f9d53d3bb865` on `main`, remote-verified; CI green on all three OS legs on the pinned 1.98.0 toolchain).
