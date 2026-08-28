@@ -1,6 +1,6 @@
 # Slice C — AWS credential-injection typed errors + async wizard tests
 
-Status: Draft
+Status: Plan Review
 Target specs: `.docs/spec/06-remediation-highs.md` (§ 0002-H3 "Silent no-op
 when exec block is absent in credential injection", § 0002-H4 "Zero async
 tests for AWS SDK paths"); gate defined by
@@ -67,9 +67,12 @@ research 0002 §4). The nine functions research 0002 §4 enumerates are:
 - `sso_get_role_credentials` (aws_eks.rs:416)
 - `authenticate_with_access_key` (aws_eks.rs:471)
 - `assume_role` (aws_eks.rs:508)
-- `create_eks_client` (aws_eks.rs:965 — already covered by slice B's
-  `eks_refresh_layer_refreshes_token_and_updates_authorization_header`,
-  the wiremock acceptance test at aws_eks.rs:1377)
+- `create_eks_client` (aws_eks.rs:965 — slice B added
+  `eks_refresh_layer_refreshes_token_and_updates_authorization_header`
+  at aws_eks.rs:1377, but that test constructs `EksTokenRefresher` and
+  layers `AuthRefreshLayer` **manually** and never invokes
+  `create_eks_client` itself. Slice C adds a direct-invocation test in
+  step 6 to satisfy spec 06 0002-H4 acceptance 4a for this function.)
 - `generate_eks_token` (aws_eks.rs:691 — pure client-side signer;
   network-free)
 
@@ -78,8 +81,9 @@ inline (e.g. aws_eks.rs:235, :263, :299, :344, :383, :422, :480, :512,
 :621) and constructs its SDK client from the loaded config. To route
 these calls to a mock backend the plan adds an internal seam per
 function that accepts an `aws_config::SdkConfig` (or a preconstructed
-SDK client) so tests can inject an `.endpoint_url(mock_uri)` config
-without duplicating production wiring.
+SDK client) so tests can inject a `StaticReplayClient` via
+`.http_client(...)` (smithy-native mock — the spec-preferred choice;
+see step 4) without duplicating production wiring.
 
 ### In scope (Slice C, per spec 06's frozen acceptance)
 
@@ -125,28 +129,40 @@ without duplicating production wiring.
   `SdkConfig` inline. The public function keeps its current signature
   (backward compatibility) and becomes a one-line wrapper that builds
   the default `SdkConfig` and delegates to the new inner. Tests call
-  the inner form directly with a wiremock-endpoint-configured
-  `SdkConfig`.
+  the inner form directly with an `SdkConfig` whose `http_client` is a
+  `StaticReplayClient` (smithy-native mock; see step 4).
 - Add `crates/baeus-core/tests/aws_wizard_smoke.rs` as the integration
   test file spec 06 0002-H4 names verbatim, covering at minimum:
   device-auth happy path, `AuthorizationPendingException` retry, token
   exchange, cluster discovery, `authenticate_with_access_key`,
-  `assume_role`, and `sso_get_role_credentials`. `create_eks_client`
-  already has the slice-B wiremock acceptance test in the same crate
-  — Slice C does not re-cover it (spec 06's list is a *minimum*, not
-  a duplication requirement).
+  `assume_role`, and `sso_get_role_credentials` — all via
+  `aws-smithy-runtime`'s smithy-native `StaticReplayClient` mock.
+- Add an inline `#[tokio::test]` in `aws_eks.rs` for `create_eks_client`
+  that invokes the function directly (Bearer header via wiremock K8s
+  API server + refresh past the 10-second leeway via the returned
+  `EksTokenRefresher`). Slice B's `eks_refresh_layer_...` test at
+  aws_eks.rs:1377 covers `AuthRefreshLayer` construction but does not
+  call `create_eks_client` itself, so spec 06 0002-H4 acceptance 4a
+  requires this direct-invocation test.
 - Add one inline `#[tokio::test]` in `aws_eks.rs` for `generate_eks_token`
   — a pure client-side signer whose test needs no SDK-mock surface and
   is thin enough to sit inline.
-- **Reuse `wiremock` (already dev-dep from slice B) as the mock
-  transport.** Spec 06 0002-H4 fix-approach text: "prefer AWS smithy
-  mock; fall back to `wiremock` only if the smithy mock cannot cover
-  a given call." The smithy-mocks-experimental crate is not currently
-  a dep; adding it would churn the dep tree for surface parity with
-  wiremock's request-observation model (which slice B has already
-  vetted through the deny gate). Spec 06 explicitly authorises
-  wiremock as fallback for the observation-surface it names — this
-  slice takes that fallback for the whole wizard smoke file.
+- **Adopt the AWS smithy-native mock as primary; wiremock only where
+  the smithy mock cannot cover a specific call.** Spec 06 0002-H4
+  fix-approach text: "prefer AWS smithy mock; fall back to `wiremock`
+  only if the smithy mock cannot cover a given call." The plan uses
+  `aws-smithy-runtime`'s stable `test-util` feature (specifically
+  `StaticReplayClient`, attached to `SdkConfig` via `.http_client(...)`)
+  as the primary mock transport for every SDK-touching test. A per-call
+  review (step 4 test list, below) shows StaticReplayClient covers all
+  nine SDK operations — including paginated `ListAccounts` and the
+  400-body `AuthorizationPendingException` case — so no per-call
+  wiremock fallback is currently invoked for the wizard smoke file.
+  wiremock (Cargo.toml:49, retained from slice B) continues to serve
+  the **K8s API server side** (which is not an AWS SDK call and is
+  therefore outside smithy-mock scope) — namely slice B's inline
+  `AuthRefreshLayer` acceptance test and the new `create_eks_client`
+  test added in step 6.
 
 ### Explicit non-goals (deferred per spec 06 Out of scope + slice-plan bounding)
 
@@ -175,10 +191,12 @@ without duplicating production wiring.
   diagnostic message identifies the offending context name —
   Display + anyhow-context achieves that at the injection
   boundary; the UI already renders it.
-- **Replacing wiremock with `aws-smithy-mocks-experimental`** for the
-  wizard smoke tests. Spec 06 explicitly authorises the wiremock
-  fallback; this slice takes it. A future planning cycle may
-  migrate.
+- **Replacing `StaticReplayClient` with `aws-smithy-mocks-experimental`**
+  (or the newer `aws-smithy-mocks`). `aws-smithy-runtime`'s `test-util`
+  feature (a stable AWS-native mock, and the smithy-native mock spec
+  06 prefers) covers every SDK operation this slice touches; the
+  experimental crate is not needed. A future planning cycle may migrate
+  if `aws-smithy-mocks` proves more ergonomic.
 - **Adding tests for `sso_list_account_roles`** (aws_eks.rs:378).
   Not in research 0002 §4's list. Fine to include if the wizard
   smoke naturally covers the endpoint; not gated.
@@ -195,23 +213,31 @@ before consumers, and the H3 and H4 tracks stay disjoint (they touch
 different regions of `aws_sso.rs` / `aws_eks.rs` and can be reviewed
 independently).
 
-### 0. `crates/baeus-core/Cargo.toml` — dev-dependency check
+### 0. `crates/baeus-core/Cargo.toml` — dev-dependencies
 
-**No new dependencies.** `wiremock 0.6` is already a dev-dep from
-slice B (Cargo.toml:49). Verify (`cargo tree -p baeus-core --edges
-dev` or equivalent) that no additional dev-deps are needed for the
-wizard smoke tests. If a test in step 4 uncovers a hard need (e.g.
-`serde_json` used only under `#[cfg(test)]` — currently a
-non-test dep, so this is a formality), add it here as a single
-line with a version pin matching existing workspace policy.
+**Add `aws-smithy-runtime` as a dev-dep with the `test-util` feature enabled.**
+`aws-smithy-runtime` is already a transitive dep of every `aws-sdk-*` crate
+in `[dependencies]`, so this is a feature-flag activation via
+`[dev-dependencies]` rather than a new crate on the tree. Spec 06 0002-H4
+explicitly authorises `[dev-dependencies]` addition "for the chosen mock",
+and this crate is the AWS smithy-native mock the spec prefers over wiremock.
+Pin a version compatible with the workspace's aws-sdk-* versions (verify
+via `cargo tree -p baeus-core --edges dev` post-add; a version already
+present in `Cargo.lock` via transitive resolution is the safe default).
 
-`cargo deny check` must remain green — no crate additions in this
-step means no fresh advisory / licence surface to review.
+`wiremock 0.6` (Cargo.toml:49, from slice B) is retained without change —
+step 6's `create_eks_client` test uses it for the K8s API server side (not
+an AWS SDK call, hence outside smithy-mock scope; the spec's per-call
+fallback condition applies).
+
+`cargo deny check` must remain green — enabling a feature on an existing
+transitive dep does not introduce a new advisory/licence surface; the
+implementer confirms with a local `cargo deny check` before push.
 
 ### 1. `crates/baeus-core/src/aws_sso.rs` — introduce `KubeconfigInjectionError` typed enum (test-first)
 
 **Red tests first.** Extend the existing `#[cfg(test)] mod tests`
-block with four new `#[test]` cases, all synchronous (no SDK
+block with five new `#[test]` cases, all synchronous (no SDK
 involvement):
 
 - `test_inject_profile_returns_exec_block_missing_when_absent` —
@@ -227,6 +253,22 @@ involvement):
 - `test_inject_credentials_returns_auth_info_not_found` — context
   references a user with no matching `AuthInfo`; asserts
   `Err(KubeconfigInjectionError::AuthInfoNotFound { user, context })`.
+- `test_inject_credentials_sets_aws_env_vars_on_valid_context` —
+  green-path proof for `inject_aws_credentials_into_kubeconfig` per
+  spec 06 0002-H3 test expectation (a) ("valid exec-block kubeconfig")
+  for **both** inject functions. Build a kubeconfig where the resolved
+  `AuthInfo` has a valid `exec` block, call
+  `inject_aws_credentials_into_kubeconfig(&mut kc, "my-cluster",
+  "AKIAEXAMPLE", "secret-key", Some("session-token-1"))`, then assert
+  the exec block's `env` vec contains three entries with
+  `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN`
+  bound to the passed values. Also call the function a second time
+  with `session_token = None` and assert the env vec no longer contains
+  `AWS_SESSION_TOKEN`-only regression coverage on the session-token
+  insertion path at aws_sso.rs:155-169 (rewritten in this step's
+  `match`-based control flow). The sibling function is already covered
+  at aws_sso.rs:224 / :273; this test brings the credentials function
+  to parity.
 
 The existing three tests
 (`test_inject_aws_profile_into_kubeconfig`,
@@ -404,93 +446,100 @@ compiles unchanged.
 
 ### 4. `crates/baeus-core/tests/aws_wizard_smoke.rs` — new integration test file (test-first, complete surface)
 
-Create the file spec 06 0002-H4 names verbatim. Each test builds a
-wiremock `MockServer` with fixture responses for the specific SDK
-operation under test, constructs an `aws_config::SdkConfig` via
-`aws_config::defaults(BehaviorVersion::latest())`
-`.endpoint_url(mock_server.uri())`
+Create the file spec 06 0002-H4 names verbatim. **Primary mock:**
+`aws_smithy_runtime::client::http::test_util::StaticReplayClient` (the
+AWS smithy-native mock, gated behind the `test-util` feature of
+`aws-smithy-runtime` added in step 0). Each test builds a
+`Vec<ReplayEvent>` with expected request/response pairs, constructs a
+`StaticReplayClient` from that vec, and attaches it to an
+`aws_config::SdkConfig` via `.http_client(replay_client.clone())`, then
+passes the config to the `_with_config` inner. `SdkConfig` is otherwise
+built with `aws_config::defaults(BehaviorVersion::latest())`
 `.region(Region::new("us-east-1"))`
 `.credentials_provider(Credentials::new("AKIA…", "secret", None, None,
-"test"))` (or `.no_credentials()` for the OIDC bootstrap flows),
-`.load().await`, and passes that `SdkConfig` to the `_with_config`
-inner. Fixture responses live inline in each `#[tokio::test]` as
-`serde_json::json!({...})` values matching the SDK operation's wire
-format (verified against the `aws-sdk-*` crate documentation for the
-version pinned in `Cargo.lock`).
+"test"))` (or `.no_credentials()` for the OIDC bootstrap flows) and
+`.load().await`. Response bodies are inline `serde_json::json!({...})`
+values matching each SDK operation's wire format (verified against the
+`aws-sdk-*` crate documentation for the version pinned in `Cargo.lock`);
+for STS's query-protocol operations (`GetCallerIdentity`, `AssumeRole`)
+the body is an XML string literal per the SDK's response schema.
+
+**Per-call mock coverage review (spec 06's conditional).** Each test
+below was reviewed against `StaticReplayClient`'s coverage model
+(deterministic request → response replay, arbitrary HTTP status, body
+matching, headers accessible). All nine SDK operations are coverable;
+**no wiremock fallback is invoked for any test in this file**.
 
 Test set (each is a single `#[tokio::test]` unless noted):
 
-- **`sso_register_client_returns_client_id_and_secret`** — wiremock
-  serves the `RegisterClient` OIDC response
-  `{"clientId": "cid-1", "clientSecret": "csec-1", …}` on
-  `POST /client/register`. Asserts the tuple returned matches.
-- **`sso_start_device_auth_returns_device_and_user_codes`** —
-  serves the `StartDeviceAuthorization` response with `deviceCode`,
-  `userCode`, `verificationUri`, `verificationUriComplete`,
-  `expiresIn: 600`, `interval: 5`. Asserts the parsed
-  `SsoDeviceAuth` values (including `poll_interval` matching
-  5 s and `expires_at` roughly `now + 600 s`).
-- **`sso_poll_for_token_returns_pending_on_authorization_pending`** —
-  serves `CreateToken` with a `400`-plus-error-body of
-  `{"error": "authorization_pending", ...}`. Asserts the return
-  is `SsoTokenResult::Pending` (the existing code path at
-  aws_eks.rs:327 matches on `is_authorization_pending_exception`;
-  wiremock's status + body faithfully reproduces the SDK's
-  deserialised service error).
-- **`sso_poll_for_token_returns_success_on_valid_grant`** — serves
-  `CreateToken` with `{"accessToken": "at-1", "expiresIn": 3600,
-  …}`. Asserts the return is `SsoTokenResult::Success` with the
-  expected access token and a near-1-hour expiry.
-- **`sso_list_accounts_paginates_and_returns_all`** — first
-  `ListAccounts` response returns two accounts and a
-  `nextToken`; second call (matched by presence of `next_token=`)
-  returns two more accounts and no `nextToken`. Asserts four
-  accounts in the returned vec.
-- **`sso_get_role_credentials_returns_session`** — serves
-  `GetRoleCredentials` with a `roleCredentials` object containing
-  `accessKeyId`, `secretAccessKey`, `sessionToken`, `expiration`.
-  Asserts the returned `AwsSession` carries those credentials and
-  the region.
-- **`authenticate_with_access_key_returns_session`** — wiremock
-  routes STS `GetCallerIdentity` (`POST /` with
-  `Action=GetCallerIdentity` form body) to a stub returning
-  `<GetCallerIdentityResponse><…><Arn>…</Arn></…>`. Asserts the
+- **`sso_register_client_returns_client_id_and_secret`** — replay one
+  `RegisterClient` OIDC response
+  `{"clientId": "cid-1", "clientSecret": "csec-1", …}` (HTTP 200).
+  Asserts the tuple returned matches. Single r/r — StaticReplayClient
+  natively covers.
+- **`sso_start_device_auth_returns_device_and_user_codes`** — replay
+  a `StartDeviceAuthorization` response with `deviceCode`, `userCode`,
+  `verificationUri`, `verificationUriComplete`, `expiresIn: 600`,
+  `interval: 5`. Asserts the parsed `SsoDeviceAuth` values (including
+  `poll_interval` matching 5 s and `expires_at` roughly `now + 600 s`).
+  Single r/r — covered.
+- **`sso_poll_for_token_returns_pending_then_success`** — folded
+  two-step test (per plan-eval MINOR #5) that proves 4b's
+  retry-on-pending wording directly. Replay two `CreateToken` events on
+  the same client instance: first responds `400` with body
+  `{"error": "authorization_pending", …}`, second responds `200` with
+  `{"accessToken": "at-1", "expiresIn": 3600, …}`. Test invokes
+  `sso_poll_for_token_with_config` twice against the same
+  `SdkConfig`+client, asserts the first return is
+  `SsoTokenResult::Pending` (matching `is_authorization_pending_exception`
+  at aws_eks.rs:325-331) and the second is `SsoTokenResult::Success`
+  with the expected access token and a near-1-hour expiry. Two r/r
+  events — StaticReplayClient covers deterministically.
+- **`sso_list_accounts_paginates_and_returns_all`** — replay two
+  events: first `ListAccounts` response returns two accounts and a
+  `nextToken`; second returns two more accounts and no `nextToken`.
+  Asserts four accounts in the returned vec. StaticReplayClient
+  matches events in request order — the function's inner pagination
+  loop is deterministic, so replay ordering is sufficient.
+- **`sso_get_role_credentials_returns_session`** — replay one
+  `GetRoleCredentials` response with a `roleCredentials` object
+  containing `accessKeyId`, `secretAccessKey`, `sessionToken`,
+  `expiration`. Asserts the returned `AwsSession` carries those
+  credentials and the region.
+- **`authenticate_with_access_key_returns_session`** — replay one STS
+  `GetCallerIdentity` XML response
+  (`<GetCallerIdentityResponse><…><Arn>…</Arn></…>`). Asserts the
   returned `AwsSession.account_id`, `.identity_arn` match.
+  StaticReplayClient body-matches on the XML — query-protocol
+  covered.
 - **`assume_role_returns_session_with_temporary_credentials`** —
-  wiremock routes STS `AssumeRole` to a stub returning
-  `<AssumeRoleResponse><…>` with an `AssumedRoleUser.Arn` and
-  temporary `Credentials`. Asserts the returned `AwsSession`
-  carries the expected ARN and expiry.
+  replay one STS `AssumeRole` XML response with an
+  `AssumedRoleUser.Arn` and temporary `Credentials`. Asserts the
+  returned `AwsSession` carries the expected ARN and expiry.
 - **`discover_clusters_in_region_returns_described_clusters`** —
-  first request `ListClusters` returns two names; two follow-up
-  `DescribeCluster` requests each return an `EksCluster` payload.
-  Asserts the returned `Vec<EksCluster>` has both, in the right
-  region, with certificate-authority data present.
-- **`generate_eks_token_returns_prefixed_and_base64_url_encoded`** —
-  inline in `aws_eks.rs` (see step 6); this test *does not* need
-  wiremock — the signer is client-side.
+  replay three events in order: `ListClusters` returns two names,
+  then two `DescribeCluster` responses each returning an `EksCluster`
+  payload. Asserts the returned `Vec<EksCluster>` has both, in the
+  right region, with certificate-authority data present.
+  StaticReplayClient's deterministic ordering matches the function's
+  sequential describe loop.
 
-**Wiremock matchers.** Each mock uses
-`wiremock::matchers::{method, path, header, body_string_contains}`
-as needed to disambiguate multi-op flows (e.g. `ListAccounts`
-paginated). For STS's form-encoded body, use
-`body_string_contains("Action=GetCallerIdentity")` /
-`body_string_contains("Action=AssumeRole")` — the SDK sends URL-encoded
-form data for query-protocol operations.
+**Endpoint routing.** All tests use `Region::new("us-east-1")` and
+attach the `StaticReplayClient` via `SdkConfig.http_client(...)`, so
+the SDK routes all outbound HTTP through the replay client — no live
+network calls, no per-service host mismatch.
 
-**Region parameter.** All tests use `"us-east-1"`. `SdkConfig`'s
-`.endpoint_url(mock_uri)` overrides the region-derived endpoint the
-SDK would otherwise pick, so no per-service host mismatch matters.
-
-**Concurrency and time.** No wall-clock sleeps are needed in this
-file (unlike slice B's refresher test). Each test spins its own
-`MockServer` (`MockServer::start().await`) — wiremock guarantees
-per-test isolation.
+**Concurrency and time.** No wall-clock sleeps are needed. Each test
+constructs its own `StaticReplayClient` (`StaticReplayClient::new(...)`)
+— test isolation is per-`SdkConfig`, matching wiremock's per-`MockServer`
+model.
 
 **Error-typing acceptance:** spec 06 0002-H4 does not itself add a
 "typed error" acceptance to this file — the acceptance is one
 `#[tokio::test]` per function plus the `AuthorizationPendingException`
-retry case. Test count for the file: 9 tests.
+retry case. Test count for the file: 8 tests (one fewer than the
+pre-fold count of 9, per plan-eval MINOR #5 folding
+pending+success).
 
 ### 5. `crates/baeus-ui/src/layout/app_shell.rs` — verify no UI edit is needed for H3 diagnostic surface
 
@@ -522,23 +571,96 @@ a UI edit that spec 06 does not scope into Slice C. Based on the
 current tree (verified 2026-08-28) no such truncation exists; step 5
 is expected to be a pure grep-and-eyeball verification.
 
-### 6. `crates/baeus-core/src/aws_eks.rs` — inline `generate_eks_token` sanity test
+### 6. `crates/baeus-core/src/aws_eks.rs` — inline `#[tokio::test]` for `generate_eks_token` and `create_eks_client`
 
-Add one `#[tokio::test]` inline (in the existing `#[cfg(test)] mod
-tests` block) since the function is a pure client-side signer with
-no SDK-mock surface:
+Add two `#[tokio::test]` cases inline (in the existing
+`#[cfg(test)] mod tests` block, alongside slice B's refresher tests):
 
 - **`generate_eks_token_returns_prefixed_and_base64_url_encoded`** —
-  construct `Credentials::new("AKIA…", "secret", None, None,
+  pure client-side signer test (no SDK-mock surface). Construct
+  `Credentials::new("AKIA…", "secret", None, None,
   "test-provider")`, call
   `generate_eks_token("my-cluster", &creds, "us-east-1").await?`,
   assert the returned string starts with `"k8s-aws-v1."` and that
   the tail (post-prefix) decodes as base64url to a
   `https://sts.us-east-1.amazonaws.com/?…` URL containing
   `Action=GetCallerIdentity`, `X-Amz-Signature=`, and the correct
-  `X-Amz-Credential` prefix. This satisfies spec 06 0002-H4's
-  "At least one `#[tokio::test]` exists for every function
-  listed" without needing SDK mocking.
+  `X-Amz-Credential` prefix.
+
+- **`create_eks_client_returns_bearer_token_and_refreshes_past_leeway`**
+  — end-to-end invocation of `create_eks_client` (aws_eks.rs:965)
+  itself, satisfying spec 06 0002-H4 acceptance 4a's "at least one
+  `#[tokio::test]` exists for every function listed" for
+  `create_eks_client` specifically. The fix-approach text names a
+  "`create_eks_client` round-trip (which now includes the refresher
+  from 0002-H2)" — this test proves both halves:
+
+  1. **Round-trip through `create_eks_client` itself.** Build an
+     `EksCluster` with a **valid self-signed CA PEM** (embedded as a
+     `const &str` at the top of the test — a well-formed
+     `-----BEGIN CERTIFICATE-----` payload that rustls-pemfile parses;
+     no external cert generation needed and no new dev-deps), a
+     `name`/`region`/`arn` of `"test-cluster"`/`"us-east-1"`/
+     `"arn:aws:eks:us-east-1:123456789012:cluster/test-cluster"`, and
+     an `endpoint` pointing at a wiremock `MockServer` URI (which
+     accepts any request and returns an empty `NamespaceList`, mirroring
+     slice B's `eks_refresh_layer_...` mock at aws_eks.rs:1387-1396).
+     Construct
+     `Credentials::new("AKIAEXAMPLE", "secretkey", None, None, "test")`
+     and call `let (client, refresher) =
+     create_eks_client(&cluster, &credentials).await?;`. This exercises
+     the function's full body: `generate_eks_token` invocation, refresh
+     closure construction, `kube::Config::from_custom_kubeconfig` build,
+     `rustls_https_connector()` build, and `ServiceBuilder` stack
+     assembly.
+
+  2. **Bearer header + refresher, observed via the mock K8s API server.**
+     Issue one `kube::Api::<Namespace>::all(client).list(&Default::
+     default()).await` against the wiremock. Assert the received request
+     carries an `authorization: Bearer k8s-aws-v1.…` header (proves the
+     `AuthRefreshLayer` wired by `create_eks_client` is active and the
+     initial token from `generate_eks_token` is plumbed through). To
+     prove the refresher half, call `refresher.refresh().await?` and
+     assert `refresher.current_token()` is a distinct `k8s-aws-v1.…`
+     value from the initial (proves the refresh closure captured by
+     `create_eks_client` regenerates a fresh presigned token, exactly
+     the "which now includes the refresher" phrase).
+
+  **Wiremock scope note (spec 06 conditional).** This test uses
+  wiremock — not `StaticReplayClient` — because the mock surface is
+  the **K8s API server**, not an AWS SDK operation. Per spec 06 0002-H4:
+  "prefer AWS smithy mock; fall back to `wiremock` only if the smithy
+  mock cannot cover a given call." A smithy-native mock is scoped to
+  aws-smithy-runtime HTTP clients (i.e. the AWS SDK's outbound calls);
+  it cannot mock a `kube::Client`'s outbound HTTP to a K8s API server,
+  since kube-rs uses `hyper_util` directly (not the smithy runtime).
+  wiremock is therefore the sanctioned fallback for this specific call.
+
+  **CA data note.** `rustls_https_connector()` parses the CA data at
+  build time; the test's embedded self-signed PEM must parse (a well-
+  formed cert is sufficient — validity of the signature chain is not
+  checked at build time). If a viable const is unavailable, the
+  implementer generates one at test time via `rustls`'s test helpers
+  (already a workspace dep) without adding new deps. The test does
+  **not** validate the mock server's TLS cert against the CA (the mock
+  is HTTP; the test issues an `http://` request against the mock URI
+  and slice B's pattern of `HttpConnector::enforce_http(false)` is
+  reproduced by driving the `list()` call through the assembled
+  service).
+
+  **Alternative (fallback path if the TLS layer refuses HTTP against
+  the mock):** if `create_eks_client`'s hard-wired
+  `rustls_https_connector()` cannot be persuaded to speak to a plain
+  wiremock, the implementer adds a **minimal test-only seam**:
+  `pub(crate) async fn create_eks_client_with_http_client(...)` that
+  accepts a pre-built `hyper_util::client::legacy::Client` (bypasses
+  `rustls_https_connector`) and is called only from this test. The
+  public `create_eks_client` signature is unchanged; the seam is
+  `pub(crate)` (inline test, so `pub(crate)` visibility suffices —
+  the smoke integration file is not involved). This seam is
+  intentionally the *last resort* — the primary path is a direct call
+  to `create_eks_client`, per the evaluator's guidance that "no new
+  seam" should be needed.
 
 ### 7. Cross-check documentation references
 
@@ -579,24 +701,32 @@ before the branch is pushed for review:
 1. **Format** — `cargo fmt --all -- --check`.
 2. **Lint** — `RUST_MIN_STACK=268435456 cargo clippy --workspace
    --all-targets -- -D warnings`.
-3. **Test** — `RUST_MIN_STACK=268435456 cargo test --workspace`. The
-   test count must **increase** by exactly:
-   - 4 tests from step 1 in `aws_sso.rs`
+3. **Test** — `RUST_MIN_STACK=268435456 cargo nextest run --workspace`
+   (matching CI's actual command at ci.yml:86; `cargo test --workspace`
+   remains a locally acceptable substitute since wiremock's
+   `MockServer` and StaticReplayClient tests are process-model-agnostic).
+   The test count must **increase** by exactly:
+   - 5 tests from step 1 in `aws_sso.rs`
      (`test_inject_profile_returns_exec_block_missing_when_absent`,
      `test_inject_credentials_returns_exec_block_missing_when_absent`,
      `test_inject_credentials_returns_context_not_found`,
-     `test_inject_credentials_returns_auth_info_not_found`) — the
-     existing three green-path tests continue to pass (one is
+     `test_inject_credentials_returns_auth_info_not_found`,
+     `test_inject_credentials_sets_aws_env_vars_on_valid_context`) —
+     the existing three green-path tests continue to pass (one is
      retitled but not deleted).
-   - 9 tests from step 4 in `crates/baeus-core/tests/aws_wizard_smoke.rs`
-     (one per operation listed in step 4).
-   - 1 test from step 6 in `aws_eks.rs`
-     (`generate_eks_token_returns_prefixed_and_base64_url_encoded`).
-   - Total: **+14 tests**.
+   - 8 tests from step 4 in `crates/baeus-core/tests/aws_wizard_smoke.rs`
+     (one per operation listed in step 4, with pending+success folded
+     into a single `sso_poll_for_token_returns_pending_then_success`
+     per plan-eval MINOR #5).
+   - 2 tests from step 6 in `aws_eks.rs`
+     (`generate_eks_token_returns_prefixed_and_base64_url_encoded` and
+     `create_eks_client_returns_bearer_token_and_refreshes_past_leeway`).
+   - Total: **+15 tests**.
    Constitution invariant: "no decrease in test count" — this slice
-   *adds* fourteen, satisfying the invariant strictly.
-4. **Deny** — `cargo deny check` (green post-slice-A; no dep additions
-   in this slice, so the surface is unchanged).
+   *adds* fifteen, satisfying the invariant strictly.
+4. **Deny** — `cargo deny check` (green post-slice-A; enabling
+   `aws-smithy-runtime`'s `test-util` feature does not add a new
+   crate, so the licence/advisory surface is unchanged).
 
 ### Remote (on the PR)
 
@@ -612,10 +742,18 @@ slice A2) must pass all four gate steps on all three legs.
     by step 1's `test_inject_profile_returns_exec_block_missing_when_absent`
     and `test_inject_credentials_returns_exec_block_missing_when_absent`.**
 3b. Existing callers that expect `Ok(())` on the happy path are
-    unaffected. **Proven by the retained green-path tests
+    unaffected. **Proven by (i) the retained green-path tests for
+    `inject_aws_profile_into_kubeconfig`
     (`test_inject_aws_profile_into_kubeconfig`,
     `test_inject_aws_profile_overwrites_existing`) — both continue
-    to compile and pass unchanged.**
+    to compile and pass unchanged; and (ii) step 1's new green-path
+    test for `inject_aws_credentials_into_kubeconfig`
+    (`test_inject_credentials_sets_aws_env_vars_on_valid_context`),
+    which covers the "valid exec-block kubeconfig" case spec 06
+    0002-H3 test expectation (a) demands for "both inject functions"
+    and asserts the rewritten `match`-based env-insertion body (aws_
+    sso.rs:127-171 in its new form) preserves the pre-slice env-var
+    mutation semantics.**
 3c. Error message identifies the offending context name. **Proven
     by the Display impl on `KubeconfigInjectionError::ExecBlockMissing`
     (interpolates `{context}`) plus step 2's anyhow-context wrap
@@ -630,16 +768,38 @@ slice A2) must pass all four gate steps on all three legs.
     `sso_poll_for_token`, `sso_list_accounts`, `sso_get_role_credentials`,
     `authenticate_with_access_key`, `assume_role`, `create_eks_client`,
     `generate_eks_token`). **Proven by the file layout: step 4's
-    smoke file covers seven; step 6's inline covers `generate_eks_token`;
-    slice B's inline `eks_refresh_layer_refreshes_token_and_updates_authorization_header`
-    covers `create_eks_client`. Nine of nine.**
+    smoke file covers seven of the SSO / SSO-OIDC / STS operations
+    (with pending+success folded into a single test that still
+    proves `sso_poll_for_token`); step 6's two inline tests cover
+    `generate_eks_token` and `create_eks_client` — the latter is a
+    direct invocation of the function itself (not a proxy through
+    downstream components), so 4a is satisfied by a test that
+    literally calls `create_eks_client(&cluster, &credentials).await`
+    and asserts on both the Bearer header (via the mock K8s API
+    server) and the refresher regenerating past the 10-second
+    leeway. Nine of nine, with `create_eks_client` proven by a test
+    that invokes it directly rather than by inference from slice B's
+    `AuthRefreshLayer` construction test.**
 4b. The device-auth polling test asserts the retry-on-pending
     behaviour. **Proven by
-    `sso_poll_for_token_returns_pending_on_authorization_pending`.**
+    `sso_poll_for_token_returns_pending_then_success` — a single
+    test replaying a 400 `authorization_pending` then a 200 success
+    against the same client, asserting `SsoTokenResult::Pending`
+    on the first call and `SsoTokenResult::Success` on the second
+    (per plan-eval MINOR #5, this folded shape proves the
+    pending→success retry sequence more directly than two isolated
+    tests).**
 4c. Tests run under the existing test gate without requiring live
-    AWS credentials or network access. **Proven by wiremock
-    localhost-only mock servers and stubbed credentials in every
-    smoke test.**
+    AWS credentials or network access. **Proven by
+    `aws_smithy_runtime`'s `StaticReplayClient` (in-process
+    replay, no network) for all SDK-touching tests and wiremock
+    (localhost-only mock server, no external routes) for step 6's
+    K8s API server test; every test injects stubbed credentials.
+    The CI gate at ci.yml:86 runs `cargo nextest run --workspace` —
+    both StaticReplayClient and wiremock's `MockServer` are
+    per-test-isolated (per-`SdkConfig`/per-`MockServer` instance),
+    so they operate identically under nextest's per-process test
+    model and cargo test's shared-process model.**
 
 ### Gate (spec 03 + slice-specific)
 
@@ -647,7 +807,7 @@ slice A2) must pass all four gate steps on all three legs.
 |--------|----------------------------------------------------------------------------------|
 | format | `cargo fmt --all -- --check`                                                     |
 | lint   | `RUST_MIN_STACK=268435456 cargo clippy --workspace --all-targets -- -D warnings` |
-| test   | `RUST_MIN_STACK=268435456 cargo test --workspace` (+14 tests)                    |
+| test   | `RUST_MIN_STACK=268435456 cargo nextest run --workspace` (+15 tests)             |
 | deny   | `cargo deny check`                                                               |
 
 ## Notes
@@ -670,20 +830,27 @@ slice A2) must pass all four gate steps on all three legs.
   non-wizard EKS connect path (app_shell.rs:1848). Both call sites
   receive the anyhow-context wrap in step 2.
 
-- **2026-08-28 — Wiremock over smithy-mocks-experimental.** Spec 06
-  0002-H4's "prefer AWS smithy mock; fall back to `wiremock`" gives
-  the planner discretion to select. This plan selects wiremock for
-  three reasons: (1) it is already vetted through the deny gate as
-  a slice-B dev-dep; (2) `aws-smithy-mocks-experimental` (or the
-  newer `aws-smithy-runtime`'s `test-util` feature with
-  `StaticReplayClient`) is not currently on the tree — adding it
-  is a fresh advisory/licence surface for `cargo deny check` and a
-  larger dep-tree delta than this slice warrants; (3) slice B's
-  precedent shows wiremock cleanly covers request-observation flows
-  including request-body content-matching (the substitution for
-  the STS presigned-URL observation). The evaluator may request a
-  smithy-mocks migration as a revision if the wiremock harness
-  proves insufficient for any specific SDK operation.
+- **2026-08-28 — Smithy-native mock (`StaticReplayClient`) over
+  wiremock for SDK-touching tests.** Spec 06 0002-H4's "prefer AWS
+  smithy mock; fall back to `wiremock` only if the smithy mock cannot
+  cover a given call" is a per-call, coverage-based condition — not
+  a blanket authorization. This plan honours it by:
+  (1) adopting `aws-smithy-runtime`'s `test-util` feature (stable, AWS-
+  native, gives `StaticReplayClient` — the smithy-native mock spec 06
+  prefers) as the primary transport for the eight SDK-touching tests
+  in `tests/aws_wizard_smoke.rs`; enabling this feature on an existing
+  transitive dep does not add a new crate to the tree, so
+  `cargo deny check` surface is unchanged. (2) A per-call review
+  (step 4 test list) confirms StaticReplayClient covers every SDK
+  operation the smoke file touches; **no wiremock fallback is invoked
+  for any test in that file.** (3) wiremock is retained as the
+  spec-sanctioned fallback for exactly one call the smithy mock
+  demonstrably **cannot** cover: step 6's `create_eks_client` test,
+  which needs to mock the **K8s API server** (a `hyper_util` HTTP
+  target, not an aws-smithy-runtime target), so smithy-native mocks
+  are out of scope by construction. This is the per-call fallback
+  spec 06 permits. Slice B's inline `AuthRefreshLayer` test also
+  continues to use wiremock (same rationale).
 
 - **2026-08-28 — `_with_config` seam surface (`pub` + `#[doc(hidden)]`).**
   Spec 06 0002-H4 authorises "constructor-injection or a `SdkConfig`
