@@ -201,6 +201,20 @@ the AWS `SdkConfig` and the cluster ARN so it can call
   `Utc::now() + 10s >= expires_at`, else false.
 - No decrease in existing test count.
 
+**Clarification note (2026-08-28, post slice B code-eval):** The spec above
+names `create_client_from_path_with_aws_creds` (`client.rs:199`) as a file
+wiring the refresher through when constructing EKS clients. For clarity:
+`create_client_from_path_with_aws_creds` is **not** an EKS-client constructor
+in the implemented code — it is a kubeconfig-path-based generic client builder.
+The live EKS path goes through exec-plugin credentials (per-call refresh is
+handled by the kube-rs `AuthLayer` on each request). The 60-second TTL defect
+(no refresh mechanism) lived only in `create_eks_client`. Slice B's refactor of
+`create_eks_client` introduces the `EksTokenRefresher` and wires it into the
+auth middleware; production wiring of the refresher into the broader cluster
+connection lifecycle remains **deferred by design** (it is a follow-on, not
+part of slice B's acceptance criteria). No normative text in this spec is
+affected by this note.
+
 ### 0002-H3 — Silent no-op when exec block is absent in credential injection
 
 **Finding:** `crates/baeus-core/src/aws_sso.rs:80-81,139-140` —

@@ -22,12 +22,13 @@ Active slice-plans live here; landed ones move to
   Status: Plan Review — CI toolchain pin (owner-directed 2026-08-26,
   spec 06 Amendments). Kills the toolchain-drift class slice A hit
   post-publish.
-- [`slice-b-watch-cancellation-eks-refresh.md`](slice-b-watch-cancellation-eks-refresh.md) —
-  Status: Plan Review — Core watch cancellation + EKS token refresh
-  (spec 06 findings 0002-H1, 0002-H2).
 
 ## Archived
 
+- [`archive/slice-b-watch-cancellation-eks-refresh.md`](archive/slice-b-watch-cancellation-eks-refresh.md) —
+  Status: Archived — Core watch cancellation + EKS token refresh (spec 06
+  findings 0002-H1, 0002-H2). Code-eval PASS; PR landing on branch
+  `slice/b-watch-eks`.
 - [`archive/slice-a-ci-hardening.md`](archive/slice-a-ci-hardening.md) —
   Status: Archived — CI & release hygiene (spec 06 findings 0006-H1, H2, H3,
   H4). Code-eval PASS; PR landing on branch `slice/a-ci-hardening`.

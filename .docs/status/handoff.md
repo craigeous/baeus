@@ -8,10 +8,11 @@
    action, decision index.
 3. Check [`.docs/status/roadmap.md`](roadmap.md) — what the owner wants next.
 
-## Current context (2026-08-25)
+## Current context (2026-08-28)
 
-- The repo is loom-shaped as of today's `/loom:init` alignment pass
-  (Unaligned-bare → aligned). Future `/loom:*` runs detect **Initialized**.
+- Slices A and A2 have landed on `main`. Slice B (watch cancellation + EKS
+  token refresh) passed code evaluation (Ready to Publish, 2026-08-28);
+  plan archived to `.docs/slice-plans/archive/`.
 - Five descriptive specs (`.docs/spec/01`–`05`) are Draft and need Plan
   Review; six ADRs and one research note were imported from the speckit repo
   with status preserved.
@@ -21,8 +22,6 @@
 
 ## Immediate next step
 
-**Developing B (loom:run, 2026-08-26):** slice-plan B Approved; developer
-implementing on branch `slice/b-watch-eks` (watch cancellation + EKS token
-refresh). A2 is Ready to Publish as PR #6 (awaiting owner merge). On B
-Implemented: automated security review → blind code eval (Kimi K3) → PR.
-Remaining: C → D → E → F → G (+A3 bump automation, deferred).
+**Open B PR and merge on green** (`slice/b-watch-eks` → `main`; CI must pass).
+Then: slice-plan C — AWS credential injection error + async wizard tests
+(spec 06 findings 0002-H3, 0002-H4). Remaining after C: D → E → F → G.
