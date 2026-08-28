@@ -10,9 +10,9 @@
 
 ## Current context (2026-08-28)
 
-- Slices A and A2 have landed on `main`. Slice B (watch cancellation + EKS
-  token refresh) passed code evaluation (Ready to Publish, 2026-08-28);
-  plan archived to `.docs/slice-plans/archive/`.
+- Slices A, A2, and B have landed on `main`. Slice C (AWS credential-injection
+  typed errors + async wizard tests) passed code evaluation (Ready to Publish,
+  2026-08-28); plan archived to `.docs/slice-plans/archive/`.
 - Five descriptive specs (`.docs/spec/01`–`05`) are Draft and need Plan
   Review; six ADRs and one research note were imported from the speckit repo
   with status preserved.
@@ -22,6 +22,6 @@
 
 ## Immediate next step
 
-**Open B PR and merge on green** (`slice/b-watch-eks` → `main`; CI must pass).
-Then: slice-plan C — AWS credential injection error + async wizard tests
-(spec 06 findings 0002-H3, 0002-H4). Remaining after C: D → E → F → G.
+**Open C PR and merge on green** (`slice/c-injection-errors` → `main`; CI must pass).
+Then: slice-plan D — plugin loader UB, helm CLI ops, diff-matrix cap
+(spec 06 remaining highs). Remaining after D: E → F → G.

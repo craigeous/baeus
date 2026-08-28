@@ -18,13 +18,14 @@ Active slice-plans live here; landed ones move to
 
 ## Active
 
-- [`slice-c-injection-errors-async-tests.md`](slice-c-injection-errors-async-tests.md) —
-  Status: Plan Review — AWS credential-injection typed errors + async
-  wizard tests (spec 06 findings 0002-H3, 0002-H4). Branch:
-  `docs/slice-c-plan`.
+_(none — slice D is next to be planned)_
 
 ## Archived
 
+- [`archive/slice-c-injection-errors-async-tests.md`](archive/slice-c-injection-errors-async-tests.md) —
+  Status: Archived — AWS credential-injection typed errors + async wizard
+  tests (spec 06 findings 0002-H3, 0002-H4). Code-eval PASS; PR landing on
+  branch `slice/c-injection-errors`.
 - [`archive/slice-b-watch-cancellation-eks-refresh.md`](archive/slice-b-watch-cancellation-eks-refresh.md) —
   Status: Archived — Core watch cancellation + EKS token refresh (spec 06
   findings 0002-H1, 0002-H2). Code-eval PASS; PR landing on branch
